@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Bun
+bun.lockb
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temp files
+*.tmp
+*.temp
+.cache/
+
+# VSCode extension
+apps/vscode-extension/*.vsix
+
+# Memoria data (optional - uncomment if you don't want to track)
+# .memoria/store/
+# .memoria/sessions/
