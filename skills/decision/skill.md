@@ -3,14 +3,14 @@ name: decision
 description: 設計決定を記録する。
 ---
 
-# /memoria decision
+# /memoria:decision
 
 設計決定（ADR: Architecture Decision Record）を記録するスキルです。
 
 ## 使い方
 
 ```
-/memoria decision "タイトル"
+/memoria:decision "タイトル"
 ```
 
 対話形式で設計決定を記録します。
@@ -23,14 +23,59 @@ description: 設計決定を記録する。
    - reasoning: なぜその決定をしたか
    - alternatives: 検討した代替案（オプション）
    - tags: 関連タグ
-3. MCPツール `memoria_save_decision` を呼び出して保存
+3. `.memoria/decisions/{id}.json` に保存
+
+### 具体的な操作
+
+```bash
+# 決定ディレクトリを確認・作成
+mkdir -p .memoria/decisions
+
+# 決定JSONを作成して保存
+Write: .memoria/decisions/jwt-auth-001.json
+```
+
+## 設計決定JSONスキーマ
+
+```json
+{
+  "id": "jwt-auth-001",
+  "title": "認証方式の選択",
+  "decision": "セッション管理にJWTを採用する",
+  "reasoning": "マイクロサービス間での認証共有が容易。ステートレスでスケーラブル。",
+  "alternatives": [
+    {
+      "name": "セッションCookie",
+      "reason": "サーバー側で状態管理が必要、スケールしにくい"
+    }
+  ],
+  "tags": ["auth", "architecture", "jwt"],
+  "createdAt": "2026-01-24T10:00:00Z",
+  "user": {
+    "name": "user-name"
+  },
+  "context": {
+    "branch": "feature/auth",
+    "projectDir": "/path/to/project"
+  }
+}
+```
+
+## ID生成ルール
+
+タイトルからスラッグを生成:
+- 英数字とハイフンのみ
+- 小文字に変換
+- 末尾に連番（001, 002, ...）を付与
+
+例: "認証方式の選択" → `auth-method-selection-001`
 
 ## 入力フォーマット
 
 ### 対話形式
 
 ```
-> /memoria decision "認証方式の選択"
+> /memoria:decision "認証方式の選択"
 
 設計決定を記録します。
 
@@ -52,10 +97,10 @@ description: 設計決定を記録する。
 ```
 設計決定を保存しました。
 
-ID: jwt-auth-decision-001
+ID: jwt-auth-001
 タイトル: 認証方式の選択
 決定: セッション管理にJWTを採用する
 タグ: [auth] [architecture] [jwt]
 
-この決定は /memoria search で検索できます。
+この決定は /memoria:search で検索できます。
 ```

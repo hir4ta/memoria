@@ -3,14 +3,14 @@ name: dashboard
 description: WebダッシュボードのURLを表示する。
 ---
 
-# /memoria dashboard
+# /memoria:dashboard
 
 Webダッシュボードを起動または表示するスキルです。
 
 ## 使い方
 
 ```
-/memoria dashboard
+/memoria:dashboard
 ```
 
 ダッシュボードのURLを表示します。まだ起動していない場合は起動方法を案内します。
@@ -43,14 +43,16 @@ URL: http://localhost:3000
 ```
 ダッシュボードを起動するには、以下のコマンドを実行してください:
 
-cd /path/to/project
-npm run dashboard
-
-または
-
-npx memoria-dashboard
+# memoria プラグインディレクトリで
+cd ~/.claude/plugins/cache/memoria-marketplace/memoria/<version>
+npm install
+npm run dev
 
 起動後、http://localhost:3000 でアクセスできます。
+
+# または、プロジェクトにmemoriaがインストールされている場合
+cd /path/to/project
+npx memoria-dashboard
 ```
 
 ## 注意事項
@@ -58,3 +60,4 @@ npx memoria-dashboard
 - ダッシュボードは Next.js アプリケーションとして実装されています
 - 開発中は `npm run dev` で起動します
 - 本番環境では `npm run build && npm start` で起動します
+- ダッシュボードは `.memoria/` ディレクトリのデータを直接読み込みます

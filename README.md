@@ -7,7 +7,7 @@ Claude Codeの長期記憶を実現するプラグイン。
 ## 機能
 
 - **セッション自動保存**: SessionEnd/PreCompact時に会話履歴を自動保存
-- **セッション再開**: `/memoria resume` で過去のセッションを再開
+- **セッション再開**: `/memoria:resume` で過去のセッションを再開
 - **設計決定の記録**: プロジェクトの設計決定を保存・検索
 - **開発者パターン**: good/badパターンを収集・学習
 - **コーディングルール**: プロジェクト固有のルールを管理
@@ -15,41 +15,26 @@ Claude Codeの長期記憶を実現するプラグイン。
 
 ## インストール
 
-```bash
-# リポジトリをクローン
-git clone https://github.com/your-username/memoria.git
-cd memoria
-
-# 依存関係をインストール
-npm install
-
-# MCPサーバーをビルド
-cd mcp-server && npm install && npm run build && cd ..
-```
-
-## セットアップ
-
-### 1. Claude Codeプラグインとして登録
-
-`~/.claude/plugins/` にシンボリックリンクを作成:
+### Claude Code プラグインとしてインストール
 
 ```bash
-ln -s /path/to/memoria ~/.claude/plugins/memoria
+# マーケットプレースを追加
+/plugin marketplace add hir4ta/memoria-marketplace
+
+# memoriaをインストール
+/plugin install memoria@memoria-marketplace
 ```
 
-### 2. MCPサーバーを設定
+### 前提条件
 
-`~/.claude/settings.json` に追加:
+- **jq**: フックでJSON処理に使用します
 
-```json
-{
-  "mcpServers": {
-    "memoria": {
-      "command": "node",
-      "args": ["/path/to/memoria/mcp-server/dist/index.js"]
-    }
-  }
-}
+```bash
+# macOS
+brew install jq
+
+# Ubuntu/Debian
+apt-get install jq
 ```
 
 ## 使い方
@@ -58,33 +43,29 @@ ln -s /path/to/memoria ~/.claude/plugins/memoria
 
 | Hook | タイミング | 動作 |
 |------|-----------|------|
+| session-start | セッション開始時 | 関連セッションの提案、memoriaの使い方を注入 |
 | session-end | セッション終了時 | 会話履歴を自動保存、要約生成 |
 | pre-compact | 圧縮前 | 進行中のセッションを保存 |
-| session-start | セッション開始時 | 関連セッションの提案 |
 
 ### Skills（コマンド）
 
 | コマンド | 説明 |
 |---------|------|
-| `/memoria resume [id]` | セッションを再開（ID省略で一覧表示） |
-| `/memoria save` | 現在のセッションを手動保存 |
-| `/memoria decision "タイトル"` | 設計決定を記録 |
-| `/memoria search "クエリ"` | セッション・決定を検索 |
-| `/memoria dashboard` | ダッシュボードURLを表示 |
-
-### MCPツール
-
-| ツール | 説明 |
-|-------|------|
-| `memoria_list_sessions` | セッション一覧を取得 |
-| `memoria_get_session` | セッション詳細を取得 |
-| `memoria_save_decision` | 設計決定を保存 |
-| `memoria_save_pattern` | 開発者パターンを保存 |
-| `memoria_search` | 全データを検索 |
+| `/memoria:resume [id]` | セッションを再開（ID省略で一覧表示） |
+| `/memoria:save` | 現在のセッションを手動保存 |
+| `/memoria:decision "タイトル"` | 設計決定を記録 |
+| `/memoria:search "クエリ"` | セッション・決定を検索 |
+| `/memoria:dashboard` | ダッシュボードURLを表示 |
 
 ### ダッシュボード
 
 ```bash
+# プラグインディレクトリに移動
+cd ~/.claude/plugins/cache/memoria-marketplace/memoria/<version>
+
+# 依存関係をインストール
+npm install
+
 # 開発サーバーを起動
 npm run dev
 ```
@@ -120,22 +101,39 @@ Gitでバージョン管理可能です。
 ## 開発
 
 ```bash
+# リポジトリをクローン
+git clone https://github.com/hir4ta/memoria.git
+cd memoria
+
+# 依存関係をインストール
+npm install
+
 # ダッシュボード開発サーバー
 npm run dev
 
-# MCPサーバー開発
-cd mcp-server && npm run dev
-
 # ビルド
 npm run build
-cd mcp-server && npm run build
 ```
 
 ## 技術スタック
 
 - **ダッシュボード**: Next.js 16, React 19, TypeScript, Tailwind CSS v4, shadcn/ui
-- **MCPサーバー**: Node.js, TypeScript, @modelcontextprotocol/sdk
-- **Hooks/Skills**: TypeScript, tsx
+- **Hooks**: Bash, jq
+- **Skills**: Markdown
+
+## アーキテクチャ
+
+```
+[Claude Code] → [hooks (bash)] → [.memoria/*.json]
+                                        ↑
+[/memoria:* commands] → [skills] ───────┘
+                                        ↓
+                        [dashboard] ← [.memoria/*.json]
+```
+
+- **ビルド不要**: フックはbash、スキルはmarkdown
+- **外部依存なし**: MCPサーバー不要、jqのみ必要
+- **Git互換**: すべてのデータをJSONで保存、バージョン管理可能
 
 ## ライセンス
 

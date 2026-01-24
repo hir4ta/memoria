@@ -2,8 +2,6 @@
 
 # dependencies
 /node_modules
-/mcp-server/node_modules
-/hooks/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -21,8 +19,6 @@
 
 # production
 /build
-/mcp-server/dist
-/hooks/dist
 
 # misc
 .DS_Store
@@ -43,8 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# docs
-/docs
-CLAUDE.md
-.claude

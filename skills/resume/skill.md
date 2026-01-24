@@ -3,7 +3,7 @@ name: resume
 description: セッションを再開する。ID省略で一覧表示。
 ---
 
-# /memoria resume
+# /memoria:resume
 
 セッションを再開するためのスキルです。
 
@@ -12,7 +12,7 @@ description: セッションを再開する。ID省略で一覧表示。
 ### セッション一覧を表示
 
 ```
-/memoria resume
+/memoria:resume
 ```
 
 最近のセッション一覧を表示します。
@@ -20,17 +20,27 @@ description: セッションを再開する。ID省略で一覧表示。
 ### 特定のセッションを再開
 
 ```
-/memoria resume <session_id>
+/memoria:resume <session_id>
 ```
 
 指定したIDのセッションを再開します。
 
 ## 実行手順
 
-1. MCPツール `memoria_list_sessions` を呼び出して最近のセッション一覧を取得
-2. ユーザーにセッション一覧を表示
-3. セッションIDが指定された場合、`memoria_get_session` で詳細を取得
+1. `.memoria/sessions/` ディレクトリ内のJSONファイルを読み込む
+2. セッション一覧をユーザーに表示
+3. セッションIDが指定された場合、該当ファイルを読み込んで詳細を取得
 4. セッションのコンテキスト（summary, messages, filesModified）を読み込んで作業を再開
+
+### 具体的な操作
+
+```bash
+# セッション一覧を取得
+Glob: .memoria/sessions/*.json
+
+# 各セッションファイルを読み込み
+Read: .memoria/sessions/{filename}.json
+```
 
 ## 出力フォーマット
 
@@ -59,4 +69,21 @@ description: セッションを再開する。ID省略で一覧表示。
   - src/auth/refresh.ts (modified)
 
 続きから作業を開始しますか？
+```
+
+## セッションJSONフォーマット
+
+```json
+{
+  "id": "2026-01-24_abc123",
+  "sessionId": "full-uuid",
+  "summary": "認証機能のJWT実装",
+  "tags": ["auth", "jwt"],
+  "context": {
+    "branch": "feature/auth",
+    "projectDir": "/path/to/project"
+  },
+  "messages": [...],
+  "filesModified": [...]
+}
 ```
