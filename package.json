@@ -1,12 +1,24 @@
 {
-  "name": "memoria",
+  "name": "@hir4ta/memoria",
   "version": "0.2.0",
-  "private": true,
+  "description": "Claude Code の長期記憶プラグイン - セッション自動保存、設計決定の記録、Webダッシュボード",
+  "keywords": ["claude", "claude-code", "memory", "sessions", "dashboard"],
+  "author": "hir4ta",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hir4ta/memoria.git"
+  },
+  "bin": {
+    "memoria": "./bin/memoria.js"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && npm run build:standalone",
+    "build:standalone": "cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ 2>/dev/null || true",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

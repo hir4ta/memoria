@@ -23,7 +23,14 @@ memoriaはClaude Codeに長期記憶を与えるプラグインです。
 | `/memoria:save` | 現在のセッションを手動保存 |
 | `/memoria:decision "タイトル"` | 設計決定を記録 |
 | `/memoria:search <query>` | ナレッジを検索 |
-| `/memoria:dashboard` | ダッシュボードURL表示 |
+
+## ダッシュボード
+
+Webダッシュボードを起動するには、ターミナルで:
+
+```bash
+npx @hir4ta/memoria --dashboard
+```
 
 ## データ保存場所
 

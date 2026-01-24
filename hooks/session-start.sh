@@ -86,7 +86,7 @@ cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "<memoria-plugin>\nYou have memoria installed - a long-term memory plugin for Claude Code.\n\n**Your memoria skills are available:**\n- /memoria:resume - Resume a previous session\n- /memoria:save - Manually save current session\n- /memoria:decision - Record a design decision\n- /memoria:search - Search saved knowledge\n- /memoria:dashboard - Show dashboard URL\n\n${context_escaped}\n\n**Full using-memoria skill:**\n${using_memoria_escaped}\n</memoria-plugin>"
+    "additionalContext": "<memoria-plugin>\nYou have memoria installed - a long-term memory plugin for Claude Code.\n\n**Your memoria skills are available:**\n- /memoria:resume - Resume a previous session\n- /memoria:save - Manually save current session\n- /memoria:decision - Record a design decision\n- /memoria:search - Search saved knowledge\n\nDashboard: npx @hir4ta/memoria --dashboard\n\n${context_escaped}\n\n**Full using-memoria skill:**\n${using_memoria_escaped}\n</memoria-plugin>"
   }
 }
 EOF
