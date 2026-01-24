@@ -1,14 +1,16 @@
 # Source files (not needed for npm package)
-app/
-lib/
-components/
+/app/
+/lib/
+/components/
+/dashboard/
+/public/
 
 # Config files
 *.config.ts
-*.config.js
+*.config.mjs
 tsconfig.json
-postcss.config.mjs
 eslint.config.mjs
+components.json
 
 # Development files
 .git/
@@ -16,23 +18,27 @@ eslint.config.mjs
 .vscode/
 .claude/
 docs/
+
+# Documentation (except README and skills)
 *.md
 !README.md
+!skills/**/*.md
 
 # Local data
 .memoria/
 
-# Build artifacts (except standalone)
-.next/cache/
-.next/server/
-.next/types/
-.next/*.json
-.next/*.js
+# Old Next.js files
+.next/
+next-env.d.ts
+
+# Node modules
+node_modules/
 
 # Keep these:
-# .next/standalone/ - the server
 # bin/ - CLI
+# dist/ - built server and public files
 # hooks/ - plugin hooks
 # skills/ - plugin skills
 # .claude-plugin/ - plugin config
-# public/ - static files (backup)
+# README.md
+# package.json
