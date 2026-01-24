@@ -1,5 +1,5 @@
 import { getSessions } from "@/lib/memoria/sessions";
-import { SessionList } from "@/components/sessions/session-list";
+import { SessionListClient } from "@/components/sessions/session-list-client";
 
 export default async function SessionsPage() {
   const sessions = await getSessions();
@@ -12,7 +12,7 @@ export default async function SessionsPage() {
           {sessions.length} session{sessions.length !== 1 ? "s" : ""}
         </p>
       </div>
-      <SessionList sessions={sessions} />
+      <SessionListClient sessions={sessions} />
     </div>
   );
 }

@@ -20,6 +20,9 @@ const ALLOWED_DECISION_UPDATE_FIELDS = [
   "relatedSessions",
 ] as const;
 
+// Valid status values
+const VALID_DECISION_STATUSES = ["active", "superseded", "deprecated"] as const;
+
 type AllowedDecisionUpdate = {
   title?: string;
   decision?: string;
@@ -48,6 +51,13 @@ export async function createDecisionAction(
     // Validate required fields
     if (!data.title || !data.decision || !data.reasoning || !data.user?.name) {
       return { success: false, error: "Missing required fields" };
+    }
+
+    // Validate status enum if provided
+    if (data.status !== undefined) {
+      if (!VALID_DECISION_STATUSES.includes(data.status)) {
+        return { success: false, error: "Invalid status value" };
+      }
     }
 
     const result = await createDecision({
@@ -79,6 +89,13 @@ export async function updateDecisionAction(
     // Validate ID
     if (!validateId(id)) {
       return { success: false, error: "Invalid decision ID" };
+    }
+
+    // Validate status enum if provided
+    if (data.status !== undefined) {
+      if (!VALID_DECISION_STATUSES.includes(data.status)) {
+        return { success: false, error: "Invalid status value" };
+      }
     }
 
     // Filter to allowed fields only

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getPatternsByUser } from "@/lib/memoria/patterns";
-import { PatternDetail } from "@/components/patterns/pattern-detail";
+import { PatternDetailClient } from "@/components/patterns/pattern-detail-client";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -35,7 +35,7 @@ export default async function UserPatternsPage({ params }: Props) {
         </Link>
         <h1 className="text-2xl font-bold">{pattern.user.name}&apos;s Patterns</h1>
       </div>
-      <PatternDetail pattern={pattern} />
+      <PatternDetailClient pattern={pattern} />
     </div>
   );
 }

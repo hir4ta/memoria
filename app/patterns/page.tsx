@@ -1,5 +1,5 @@
 import { getPatterns } from "@/lib/memoria/patterns";
-import { PatternList } from "@/components/patterns/pattern-list";
+import { PatternListClient } from "@/components/patterns/pattern-list-client";
 
 export default async function PatternsPage() {
   const patterns = await getPatterns();
@@ -14,7 +14,7 @@ export default async function PatternsPage() {
           {patterns.length} user{patterns.length !== 1 ? "s" : ""}
         </p>
       </div>
-      <PatternList patterns={patterns} />
+      <PatternListClient patterns={patterns} />
     </div>
   );
 }

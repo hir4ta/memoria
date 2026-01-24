@@ -84,6 +84,7 @@ export interface Pattern {
 
 // Rule types
 export interface RuleItem {
+  id: string;
   category: string;
   rule: string;
   example: string;

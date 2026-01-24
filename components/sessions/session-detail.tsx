@@ -1,9 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { updateSessionAction, deleteSessionAction } from "@/app/actions/sessions";
 import type { Session } from "@/lib/memoria/types";
 
 const INITIAL_ITEMS = 10;
@@ -14,8 +25,63 @@ interface SessionDetailProps {
 }
 
 export function SessionDetail({ session }: SessionDetailProps) {
+  const router = useRouter();
   const [visibleMessages, setVisibleMessages] = useState(INITIAL_ITEMS);
   const [visibleFiles, setVisibleFiles] = useState(INITIAL_ITEMS);
+
+  // Edit dialog state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSummary, setEditSummary] = useState(session.summary);
+  const [editTags, setEditTags] = useState(session.tags.join(", "));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Sync state with props when dialog opens
+  const handleEditOpenChange = (open: boolean) => {
+    if (open) {
+      // Reset to current props values when opening
+      setEditSummary(session.summary);
+      setEditTags(session.tags.join(", "));
+      setError(null);
+    }
+    setEditOpen(open);
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    const tags = editTags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    const result = await updateSessionAction(session.id, {
+      summary: editSummary,
+      tags,
+    });
+
+    if (result.success) {
+      setEditOpen(false);
+      router.refresh();
+    } else {
+      setError(result.error || "Failed to update session");
+    }
+    setIsSubmitting(false);
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this session?")) {
+      return;
+    }
+    const result = await deleteSessionAction(session.id);
+    if (result.success) {
+      router.push("/");
+    } else {
+      alert(result.error || "Failed to delete session");
+    }
+  };
 
   const statusIcon = session.status === "completed" ? "✅" : "🔵";
   const createdDate = new Date(session.createdAt).toLocaleString("ja-JP");
@@ -33,10 +99,72 @@ export function SessionDetail({ session }: SessionDetailProps) {
       {/* Metadata */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <span>{statusIcon}</span>
-            Session Info
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <span>{statusIcon}</span>
+              Session Info
+            </CardTitle>
+            <div className="flex gap-2">
+              <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    Edit
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Session</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleEdit} className="space-y-4">
+                    {error && (
+                      <div className="bg-destructive/10 text-destructive px-4 py-2 rounded text-sm">
+                        {error}
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Summary</label>
+                      <Textarea
+                        value={editSummary}
+                        onChange={(e) => setEditSummary(e.target.value)}
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">
+                        Tags (comma separated)
+                      </label>
+                      <Input
+                        value={editTags}
+                        onChange={(e) => setEditTags(e.target.value)}
+                        placeholder="tag1, tag2, tag3"
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setEditOpen(false)}
+                        disabled={isSubmitting}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? "Saving..." : "Save"}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive"
+                onClick={handleDelete}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4 text-sm">

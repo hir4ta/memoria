@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { addRule, updateRule, removeRule } from "@/lib/memoria/rules";
+import { validateId } from "@/lib/memoria/paths";
 
 type RuleInput = {
   category: string;
@@ -34,13 +35,13 @@ export async function addRuleAction(
 }
 
 export async function updateRuleAction(
-  index: number,
+  ruleId: string,
   ruleItem: RuleInput
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Validate index
-    if (typeof index !== "number" || index < 0) {
-      return { success: false, error: "Invalid rule index" };
+    // Validate rule ID
+    if (!ruleId || !validateId(ruleId)) {
+      return { success: false, error: "Invalid rule ID" };
     }
 
     // Validate required fields
@@ -48,7 +49,7 @@ export async function updateRuleAction(
       return { success: false, error: "Missing required fields" };
     }
 
-    const result = await updateRule(index, {
+    const result = await updateRule(ruleId, {
       category: ruleItem.category,
       rule: ruleItem.rule,
       example: ruleItem.example,
@@ -66,15 +67,15 @@ export async function updateRuleAction(
 }
 
 export async function removeRuleAction(
-  index: number
+  ruleId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Validate index
-    if (typeof index !== "number" || index < 0) {
-      return { success: false, error: "Invalid rule index" };
+    // Validate rule ID
+    if (!ruleId || !validateId(ruleId)) {
+      return { success: false, error: "Invalid rule ID" };
     }
 
-    const result = await removeRule(index);
+    const result = await removeRule(ruleId);
     if (!result) {
       return { success: false, error: "Rule not found" };
     }

@@ -7,6 +7,9 @@ import { validateId } from "@/lib/memoria/paths";
 // Whitelist of fields that can be updated
 const ALLOWED_SESSION_UPDATE_FIELDS = ["tags", "summary", "status"] as const;
 
+// Valid status values
+const VALID_SESSION_STATUSES = ["completed", "in_progress"] as const;
+
 type AllowedSessionUpdate = {
   tags?: string[];
   summary?: string;
@@ -21,6 +24,13 @@ export async function updateSessionAction(
     // Validate ID
     if (!validateId(id)) {
       return { success: false, error: "Invalid session ID" };
+    }
+
+    // Validate status enum if provided
+    if (data.status !== undefined) {
+      if (!VALID_SESSION_STATUSES.includes(data.status)) {
+        return { success: false, error: "Invalid status value" };
+      }
     }
 
     // Filter to allowed fields only
