@@ -32,10 +32,6 @@ fi
 # Resolve paths
 cwd=$(cd "$cwd" 2>/dev/null && pwd || echo "$cwd")
 memoria_dir="${cwd}/.memoria"
-sessions_dir="${memoria_dir}/sessions"
-
-# Create sessions directory if not exists
-mkdir -p "$sessions_dir"
 
 # Get git info
 current_branch=""
@@ -51,8 +47,14 @@ fi
 # Current timestamp
 now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 date_part=$(echo "$now" | cut -d'T' -f1)
+year_part=$(echo "$date_part" | cut -d'-' -f1)
+month_part=$(echo "$date_part" | cut -d'-' -f2)
 session_short_id="${session_id:0:8}"
 file_id="${date_part}_${session_short_id}"
+
+# Create sessions directory (year/month) if not exists
+sessions_dir="${memoria_dir}/sessions/${year_part}/${month_part}"
+mkdir -p "$sessions_dir"
 
 # Check if transcript file exists
 if [ ! -f "$transcript_path" ]; then
@@ -62,27 +64,37 @@ fi
 # Parse transcript and extract messages
 # JSONL format: each line is a JSON object with type "user" or "assistant"
 messages=$(jq -s '
-    [.[] | select((.type == "user" or .type == "assistant") and .message != null) |
-    {
-        type: .type,
-        timestamp: (.timestamp // now | tostring),
-        content: (
-            if .message.content | type == "string" then
-                .message.content
-            elif .message.content | type == "array" then
-                [.message.content[] | select(.type == "text") | .text] | join("")
-            else
-                ""
-            end
-        ),
-        thinking: (
-            if .message.content | type == "array" then
-                [.message.content[] | select(.type == "thinking") | .thinking] | join("") | if . == "" then null else . end
-            else
-                null
-            end
-        )
-    } | with_entries(select(.value != null and .value != ""))]
+    def content_text:
+        if .message.content | type == "string" then
+            .message.content
+        elif .message.content | type == "array" then
+            [.message.content[] | select(.type == "text") | .text] | join("")
+        else
+            ""
+        end;
+    def thinking_text:
+        if .message.content | type == "array" then
+            [.message.content[] | select(.type == "thinking") | .thinking] | join("")
+        else
+            ""
+        end;
+    def is_noise($content):
+        ($content | test("<(local-command-|command-name|command-message|command-args)"; "i"));
+
+    [.[] |
+        select((.type == "user" or .type == "assistant") and .message != null) |
+        .content = content_text |
+        .thinking = thinking_text |
+        {
+            type: .type,
+            timestamp: (.timestamp // now | tostring),
+            content: (.content | if . == "" then null else . end),
+            thinking: (.thinking | if . == "" then null else . end)
+        } |
+        select((.content // "") != "" or (.thinking // "") != "") |
+        select(((.content // "") | is_noise(.) | not)) |
+        with_entries(select(.value != null))
+    ]
 ' "$transcript_path" 2>/dev/null || echo "[]")
 
 # Check if we have messages
@@ -90,6 +102,10 @@ message_count=$(echo "$messages" | jq 'length')
 if [ "$message_count" -eq 0 ]; then
     exit 0
 fi
+
+user_message_count=$(echo "$messages" | jq '[.[] | select(.type == "user")] | length')
+assistant_message_count=$(echo "$messages" | jq '[.[] | select(.type == "assistant")] | length')
+tool_use_count=$(jq -s '[.[] | select(.type == "tool_result")] | length' "$transcript_path" 2>/dev/null || echo "0")
 
 # Extract files modified from tool results
 files_modified=$(jq -s '
@@ -106,15 +122,105 @@ files_modified=$(jq -s '
     }] | unique_by(.path)
 ' "$transcript_path" 2>/dev/null || echo "[]")
 
-# Generate summary from first user message
-summary=$(echo "$messages" | jq -r '
-    [.[] | select(.type == "user")] |
-    if length > 0 then
-        .[0].content | if length > 150 then .[0:150] + "..." else . end
-    else
-        "Empty session"
-    end
+# Extract explicit user requests
+user_requests=$(echo "$messages" | jq -c '
+    def normalize: gsub("\\s+"; " ") | gsub("^\\s+|\\s+$"; "");
+    def is_request:
+        test("してほしい|して欲しい|にしてほしい|にして欲しい|してください|でお願いします|やって|やってください|対応して|使って|利用して|採用|にする|にして|方針|必須|前提|禁止|変更して|追加して|削除して"; "i");
+
+    [
+        .[] |
+        select(.type == "user" and (.content // "") != "") |
+        (.content | normalize) |
+        select(length > 0) |
+        select(is_request)
+    ] | unique
 ')
+
+# Summary title from explicit request or first user message
+summary_title=$(echo "$messages" | jq -r '
+    def normalize: gsub("\\s+"; " ") | gsub("^\\s+|\\s+$"; "");
+    def is_request:
+        test("してほしい|して欲しい|にしてほしい|にして欲しい|してください|でお願いします|やって|やってください|対応して|使って|利用して|採用|にする|にして|方針|必須|前提|禁止|変更して|追加して|削除して"; "i");
+    def clip($s): if ($s | length) > 80 then ($s[0:80] + "...") else $s end;
+
+    def first_request:
+        [ .[] | select(.type == "user" and (.content // "") != "") | (.content | normalize) | select(is_request) ][0];
+    def first_user:
+        [ .[] | select(.type == "user" and (.content // "") != "") | (.content | normalize) ][0];
+
+    (first_request // first_user // "Session") | clip(.)
+')
+
+# Assistant actions from tool results
+assistant_actions_from_tools=$(jq -s -c '
+    def normalize: gsub("\\s+"; " ") | gsub("^\\s+|\\s+$"; "");
+
+    [
+        .[] |
+        select(.type == "tool_result") |
+        (
+            if (.tool == "Write" or .tool == "Edit" or .tool == "Delete") then
+                "\(.tool): \(.input.file_path // "")"
+            elif (.tool | type == "string") and (.tool | length > 0) then
+                if (.input.command? and (.input.command | type == "string")) then
+                    "\(.tool): \(.input.command)"
+                elif (.input.file_path? and (.input.file_path | type == "string")) then
+                    "\(.tool): \(.input.file_path)"
+                else
+                    "\(.tool)"
+                end
+            else
+                empty
+            end
+        )
+    ] | map(normalize) | map(select(length > 0)) | unique
+' "$transcript_path" 2>/dev/null || echo "[]")
+
+# Assistant actions from assistant messages
+assistant_actions_from_messages=$(echo "$messages" | jq -c '
+    def normalize: gsub("\\s+"; " ") | gsub("^\\s+|\\s+$"; "");
+    def is_action:
+        test("修正|変更|追加|削除|更新|実装|対応|改善|整理|移行|統一|調整|作成|対応済み|修正済み|更新済み|fix|fixed|update|updated|add|added|remove|removed|refactor|refactored|improve|improved"; "i");
+    [
+        .[] |
+        select(.type == "assistant") |
+        (.content // "") |
+        split("\n")[] |
+        normalize |
+        select(length > 4) |
+        select(is_action)
+    ] | unique
+')
+
+assistant_actions=$(jq -c -n --argjson a "$assistant_actions_from_tools" --argjson b "$assistant_actions_from_messages" '$a + $b | unique')
+
+# Web links from assistant messages and tool results
+links_from_messages=$(echo "$messages" | jq -c '
+    def extract_links($text):
+        ($text | scan("https?://[^\\s)\\]}>]+"));
+    reduce [
+        .[] |
+        select(.type == "assistant") |
+        [(.content // ""), (.thinking // "")] |
+        map(extract_links(.))
+    ][] as $links ([]; . + $links)
+    | unique
+')
+
+links_from_tools=$(jq -s -c '
+    def extract_links($text):
+        ($text | scan("https?://[^\\s)\\]}>]+"));
+    reduce [
+        .[] |
+        select(.type == "tool_result") |
+        [(.output // ""), (.content // "")] |
+        map(extract_links(.))
+    ][] as $links ([]; . + $links)
+    | unique
+' "$transcript_path" 2>/dev/null || echo "[]")
+
+web_links=$(jq -c -n --argjson a "$links_from_messages" --argjson b "$links_from_tools" '$a + $b | unique')
 
 # Extract tags from message content
 tags=$(echo "$messages" | jq -r '
@@ -136,6 +242,116 @@ tags=$(echo "$messages" | jq -r '
 # Get first message timestamp
 first_timestamp=$(echo "$messages" | jq -r '.[0].timestamp // "'$now'"')
 
+# Extract files modified for summary detail
+files_modified_paths=$(echo "$files_modified" | jq -c '[.[] | .path]')
+
+# ============================================
+# Auto-detect design decisions from conversation
+# ============================================
+
+decisions_base_dir="${memoria_dir}/decisions"
+mkdir -p "$decisions_base_dir"
+
+# Extract potential decisions from assistant messages
+# Look for patterns indicating design decisions
+detected_decisions=$(echo "$messages" | jq -r '
+    def is_explicit_request($text):
+        $text | test("してほしい|して欲しい|にしてほしい|にして欲しい|してください|でお願いします|使って|利用して|採用|にする|にして|方針|決定|必須|前提"; "i");
+
+    [.[] |
+        select(.type == "user") |
+        {
+            timestamp: .timestamp,
+            text: (.content // "")
+        } |
+        select((.text | length) > 0) |
+        select(is_explicit_request(.text))
+    ]
+')
+
+decision_count=$(echo "$detected_decisions" | jq 'length')
+
+decision_ids=()
+
+if [ "$decision_count" -gt 0 ]; then
+    # Process each detected decision
+    decision_index=0
+    while read -r decision_data; do
+        decision_index=$((decision_index + 1))
+
+        timestamp=$(echo "$decision_data" | jq -r '.timestamp')
+        text=$(echo "$decision_data" | jq -r '.text')
+
+        # Generate decision ID
+        decision_id="${date_part}-auto-${session_short_id}-$(printf "%03d" $decision_index)"
+
+        # Extract a title from the text (first significant sentence)
+        title=$(echo "$text" | LC_ALL=C tr '\n' ' ' | sed 's/^[[:space:]]*//' | cut -c1-60)
+        if [ -n "$title" ]; then
+            if [ "${#title}" -ge 60 ]; then
+                title="${title}..."
+            fi
+        else
+            title="User request"
+        fi
+
+        # Use the user request as decision content (truncate if needed)
+        decision_content=$(echo "$text" | LC_ALL=C tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-200)
+
+        # Build decision JSON
+        decision_json=$(jq -n \
+            --arg id "$decision_id" \
+            --arg title "$title" \
+            --arg decision "$decision_content" \
+            --arg createdAt "$timestamp" \
+            --arg userName "$git_user_name" \
+            --arg userEmail "$git_user_email" \
+            --arg branch "$current_branch" \
+            --arg projectDir "$cwd" \
+            --arg sessionId "$file_id" \
+            --arg source "auto" \
+            '{
+                id: $id,
+                title: $title,
+                decision: $decision,
+                reasoning: "ユーザーの明確な要望から記録",
+                alternatives: [],
+                tags: ["user-request"],
+                createdAt: $createdAt,
+                user: {
+                    name: $userName,
+                    email: (if $userEmail == "" then null else $userEmail end)
+                } | with_entries(select(.value != null)),
+                context: {
+                    branch: (if $branch == "" then null else $branch end),
+                    projectDir: $projectDir
+                } | with_entries(select(.value != null)),
+                relatedSessions: [$sessionId],
+                source: $source,
+                status: "draft"
+            }')
+
+        # Save decision (only if not duplicate)
+        decision_date_part="${timestamp%%T*}"
+        if [ -z "$decision_date_part" ] || [ "$decision_date_part" = "$timestamp" ]; then
+            decision_date_part="$date_part"
+        fi
+        decision_year=$(echo "$decision_date_part" | cut -d'-' -f1)
+        decision_month=$(echo "$decision_date_part" | cut -d'-' -f2)
+        decisions_dir="${decisions_base_dir}/${decision_year}/${decision_month}"
+        mkdir -p "$decisions_dir"
+        decision_path="${decisions_dir}/${decision_id}.json"
+        if [ ! -f "$decision_path" ]; then
+            echo "$decision_json" > "$decision_path"
+            echo "[memoria] Decision auto-detected: ${decision_path}" >&2
+        fi
+        decision_ids+=("$decision_id")
+    done < <(echo "$detected_decisions" | jq -c '.[]')
+fi
+
+# Build key decisions list for summary
+key_decisions=$(printf '%s\n' "${decision_ids[@]}" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+
 # Build session JSON
 session_json=$(jq -n \
     --arg id "$file_id" \
@@ -147,7 +363,16 @@ session_json=$(jq -n \
     --arg branch "$current_branch" \
     --arg projectDir "$cwd" \
     --argjson tags "$tags" \
-    --arg summary "$summary" \
+    --arg summaryTitle "$summary_title" \
+    --argjson userRequests "$user_requests" \
+    --argjson assistantActions "$assistant_actions" \
+    --argjson webLinks "$web_links" \
+    --argjson filesModifiedPaths "$files_modified_paths" \
+    --argjson keyDecisions "$key_decisions" \
+    --argjson messageCount "$message_count" \
+    --argjson userMessageCount "$user_message_count" \
+    --argjson assistantMessageCount "$assistant_message_count" \
+    --argjson toolUseCount "$tool_use_count" \
     --argjson messages "$messages" \
     --argjson filesModified "$files_modified" \
     --arg endReason "$reason" \
@@ -166,7 +391,20 @@ session_json=$(jq -n \
         } | with_entries(select(.value != null)),
         tags: $tags,
         status: "completed",
-        summary: $summary,
+        summary: {
+            title: $summaryTitle,
+            userRequests: $userRequests,
+            assistantActions: $assistantActions,
+            webLinks: $webLinks,
+            filesModified: $filesModifiedPaths,
+            keyDecisions: $keyDecisions,
+            stats: {
+                messageCount: $messageCount,
+                userMessageCount: $userMessageCount,
+                assistantMessageCount: $assistantMessageCount,
+                toolUseCount: $toolUseCount
+            }
+        },
         messages: $messages,
         filesModified: $filesModified,
         endReason: $endReason
@@ -180,104 +418,287 @@ echo "$session_json" > "$session_path"
 echo "[memoria] Session saved to ${session_path}" >&2
 
 # ============================================
-# Auto-detect design decisions from conversation
+# Update auto-generated rules
 # ============================================
 
-decisions_dir="${memoria_dir}/decisions"
-mkdir -p "$decisions_dir"
+rules_dir="${memoria_dir}/rules"
+mkdir -p "$rules_dir"
+rules_timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-# Extract potential decisions from assistant messages
-# Look for patterns indicating design decisions
-detected_decisions=$(echo "$messages" | jq -r '
-    # Get all assistant messages with thinking or content
-    [.[] | select(.type == "assistant")] |
+init_rules_file() {
+    local path="$1"
+    if [ ! -f "$path" ]; then
+        cat <<EOF > "$path"
+{
+  "schemaVersion": 1,
+  "createdAt": "${rules_timestamp}",
+  "updatedAt": "${rules_timestamp}",
+  "items": []
+}
+EOF
+    fi
+}
 
-    # Combine thinking and content for analysis
-    map({
-        thinking: (.thinking // ""),
-        content: (.content // ""),
-        timestamp: .timestamp
-    }) |
+update_rules_file() {
+    local path="$1"
+    local candidates="$2"
+    if [ -z "$candidates" ] || [ "$candidates" = "[]" ]; then
+        return 0
+    fi
+    local updated
+    updated=$(jq --argjson candidates "$candidates" --arg updatedAt "$rules_timestamp" '
+        def normalize($t):
+            ($t | gsub("\\s+"; " ") | gsub("^\\s+|\\s+$"; ""));
+        def key($t):
+            (normalize($t) | ascii_downcase);
+        def tokens($t):
+            ($t | scan("[A-Za-z0-9_./-]+") | map(ascii_downcase) | unique);
+        def update_signal($t):
+            ($t | test("変更|更新|やめ|やめる|やめて|禁止|廃止|撤回|無効|使わない|しない|置き換え|切り替え|移行|deprecated|deprecate"; "i"));
+        def overlap($a; $b):
+            ($a | map(. as $t | $b | index($t) != null) | any);
+        def priority($t):
+            if $t | test("必須|重大|セキュリティ|脆弱性|安全|危険|漏洩|高リスク"; "i") then "p0"
+            elif $t | test("重要|推奨|必ず|禁止|release|リリース|破壊的|breaking"; "i") then "p1"
+            else "p2" end;
 
-    # Filter messages that contain decision-related keywords
-    map(select(
-        (.thinking + " " + .content) | test(
-            "決定|採用|選択|することにした|ことにする|方針|architecture|decision|approach|strategy|instead of|rather than|選んだ|使うことに|実装方針|設計判断";
-            "i"
-        )
-    )) |
+        reduce $candidates[] as $c (.;
+            ($c.text | normalize(.)) as $text |
+            ($text | key(.)) as $key |
+            (tokens($text)) as $tokens |
+            (update_signal($text)) as $is_update |
+            (.items | map(.key) | index($key)) as $idx |
+            if $idx != null then
+                .items[$idx].updatedAt = $updatedAt |
+                .items[$idx].occurrences = ((.items[$idx].occurrences // 0) + 1) |
+                .items[$idx].sources = ((.items[$idx].sources // []) + [$c.source]) |
+                .items[$idx].sources |= unique_by(.type + ":" + .id) |
+                .items[$idx].tags = ((.items[$idx].tags // []) + ($c.tags // [])) | unique |
+                .items[$idx].scope = (
+                    if ((.items[$idx].scope // "general") == "general") and (($c.scope // "general") != "general") then
+                        $c.scope
+                    else
+                        .items[$idx].scope
+                    end
+                ) |
+                .items[$idx].category = (.items[$idx].category // $c.category) |
+                .items[$idx].confidence = (.items[$idx].confidence // $c.confidence) |
+                .items[$idx].priority = (.items[$idx].priority // priority($text)) |
+                .items[$idx].rationale = (.items[$idx].rationale // $c.rationale) |
+                .items[$idx].appliesTo = ((.items[$idx].appliesTo // []) + ($c.appliesTo // [])) | unique |
+                .items[$idx].exceptions = ((.items[$idx].exceptions // []) + ($c.exceptions // [])) | unique |
+                .items[$idx].lastSeenAt = $updatedAt
+            else
+                ($is_update and ($tokens | length > 0)) as $will_supersede |
+                ($will_supersede
+                    ? [ .items[] | select(.status == "active" and (overlap(.tokens // []; $tokens))) | .id ]
+                    : []
+                ) as $superseded |
+                .items = (.items | map(
+                    if ($superseded | index(.id)) != null then
+                        .status = "deprecated" |
+                        .supersededBy = $c.id |
+                        .updatedAt = $updatedAt
+                    else
+                        .
+                    end
+                )) |
+                .items += [{
+                    id: $c.id,
+                    key: $key,
+                    text: $text,
+                    category: ($c.category // "general"),
+                    scope: ($c.scope // "general"),
+                    tags: ($c.tags // []),
+                    status: "active",
+                    confidence: ($c.confidence // "auto"),
+                    priority: priority($text),
+                    rationale: ($c.rationale // null),
+                    appliesTo: ($c.appliesTo // []),
+                    exceptions: ($c.exceptions // []),
+                    tokens: $tokens,
+                    createdAt: $c.createdAt,
+                    updatedAt: $updatedAt,
+                    occurrences: 1,
+                    sources: [$c.source],
+                    lastSeenAt: $updatedAt,
+                    supersedes: $superseded,
+                    supersededBy: null
+                }]
+            end
+        ) | .updatedAt = $updatedAt
+    ' "$path")
+    echo "$updated" > "$path"
+}
 
-    # Extract decision-like sentences
-    map({
-        timestamp: .timestamp,
-        text: ((.thinking // "") + "\n" + (.content // ""))
+init_rules_file "${rules_dir}/review-guidelines.json"
+init_rules_file "${rules_dir}/dev-rules.json"
+
+dev_candidates=$(echo "$user_requests" | jq -c '
+    def normalize: gsub("\\s+"; " ") | gsub("^\\s+|\\s+$"; "");
+    def scope($t):
+        if $t | test("dashboard|ui|frontend|react|vite"; "i") then "dashboard"
+        elif $t | test("hooks?|bash|jq"; "i") then "hooks"
+        elif $t | test("skills?|/memoria"; "i") then "skills"
+        elif $t | test("server|api|hono|backend"; "i") then "server"
+        elif $t | test("config|設定|環境|env"; "i") then "config"
+        else "general" end;
+    def tags($t):
+        ([
+            (if $t | test("auth"; "i") then "auth" else empty end),
+            (if $t | test("api|server"; "i") then "api" else empty end),
+            (if $t | test("ui|frontend|react|dashboard"; "i") then "ui" else empty end),
+            (if $t | test("test|lint|build"; "i") then "quality" else empty end),
+            (if $t | test("security|脆弱性|セキュリティ"; "i") then "security" else empty end),
+            (if $t | test("release|version|リリース|バージョン"; "i") then "release" else empty end),
+            (if $t | test("docs|document|ドキュメント"; "i") then "docs" else empty end),
+            (if $t | test("config|設定|環境|env"; "i") then "config" else empty end)
+        ] | unique);
+    def is_dev:
+        test("必須|前提|禁止|ルール|方針|採用|にする|使う|使って|利用して|統一|揃える|固定|設計|構造|スキーマ|形式|運用|規約"; "i");
+    [ .[] | normalize | select(is_dev) | { text: ., scope: scope(.), tags: tags(.) } ]
+')
+
+review_candidates=$(echo "$user_requests" | jq -c '
+    def normalize: gsub("\\s+"; " ") | gsub("^\\s+|\\s+$"; "");
+    def scope($t):
+        if $t | test("dashboard|ui|frontend|react|vite"; "i") then "dashboard"
+        elif $t | test("hooks?|bash|jq"; "i") then "hooks"
+        elif $t | test("skills?|/memoria"; "i") then "skills"
+        elif $t | test("server|api|hono|backend"; "i") then "server"
+        elif $t | test("config|設定|環境|env"; "i") then "config"
+        else "general" end;
+    def tags($t):
+        ([
+            (if $t | test("auth"; "i") then "auth" else empty end),
+            (if $t | test("api|server"; "i") then "api" else empty end),
+            (if $t | test("ui|frontend|react|dashboard"; "i") then "ui" else empty end),
+            (if $t | test("test|lint|build"; "i") then "quality" else empty end),
+            (if $t | test("security|脆弱性|セキュリティ"; "i") then "security" else empty end),
+            (if $t | test("release|version|リリース|バージョン"; "i") then "release" else empty end),
+            (if $t | test("docs|document|ドキュメント"; "i") then "docs" else empty end),
+            (if $t | test("config|設定|環境|env"; "i") then "config" else empty end)
+        ] | unique);
+    def is_review:
+        test("レビュー|確認|テスト|lint|build|セキュリティ|脆弱性|パフォーマンス|互換|移行|マイグレーション|依存|リリース|バージョン|監査|ログ|監視|可観測|負荷|安定|安全"; "i");
+    [ .[] | normalize | select(is_review) | { text: ., scope: scope(.), tags: tags(.) } ]
+')
+
+dev_items=$(echo "$dev_candidates" | jq -c --arg sessionId "$file_id" --arg createdAt "$rules_timestamp" '
+    to_entries | map({
+        id: ("dev-" + $sessionId + "-" + (.key | tostring)),
+        text: .value.text,
+        category: "dev",
+        scope: .value.scope,
+        tags: (.value.tags // []),
+        appliesTo: (if .value.scope then [(.value.scope | tostring)] else [] end),
+        exceptions: [],
+        source: { type: "session", id: $sessionId },
+        createdAt: $createdAt,
+        confidence: "auto"
     })
 ')
 
-decision_count=$(echo "$detected_decisions" | jq 'length')
+review_items=$(echo "$review_candidates" | jq -c --arg sessionId "$file_id" --arg createdAt "$rules_timestamp" '
+    to_entries | map({
+        id: ("review-" + $sessionId + "-" + (.key | tostring)),
+        text: .value.text,
+        category: "review",
+        scope: .value.scope,
+        tags: (.value.tags // []),
+        appliesTo: (if .value.scope then [(.value.scope | tostring)] else [] end),
+        exceptions: [],
+        source: { type: "session", id: $sessionId },
+        createdAt: $createdAt,
+        confidence: "auto"
+    })
+')
 
-if [ "$decision_count" -gt 0 ]; then
-    # Process each detected decision
-    decision_index=0
-    echo "$detected_decisions" | jq -c '.[]' | while read -r decision_data; do
-        decision_index=$((decision_index + 1))
+decision_candidates="[]"
+review_from_decisions="[]"
+if [ -d "$decisions_base_dir" ]; then
+    mapfile -t decision_files < <(find "$decisions_base_dir" -name "*.json" -type f 2>/dev/null)
+    if [ "${#decision_files[@]}" -gt 0 ]; then
+        decision_candidates=$(printf '%s\0' "${decision_files[@]}" | xargs -0 jq -s -c '
+            def scope($t):
+                if $t | test("dashboard|ui|frontend|react|vite"; "i") then "dashboard"
+                elif $t | test("hooks?|bash|jq"; "i") then "hooks"
+                elif $t | test("skills?|/memoria"; "i") then "skills"
+                elif $t | test("server|api|hono|backend"; "i") then "server"
+                elif $t | test("config|設定|環境|env"; "i") then "config"
+                else "general" end;
+            def tags($t):
+                ([
+                    (if $t | test("auth"; "i") then "auth" else empty end),
+                    (if $t | test("api|server"; "i") then "api" else empty end),
+                    (if $t | test("ui|frontend|react|dashboard"; "i") then "ui" else empty end),
+                    (if $t | test("test|lint|build"; "i") then "quality" else empty end),
+                    (if $t | test("security|脆弱性|セキュリティ"; "i") then "security" else empty end),
+                    (if $t | test("release|version|リリース|バージョン"; "i") then "release" else empty end),
+                    (if $t | test("docs|document|ドキュメント"; "i") then "docs" else empty end),
+                    (if $t | test("config|設定|環境|env"; "i") then "config" else empty end)
+                ] | unique);
+            [ .[] | select(.status == "active") |
+              {
+                id: ("decision-" + .id),
+                text: (.decision // .title // ""),
+                category: "dev",
+                scope: (scope(.decision // .title // "")),
+                tags: (tags(.decision // .title // "")),
+                source: { type: "decision", id: .id },
+                createdAt: (if .createdAt then .createdAt else (now | todateiso8601) end),
+                rationale: (.reasoning // null),
+                appliesTo: (if .tags then [.tags[] | tostring] else [] end),
+                confidence: (if .source == "manual" then "manual" else "auto" end)
+              } | select((.text | length) > 0)
+            ]
+        ')
 
-        timestamp=$(echo "$decision_data" | jq -r '.timestamp')
-        text=$(echo "$decision_data" | jq -r '.text')
-
-        # Generate decision ID
-        decision_id="${date_part}-auto-${session_short_id}-$(printf "%03d" $decision_index)"
-
-        # Extract a title from the text (first significant sentence)
-        title=$(echo "$text" | head -c 500 | grep -oE '(決定|採用|選択|方針|実装)[^。．\n]{5,50}' | head -1 || echo "Auto-detected decision")
-        if [ -z "$title" ] || [ "$title" = "Auto-detected decision" ]; then
-            title=$(echo "$text" | head -c 100 | LC_ALL=C tr '\n' ' ' | sed 's/^[[:space:]]*//' | cut -c1-50)
-            [ -n "$title" ] && title="${title}..."
-        fi
-
-        # Extract key decision content (sentences with decision keywords)
-        decision_content=$(echo "$text" | grep -oE '[^。．\n]*?(決定|採用|選択|することにした|ことにする|方針)[^。．\n]*[。．]?' | head -3 | LC_ALL=C tr '\n' ' ' || echo "$text" | head -c 200)
-
-        # Build decision JSON
-        decision_json=$(jq -n \
-            --arg id "$decision_id" \
-            --arg title "$title" \
-            --arg decision "$decision_content" \
-            --arg createdAt "$timestamp" \
-            --arg userName "$git_user_name" \
-            --arg userEmail "$git_user_email" \
-            --arg branch "$current_branch" \
-            --arg projectDir "$cwd" \
-            --arg sessionId "$file_id" \
-            --arg source "auto" \
-            '{
-                id: $id,
-                title: $title,
-                decision: $decision,
-                reasoning: "Auto-detected from session conversation",
-                alternatives: [],
-                tags: ["auto-detected"],
-                createdAt: $createdAt,
-                user: {
-                    name: $userName,
-                    email: (if $userEmail == "" then null else $userEmail end)
-                } | with_entries(select(.value != null)),
-                context: {
-                    branch: (if $branch == "" then null else $branch end),
-                    projectDir: $projectDir
-                } | with_entries(select(.value != null)),
-                relatedSessions: [$sessionId],
-                source: $source,
-                status: "draft"
-            }')
-
-        # Save decision (only if not duplicate)
-        decision_path="${decisions_dir}/${decision_id}.json"
-        if [ ! -f "$decision_path" ]; then
-            echo "$decision_json" > "$decision_path"
-            echo "[memoria] Decision auto-detected: ${decision_path}" >&2
-        fi
-    done
+        review_from_decisions=$(printf '%s\0' "${decision_files[@]}" | xargs -0 jq -s -c '
+            def scope($t):
+                if $t | test("dashboard|ui|frontend|react|vite"; "i") then "dashboard"
+                elif $t | test("hooks?|bash|jq"; "i") then "hooks"
+                elif $t | test("skills?|/memoria"; "i") then "skills"
+                elif $t | test("server|api|hono|backend"; "i") then "server"
+                elif $t | test("config|設定|環境|env"; "i") then "config"
+                else "general" end;
+            def tags($t):
+                ([
+                    (if $t | test("auth"; "i") then "auth" else empty end),
+                    (if $t | test("api|server"; "i") then "api" else empty end),
+                    (if $t | test("ui|frontend|react|dashboard"; "i") then "ui" else empty end),
+                    (if $t | test("test|lint|build"; "i") then "quality" else empty end),
+                    (if $t | test("security|脆弱性|セキュリティ"; "i") then "security" else empty end),
+                    (if $t | test("release|version|リリース|バージョン"; "i") then "release" else empty end),
+                    (if $t | test("docs|document|ドキュメント"; "i") then "docs" else empty end),
+                    (if $t | test("config|設定|環境|env"; "i") then "config" else empty end)
+                ] | unique);
+            def is_review($t):
+                $t | test("レビュー|確認|テスト|lint|build|セキュリティ|脆弱性|パフォーマンス|互換|移行|マイグレーション|依存|リリース|バージョン|監査|ログ|監視|可観測|負荷|安定|安全"; "i");
+            [ .[] | select(.status == "active") |
+              (.decision // .title // "") as $text |
+              select(($text | length) > 0 and is_review($text)) |
+              {
+                id: ("review-decision-" + .id),
+                text: $text,
+                category: "review",
+                scope: (scope($text)),
+                tags: (tags($text)),
+                source: { type: "decision", id: .id },
+                createdAt: (if .createdAt then .createdAt else (now | todateiso8601) end),
+                rationale: (.reasoning // null),
+                appliesTo: (if .tags then [.tags[] | tostring] else [] end),
+                confidence: (if .source == "manual" then "manual" else "auto" end)
+              }
+            ]
+        ')
+    fi
 fi
+
+dev_items=$(jq -c -n --argjson a "$dev_items" --argjson b "$decision_candidates" '$a + $b')
+review_items=$(jq -c -n --argjson a "$review_items" --argjson b "$review_from_decisions" '$a + $b')
+
+update_rules_file "${rules_dir}/dev-rules.json" "$dev_items"
+update_rules_file "${rules_dir}/review-guidelines.json" "$review_items"
 
 exit 0

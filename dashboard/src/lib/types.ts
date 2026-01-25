@@ -29,6 +29,21 @@ export interface FileModified {
   summary?: string;
 }
 
+export interface SessionSummary {
+  title: string;
+  userRequests: string[];
+  assistantActions: string[];
+  webLinks: string[];
+  filesModified: string[];
+  keyDecisions: string[];
+  stats?: {
+    messageCount: number;
+    userMessageCount: number;
+    assistantMessageCount: number;
+    toolUseCount: number;
+  };
+}
+
 export interface Session {
   id: string;
   sessionId: string;
@@ -38,7 +53,7 @@ export interface Session {
   context: SessionContext;
   tags: string[];
   status: "completed" | "in_progress";
-  summary: string;
+  summary: SessionSummary;
   messages: Message[];
   filesModified: FileModified[];
   keyDecisions?: string[];

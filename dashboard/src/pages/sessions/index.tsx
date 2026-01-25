@@ -14,6 +14,7 @@ function SessionCard({
   session: Session;
   onDelete: () => void;
 }) {
+  const summaryTitle = session.summary.title;
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -51,7 +52,7 @@ function SessionCard({
               >
                 {session.status === "completed" ? "[done]" : "[...]"}
               </span>
-              <span className="line-clamp-1">{session.summary}</span>
+              <span className="line-clamp-1">{summaryTitle}</span>
             </CardTitle>
             <Button
               variant="ghost"
@@ -125,7 +126,11 @@ export function SessionsPage() {
       }
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const matchesSummary = session.summary.toLowerCase().includes(query);
+        const summaryText = [
+          session.summary.title,
+          ...(session.summary.userRequests ?? []),
+        ].join(" ");
+        const matchesSummary = summaryText.toLowerCase().includes(query);
         const matchesTags = session.tags.some((tag) =>
           tag.toLowerCase().includes(query),
         );

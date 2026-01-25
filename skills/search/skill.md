@@ -34,8 +34,8 @@ description: ナレッジを検索する。
 
 ```bash
 # 各タイプのファイルを取得
-Glob: .memoria/sessions/*.json
-Glob: .memoria/decisions/*.json
+Glob: .memoria/sessions/**/*.json
+Glob: .memoria/decisions/**/*.json
 Glob: .memoria/patterns/*.json
 
 # 各ファイルを読み込んで検索
@@ -53,12 +53,13 @@ Read: .memoria/{type}/{filename}.json
 
 ## 検索対象フィールド
 
-### セッション (.memoria/sessions/*.json)
-- `summary` - 要約
+### セッション (.memoria/sessions/**/*.json)
+- `summary.title` - タイトル
+- `summary.userRequests[]` - ユーザーの明確な指示
 - `messages[].content` - メッセージ内容
 - `tags` - タグ
 
-### 技術的な判断 (.memoria/decisions/*.json)
+### 技術的な判断 (.memoria/decisions/**/*.json)
 - `title` - タイトル
 - `decision` - 決定内容
 - `reasoning` - 理由

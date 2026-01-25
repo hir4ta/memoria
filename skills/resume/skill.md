@@ -27,7 +27,7 @@ description: セッションを再開する。ID省略で一覧表示。
 
 ## 実行手順
 
-1. `.memoria/sessions/` ディレクトリ内のJSONファイルを読み込む
+1. `.memoria/sessions/` 以下（年月フォルダ含む）のJSONファイルを読み込む
 2. セッション一覧をユーザーに表示
 3. セッションIDが指定された場合、該当ファイルを読み込んで詳細を取得
 4. セッションのコンテキスト（summary, messages, filesModified）を読み込んで作業を再開
@@ -36,10 +36,10 @@ description: セッションを再開する。ID省略で一覧表示。
 
 ```bash
 # セッション一覧を取得
-Glob: .memoria/sessions/*.json
+Glob: .memoria/sessions/**/*.json
 
 # 各セッションファイルを読み込み
-Read: .memoria/sessions/{filename}.json
+Read: .memoria/sessions/{year}/{month}/{filename}.json
 ```
 
 ## 出力フォーマット
@@ -77,7 +77,14 @@ Read: .memoria/sessions/{filename}.json
 {
   "id": "2026-01-24_abc123",
   "sessionId": "full-uuid",
-  "summary": "認証機能のJWT実装",
+  "summary": {
+    "title": "認証機能のJWT実装",
+    "userRequests": ["JWTで認証機能を実装してほしい"],
+    "assistantActions": [],
+    "webLinks": [],
+    "filesModified": [],
+    "keyDecisions": []
+  },
   "tags": ["auth", "jwt"],
   "context": {
     "branch": "feature/auth",

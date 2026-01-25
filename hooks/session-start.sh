@@ -28,6 +28,28 @@ fi
 # Find .memoria directory
 memoria_dir="${cwd}/.memoria"
 sessions_dir="${memoria_dir}/sessions"
+rules_dir="${memoria_dir}/rules"
+
+# Ensure rules templates exist
+mkdir -p "$rules_dir"
+rules_timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+init_rules_file() {
+    local path="$1"
+    if [ ! -f "$path" ]; then
+        cat <<EOF > "$path"
+{
+  "schemaVersion": 1,
+  "createdAt": "${rules_timestamp}",
+  "updatedAt": "${rules_timestamp}",
+  "items": []
+}
+EOF
+    fi
+}
+
+init_rules_file "${rules_dir}/review-guidelines.json"
+init_rules_file "${rules_dir}/dev-rules.json"
 
 # Get current git branch
 current_branch=""
@@ -38,8 +60,8 @@ fi
 # Find related sessions
 related_sessions=""
 if [ -d "$sessions_dir" ]; then
-    # Get up to 5 most recent session files
-    session_files=$(find "$sessions_dir" -name "*.json" -type f 2>/dev/null | head -5)
+    # Get up to 5 most recent session files (YYYY/MM)
+    session_files=$(find "$sessions_dir" -mindepth 3 -maxdepth 3 -name "*.json" -type f 2>/dev/null | head -5)
 
     if [ -n "$session_files" ] && command -v jq &> /dev/null; then
         for file in $session_files; do
@@ -57,7 +79,7 @@ fi
 decisions_dir="${memoria_dir}/decisions"
 draft_decisions=""
 if [ -d "$decisions_dir" ] && command -v jq &> /dev/null; then
-    decision_files=$(find "$decisions_dir" -name "*.json" -type f 2>/dev/null)
+    decision_files=$(find "$decisions_dir" -mindepth 3 -maxdepth 3 -name "*.json" -type f 2>/dev/null)
 
     for file in $decision_files; do
         if [ -f "$file" ]; then

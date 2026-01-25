@@ -35,16 +35,16 @@ description: 技術的な判断を記録する。
    - reasoning: なぜその決定をしたか
    - alternatives: 検討した代替案（オプション）
    - tags: 関連タグ
-3. `.memoria/decisions/{id}.json` に保存
+3. `.memoria/decisions/YYYY/MM/{id}.json` に保存
 
 ### 具体的な操作
 
 ```bash
 # 決定ディレクトリを確認・作成
-mkdir -p .memoria/decisions
+mkdir -p .memoria/decisions/2026/01
 
 # 決定JSONを作成して保存
-Write: .memoria/decisions/jwt-auth-001.json
+Write: .memoria/decisions/2026/01/jwt-auth-001.json
 ```
 
 ## 技術的な判断JSONスキーマ

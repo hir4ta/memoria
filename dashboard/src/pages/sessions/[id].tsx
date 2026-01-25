@@ -22,7 +22,7 @@ export function SessionDetailPage() {
     getSession(id)
       .then((data) => {
         setSession(data);
-        setEditSummary(data.summary);
+        setEditSummary(data.summary.title);
         setEditTags(data.tags.join(", "));
         setError(null);
       })
@@ -33,9 +33,10 @@ export function SessionDetailPage() {
   const handleSave = async () => {
     if (!session || !id) return;
     try {
+      const updatedSummary = { ...session.summary, title: editSummary };
       const updated = await updateSession(id, {
         ...session,
-        summary: editSummary,
+        summary: updatedSummary,
         tags: editTags
           .split(",")
           .map((t) => t.trim())
@@ -76,6 +77,13 @@ export function SessionDetailPage() {
   const date = new Date(session.endedAt || session.createdAt).toLocaleString(
     "ja-JP",
   );
+  const summaryTitle = session.summary.title;
+  const summaryDetail = session.summary;
+  const summaryUserRequests = summaryDetail.userRequests ?? [];
+  const summaryAssistantActions = summaryDetail.assistantActions ?? [];
+  const summaryWebLinks = summaryDetail.webLinks ?? [];
+  const summaryKeyDecisions = summaryDetail.keyDecisions ?? [];
+  const summaryStats = summaryDetail.stats;
 
   return (
     <div className="space-y-6">
@@ -117,7 +125,7 @@ export function SessionDetailPage() {
                 className="text-lg font-bold"
               />
             ) : (
-              session.summary
+              summaryTitle
             )}
           </CardTitle>
         </CardHeader>
@@ -173,6 +181,78 @@ export function SessionDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {summaryDetail && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Summary Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            {summaryUserRequests.length > 0 && (
+              <div>
+                <span className="text-muted-foreground">User Requests:</span>
+                <ul className="list-disc pl-5 mt-1 space-y-1">
+                  {summaryUserRequests.map((request) => (
+                    <li key={request}>{request}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {summaryAssistantActions.length > 0 && (
+              <div>
+                <span className="text-muted-foreground">
+                  Assistant Actions:
+                </span>
+                <ul className="list-disc pl-5 mt-1 space-y-1">
+                  {summaryAssistantActions.map((action) => (
+                    <li key={action}>{action}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {summaryWebLinks.length > 0 && (
+              <div>
+                <span className="text-muted-foreground">Web Links:</span>
+                <ul className="list-disc pl-5 mt-1 space-y-1">
+                  {summaryWebLinks.map((link) => (
+                    <li key={link}>
+                      <a
+                        href={link}
+                        className="text-primary underline"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {link}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {summaryKeyDecisions.length > 0 && (
+              <div>
+                <span className="text-muted-foreground">Key Decisions:</span>
+                <ul className="list-disc pl-5 mt-1 space-y-1">
+                  {summaryKeyDecisions.map((decisionId) => (
+                    <li key={decisionId}>{decisionId}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {summaryStats && (
+              <div>
+                <span className="text-muted-foreground">Stats:</span>
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  <div>Messages: {summaryStats.messageCount}</div>
+                  <div>User: {summaryStats.userMessageCount}</div>
+                  <div>Assistant: {summaryStats.assistantMessageCount}</div>
+                  <div>Tools: {summaryStats.toolUseCount}</div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {session.filesModified.length > 0 && (
         <Card>

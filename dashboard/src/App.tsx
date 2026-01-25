@@ -3,6 +3,7 @@ import { MainLayout } from "./components/layout/main-layout";
 import { DecisionsPage } from "./pages/decisions";
 import { DecisionDetailPage } from "./pages/decisions/[id]";
 import { NotFoundPage } from "./pages/not-found";
+import { RulesPage } from "./pages/rules";
 import { SessionsPage } from "./pages/sessions";
 import { SessionDetailPage } from "./pages/sessions/[id]";
 
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/sessions/:id" element={<SessionDetailPage />} />
         <Route path="/decisions" element={<DecisionsPage />} />
         <Route path="/decisions/:id" element={<DecisionDetailPage />} />
+        <Route path="/rules" element={<RulesPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </MainLayout>

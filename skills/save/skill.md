@@ -13,22 +13,22 @@ description: 現在のセッションを手動保存する。
 /memoria:save
 ```
 
-現在の会話履歴を `.memoria/sessions/` に保存します。
+現在の会話履歴を `.memoria/sessions/YYYY/MM/` に保存します。
 
 ## 実行手順
 
 1. 現在の会話の要約を生成（最初のユーザーメッセージから）
 2. 関連タグを自動抽出（auth, api, ui, test, bug, feature, refactor, docs, config, db など）
-3. `.memoria/sessions/{date}_{id}.json` に保存
+3. `.memoria/sessions/YYYY/MM/{date}_{id}.json` に保存
 
 ### 具体的な操作
 
 ```bash
 # セッションディレクトリを確認・作成
-mkdir -p .memoria/sessions
+mkdir -p .memoria/sessions/2026/01
 
 # セッションJSONを作成して保存
-Write: .memoria/sessions/2026-01-24_abc123.json
+Write: .memoria/sessions/2026/01/2026-01-24_abc123.json
 ```
 
 ## セッションJSONスキーマ
@@ -49,7 +49,14 @@ Write: .memoria/sessions/2026-01-24_abc123.json
   },
   "tags": ["tag1", "tag2"],
   "status": "in_progress",
-  "summary": "会話の要約（最初のユーザーメッセージから生成）",
+  "summary": {
+    "title": "会話の要約（明確な指示があればそれを優先）",
+    "userRequests": ["ユーザーが明確に指示した内容"],
+    "assistantActions": ["Write: path/to/file.ts"],
+    "webLinks": ["https://example.com"],
+    "filesModified": ["path/to/file.ts"],
+    "keyDecisions": ["2026-01-24-auto-abc123-001"]
+  },
   "messages": [
     {
       "type": "user",
