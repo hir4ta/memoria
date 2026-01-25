@@ -42,6 +42,25 @@ description: dev-rules と review-guidelines に基づいて差分レビュー�
 6. **レビュー結果を保存**
    - `.memoria/reviews/YYYY/MM/review-YYYY-MM-DD_HHMMSS.json`
 
+## 追加のレビュー観点（必須）
+
+### ドキュメントとコードの整合性
+
+- 変更内容が**ドキュメント全般と一致**しているか確認
+- 仕様ドキュメントが存在する場合は**必ず参照**（漏れなく探索）
+  - ディレクトリ/ファイル名に `spec` / `specs` / `requirements` / `design` / `architecture` / `adr` / `decision` / `workflow` / `contract` が含まれるもの
+  - 一般的なドキュメント置き場（例: `docs/`, `documentation/`, `design/`, `spec/`, `requirements/`）
+  - ルート直下のドキュメント（例: `README*`, `DEVELOPER*`, `ARCHITECTURE*`, `CONTRIBUTING*`, `SPEC*`, `ADR*`）
+  - **MCP/仕様駆動開発系の設定・ドキュメント**（名称が特定できない場合でも、上記キーワードに該当するものは全て対象）
+  - 見つからない場合は **ユーザーに所在（ファイル/ディレクトリ）を確認** してからレビューを進める
+
+### 言語・フレームワークのベストプラクティス
+
+- 変更されたファイルの言語/フレームワークに沿って確認する
+- 判断が難しい場合は **Webで公式ドキュメントを調査** して根拠を示す
+  - 例: React / TypeScript / Hono / Node の公式ドキュメント
+  - 不確実な場合は **「要調査」として明示** する
+
 ## ルール適用の指針
 
 ### scope の判定（パスから推定）
