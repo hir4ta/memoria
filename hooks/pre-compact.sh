@@ -74,7 +74,7 @@ messages=$(jq -s '
             ""
         end;
     def is_noise($content):
-        ($content | test("<(local-command-|command-name|command-message|command-args)"; "i"));
+        ($content | tostring | test("<(local-command-|command-name|command-message|command-args)"; "i"));
 
     [.[] |
         select((.type == "user" or .type == "assistant") and .message != null) |
@@ -124,7 +124,7 @@ user_requests=$(echo "$messages" | jq -c '
         gsub("`"; "") | gsub("^@"; "") | gsub("^#+\\s*"; "") |
         gsub("^[-*•]\\s+"; "") | gsub("\\*\\*"; "");
     def extract_files($text):
-        ($text | scan("@?[A-Za-z0-9._/-]+\\.[A-Za-z0-9]+") | map(gsub("^@"; "")));
+        ($text | tostring | [scan("@?[A-Za-z0-9._/-]+\\.[A-Za-z0-9]+")] | map(gsub("^@"; "")));
     def split_sentences:
         gsub("。"; "。\n") | gsub("？"; "？\n") | gsub("\\?"; "?\n") | split("\n");
     def is_request:
@@ -166,7 +166,7 @@ summary_title=$(echo "$messages" | jq -r '
         gsub("`"; "") | gsub("^@"; "") | gsub("^#+\\s*"; "") |
         gsub("^[-*•]\\s+"; "") | gsub("\\*\\*"; "");
     def extract_files($text):
-        ($text | scan("@?[A-Za-z0-9._/-]+\\.[A-Za-z0-9]+") | map(gsub("^@"; "")));
+        ($text | tostring | [scan("@?[A-Za-z0-9._/-]+\\.[A-Za-z0-9]+")] | map(gsub("^@"; "")));
     def split_sentences:
         gsub("。"; "。\n") | gsub("？"; "？\n") | gsub("\\?"; "?\n") | split("\n");
     def is_request:
@@ -271,11 +271,10 @@ assistant_actions_from_messages=$(echo "$messages" | jq -c '
     def is_boring($line):
         $line | test("完了しました|対応します|確認しました|確認済み|確認した|わかりました|承知しました|了解しました|進めます|やります|します$|します。$|します！$");
     def is_action_line($line):
-        ($line | test("修正|変更|追加|削除|更新|実装|対応|改善|整理|移行|統一|調整|作成|導入|削減|簡略化|統合|分割|置換|改名|rename|remove|add|update|fix|refactor|improve|implement|clean|optimi|確認|レビュー|チェック"; "i"))
-        and (
-            $line | test("\\.[A-Za-z0-9]+") or
-            $line | test("セクション|項目|設定|構成|UI|API|ルール|セッション|ダッシュボード|README|docs|USAGE|MD|JSON|TS|JS|CSS|ファイル"; "i")
-        );
+        ($line | test("修正|変更|追加|削除|更新|実装|対応|改善|整理|移行|統一|調整|作成|導入|削減|簡略化|統合|分割|置換|改名|rename|remove|add|update|fix|refactor|improve|implement|clean|optimi|確認|レビュー|チェック"; "i")) as $has_action
+        | ($line | test("\\.[A-Za-z0-9]+")) as $has_ext
+        | ($line | test("セクション|項目|設定|構成|UI|API|ルール|セッション|ダッシュボード|README|docs|USAGE|MD|JSON|TS|JS|CSS|ファイル"; "i")) as $has_keyword
+        | ($has_action and ($has_ext or $has_keyword));
     def extract_actions($text):
         ($text | split("\n")) as $lines
         | reduce $lines[] as $raw ({mode: null, actions: []};
@@ -315,7 +314,7 @@ assistant_actions=$(jq -c -n --argjson a "$assistant_actions_from_tools" --argjs
 # Web links from assistant messages and tool results
 links_from_messages=$(echo "$messages" | jq -c '
     def extract_links($text):
-        ($text | scan("https?://[^\\s)\\]}>]+"));
+        ($text | tostring | scan("https?://[^\\s)\\]}>]+"));
     reduce [
         .[] |
         select(.type == "assistant") |
@@ -327,7 +326,7 @@ links_from_messages=$(echo "$messages" | jq -c '
 
 links_from_tools=$(jq -s -c '
     def extract_links($text):
-        ($text | scan("https?://[^\\s)\\]}>]+"));
+        ($text | tostring | scan("https?://[^\\s)\\]}>]+"));
     reduce [
         .[] |
         select(.type == "tool_result") |
