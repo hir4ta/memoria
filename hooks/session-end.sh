@@ -231,12 +231,12 @@ if [ "$decision_count" -gt 0 ]; then
         # Extract a title from the text (first significant sentence)
         title=$(echo "$text" | head -c 500 | grep -oE '(決定|採用|選択|方針|実装)[^。．\n]{5,50}' | head -1 || echo "Auto-detected decision")
         if [ -z "$title" ] || [ "$title" = "Auto-detected decision" ]; then
-            title=$(echo "$text" | head -c 100 | tr '\n' ' ' | sed 's/^[[:space:]]*//' | cut -c1-50)
+            title=$(echo "$text" | head -c 100 | LC_ALL=C tr '\n' ' ' | sed 's/^[[:space:]]*//' | cut -c1-50)
             [ -n "$title" ] && title="${title}..."
         fi
 
         # Extract key decision content (sentences with decision keywords)
-        decision_content=$(echo "$text" | grep -oE '[^。．\n]*?(決定|採用|選択|することにした|ことにする|方針)[^。．\n]*[。．]?' | head -3 | tr '\n' ' ' || echo "$text" | head -c 200)
+        decision_content=$(echo "$text" | grep -oE '[^。．\n]*?(決定|採用|選択|することにした|ことにする|方針)[^。．\n]*[。．]?' | head -3 | LC_ALL=C tr '\n' ' ' || echo "$text" | head -c 200)
 
         # Build decision JSON
         decision_json=$(jq -n \
