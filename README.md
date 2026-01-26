@@ -1,44 +1,44 @@
 # memoria
 
-Claude Codeの長期記憶を実現するプラグイン
+Long-term memory plugin for Claude Code
 
-セッションの自動保存、技術的な判断の記録、Webダッシュボードでの管理を提供します
+Provides automatic session saving, technical decision recording, and web dashboard management.
 
-## 機能
+## Features
 
-- **セッション自動保存**: セッション終了時・圧縮前に会話履歴を自動保存
-- **セッション再開**: `/memoria:resume` で過去のセッションを再開
-- **技術的な判断の記録**: セッション終了時に自動検出・保存（手動記録も可能）
-- **ルールベースレビュー**: `dev-rules.json` / `review-guidelines.json` に基づくレビュー
-- **週次レポート**: レビュー結果を集計したMarkdownレポートを自動生成
-- **Webダッシュボード**: セッション・判断記録の閲覧・編集
+- **Real-time Session Updates**: Session JSON is updated when meaningful changes occur
+- **Session Resume**: Resume past sessions with `/memoria:resume`
+- **Technical Decision Recording**: Record decisions with `/memoria:decision`
+- **Rule-based Review**: Code review based on `dev-rules.json` / `review-guidelines.json`
+- **Weekly Reports**: Auto-generate Markdown reports aggregating review results
+- **Web Dashboard**: View and edit sessions, decisions, and rules
 
-## 課題と解決（導入メリット）
+## Problems Solved
 
-### Claude Code 開発で起きがちな課題
+### Common Issues in Claude Code Development
 
-- **コンテキストの消失**: セッション終了やAuto-Compactで会話の文脈が失われる
-- **判断の不透明化**: 「なぜこの設計にしたのか」が後から追えない
-- **知見の再利用が難しい**: 過去のやり取りや決定を検索・参照しづらい
+- **Context Loss**: Conversation context is lost on session end or Auto-Compact
+- **Opaque Decisions**: "Why did we choose this design?" becomes untraceable
+- **Hard to Reuse Knowledge**: Past interactions and decisions are hard to search and reference
 
-### memoria でできること／解消できること
+### What memoria Enables
 
-- **自動保存 + 再開**で、セッションを跨いだ文脈の継続が可能
-- **判断記録（自動/手動）**で、理由・代替案を後から追跡
-- **検索とダッシュボード**で、過去の記録を素早く参照
-- **レビュー機能**で、リポジトリ固有の観点に基づいて指摘
-- **週次レポート**で、レビュー観点の改善と共有が容易
+- **Auto-save + Resume** enables context continuity across sessions
+- **Decision Recording** tracks reasoning and alternatives for later review
+- **Search and Dashboard** for quick access to past records
+- **Review Feature** for repository-specific code review
+- **Weekly Reports** for improving and sharing review practices
 
-### チーム利用のメリット
+### Team Benefits
 
-- `.memoria/` のJSONは**Git管理可能**なので、判断や会話の履歴をチームで共有できる
-- オンボーディングやレビュー時に「背景・経緯」を短時間で把握できる
+- `.memoria/` JSON files are **Git-manageable**, enabling team sharing of decisions and session history
+- Quickly understand background and context during onboarding or reviews
 
-## インストール
+## Installation
 
-### 前提条件
+### Prerequisites
 
-- **jq**: フックでJSON処理に使用します
+- **jq**: Used for JSON processing in hooks
 
 ```bash
 # macOS
@@ -57,141 +57,142 @@ scoop install jq
 winget install jqlang.jq
 ```
 
-### プラグインのインストール
+### Plugin Installation
 
-Claude Code内で以下を実行
+Run the following in Claude Code:
 
 ```bash
 /plugin marketplace add hir4ta/memoria-marketplace
 /plugin install memoria@memoria-marketplace
 ```
 
-Claude Codeを再起動して完了
+Restart Claude Code to complete installation.
 
-## アップデート
+## Update
 
-Claude Code内で以下を実行
+Run the following in Claude Code:
 
 ```bash
 /plugin marketplace update memoria-marketplace
 ```
 
-Claude Codeを再起動
+Restart Claude Code.
 
-### 自動更新を有効にする（推奨）
+### Enable Auto-Update (Recommended)
 
-1. `/plugin` を実行
-2. Marketplaces タブを選択
-3. `memoria-marketplace` を選択
-4. "Enable auto-update" を有効化
+1. Run `/plugin`
+2. Select Marketplaces tab
+3. Select `memoria-marketplace`
+4. Enable "Enable auto-update"
 
-これによりClaude Code起動時に自動でアップデートされます
+This will auto-update on Claude Code startup.
 
-## 使い方
+## Usage
 
-### 自動動作
+### Automatic Behavior
 
-| タイミング | 動作 |
-| ----------- | ------ |
-| セッション開始時 | 関連セッションの提案 |
-| セッション終了時 | 会話履歴を保存、技術的な判断を自動検出 |
-| 圧縮前 | 進行中のセッションを保存 |
+| Timing | Action |
+|--------|--------|
+| Session Start | Suggest related sessions, initialize session JSON |
+| During Session | Claude Code updates session JSON on meaningful changes |
+| Session End | Fallback processing if not updated, cleanup |
 
-### コマンド
+### Commands
 
-| コマンド | 説明 |
-| --------- | ------ |
-| `/memoria:resume [id]` | セッションを再開（ID省略で一覧表示） |
-| `/memoria:save` | 現在のセッションを手動保存 |
-| `/memoria:decision "タイトル"` | 技術的な判断を記録 |
-| `/memoria:search "クエリ"` | セッション・判断記録を検索 |
-| `/memoria:review [--staged|--all|--diff=branch]` | ルールに基づくレビュー |
-| `/memoria:report [--from YYYY-MM-DD --to YYYY-MM-DD]` | 週次レビューレポート |
+| Command | Description |
+|---------|-------------|
+| `/memoria:resume [id]` | Resume session (show list if ID omitted) |
+| `/memoria:save` | Force flush current session |
+| `/memoria:decision "title"` | Record a technical decision |
+| `/memoria:search "query"` | Search sessions and decisions |
+| `/memoria:review [--staged\|--all\|--diff=branch]` | Rule-based code review |
+| `/memoria:report [--from YYYY-MM-DD --to YYYY-MM-DD]` | Weekly review report |
 
-### ダッシュボード
+### Dashboard
 
-プロジェクトディレクトリで以下を実行
+Run in your project directory:
 
 ```bash
 npx @hir4ta/memoria --dashboard
 ```
 
-ブラウザで <http://localhost:7777> を開く。
+Open <http://localhost:7777> in your browser.
 
-ポート変更:
+Change port:
 
 ```bash
 npx @hir4ta/memoria --dashboard --port 8080
 ```
 
-#### 画面一覧
+#### Screens
 
-- **Sessions**: セッション一覧・詳細・編集・削除
-- **Decisions**: 技術的な判断の一覧・作成・編集・削除
-- **Rules**: 開発ルール・レビュー観点の閲覧・編集
+- **Sessions**: List, view, edit, delete sessions
+- **Decisions**: List, create, edit, delete technical decisions
+- **Rules**: View and edit dev rules and review guidelines
 
-## 仕組み
+## How It Works
 
 ```mermaid
 flowchart TB
-    subgraph auto [自動保存]
-        A[セッション終了] --> B[会話履歴を保存]
-        A --> C[技術的な判断を自動検出]
+    subgraph realtime [Real-time Updates]
+        A[Meaningful Change] --> B[Update Session JSON]
+        B --> C[interactions array]
     end
 
-    subgraph manual [手動保存]
-        D["memoria:save"] --> E[任意のタイミングで保存]
-        F["memoria:decision"] --> G[技術的な判断を明示的に記録]
+    subgraph manual [Manual Actions]
+        D["memoria:save"] --> E[Force flush session]
+        F["memoria:decision"] --> G[Record decision explicitly]
     end
 
-    subgraph resume [セッション再開]
-        H["memoria:resume"] --> I[一覧から選択]
-        I --> J[過去の文脈を復元]
+    subgraph resume [Session Resume]
+        H["memoria:resume"] --> I[Select from list]
+        I --> J[Restore past context]
     end
 
-    subgraph search [検索]
-        K["memoria:search"] --> L[セッションと判断を検索]
+    subgraph search [Search]
+        K["memoria:search"] --> L[Search sessions and decisions]
     end
 
-    subgraph review [レビュー]
-        P["memoria:review"] --> Q[ルールに基づく指摘]
-        Q --> R[レビュー結果を保存]
+    subgraph review [Review]
+        P["memoria:review"] --> Q[Rule-based findings]
+        Q --> R[Save review results]
     end
 
-    subgraph report [週次レポート]
-        S["memoria:report"] --> T[レビュー集計レポート]
+    subgraph report [Weekly Report]
+        S["memoria:report"] --> T[Review summary report]
     end
 
-    subgraph dashboard [ダッシュボード]
-        M["npx @hir4ta/memoria -d"] --> N[ブラウザで表示]
-        N --> O[閲覧・編集・削除]
+    subgraph dashboard [Dashboard]
+        M["npx @hir4ta/memoria -d"] --> N[Open in browser]
+        N --> O[View, edit, delete]
     end
 
     B --> H
     E --> H
-    C --> K
     G --> K
     B --> R
     R --> T
     B --> M
-    C --> M
+    G --> M
 ```
 
-## データ保存
+## Data Storage
 
-すべてのデータは `.memoria/` ディレクトリにJSON形式で保存
+All data is stored in `.memoria/` directory as JSON:
 
 ```text
 .memoria/
-├── sessions/       # セッション履歴 (YYYY/MM)
-├── decisions/      # 技術的な判断 (YYYY/MM)
-├── rules/          # 開発ルール / レビュー観点
-├── reviews/        # レビュー結果 (YYYY/MM)
-└── reports/        # 週次レポート (YYYY-MM)
+├── .current-session  # Current session ID and path
+├── tags.json         # Tag master file
+├── sessions/         # Session history (YYYY/MM)
+├── decisions/        # Technical decisions (YYYY/MM)
+├── rules/            # Dev rules / review guidelines
+├── reviews/          # Review results (YYYY/MM)
+└── reports/          # Weekly reports (YYYY-MM)
 ```
 
-Gitでバージョン管理可能です。`.gitignore` に追加するかはプロジェクトに応じて判断してください。
+Git-manageable. Add to `.gitignore` based on your project needs.
 
-## ライセンス
+## License
 
 MIT

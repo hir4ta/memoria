@@ -1,96 +1,87 @@
 ---
 name: resume
-description: セッションを再開する。ID省略で一覧表示。
+description: Resume a previous session. Show list if ID is omitted.
 ---
 
 # /memoria:resume
 
-セッションを再開するためのスキルです。
+Resume a previous session.
 
-## 使い方
-
-### セッション一覧を表示
+## Usage
 
 ```
-/memoria:resume
+/memoria:resume        # Show session list
+/memoria:resume <id>   # Resume specific session
 ```
 
-最近のセッション一覧を表示します。
+## Execution Steps
 
-### 特定のセッションを再開
+1. Read all JSON files under `.memoria/sessions/` (including year/month folders)
+2. Display session list to user
+3. If session ID specified, read the file and get details
+4. Load session context (title, goal, interactions) to resume work
 
-```
-/memoria:resume <session_id>
-```
-
-指定したIDのセッションを再開します。
-
-## 実行手順
-
-1. `.memoria/sessions/` 以下（年月フォルダ含む）のJSONファイルを読み込む
-2. セッション一覧をユーザーに表示
-3. セッションIDが指定された場合、該当ファイルを読み込んで詳細を取得
-4. セッションのコンテキスト（summary, messages, filesModified）を読み込んで作業を再開
-
-### 具体的な操作
+### File Operations
 
 ```bash
-# セッション一覧を取得
+# Get session list
 Glob: .memoria/sessions/**/*.json
 
-# 各セッションファイルを読み込み
+# Read each session file
 Read: .memoria/sessions/{year}/{month}/{filename}.json
 ```
 
-## 出力フォーマット
+## Output Format
 
-### 一覧表示時
+### List View
 
 ```
-最近のセッション:
-  1. [abc123] 認証機能のJWT実装 (2026-01-24, feature/auth)
+Recent sessions:
+  1. [abc123] JWT authentication implementation (2026-01-24, feature/auth)
      [auth] [jwt] [backend]
-  2. [def456] ユーザー管理API (2026-01-23, feature/user)
+     interactions: 3
+
+  2. [def456] User management API (2026-01-23, feature/user)
      [user] [api]
+     interactions: 2
 
-再開するセッションを選択してください (1-3)、またはIDを入力:
+Select a session to resume (1-3), or enter ID:
 ```
 
-### セッション再開時
+### Resume View
 
 ```
-セッション「認証機能のJWT実装」を再開します。
+Resuming session "JWT authentication implementation"
 
-前回の状況:
-- 目的: JWTで認証機能を実装
-- 進捗: JWT生成・検証ロジック完了
-- 変更ファイル:
-  - src/auth/jwt.ts (created)
-  - src/auth/refresh.ts (modified)
+Goal:
+  Implement JWT-based auth with refresh token support
 
-続きから作業を開始しますか？
+Previous decision cycles:
+
+  [int-001] Auth method selection
+    Request: Implement authentication
+    Choice: JWT (easy auth sharing between microservices)
+    Modified: src/auth/jwt.ts, src/auth/middleware.ts
+
+  [int-002] Refresh token expiry
+    Request: What should be the refresh token expiry?
+    Choice: 7 days (balance between security and UX)
+    Modified: src/auth/config.ts
+
+  [int-003] JWT signing error resolution
+    Problem: secretOrPrivateKey must be asymmetric
+    Choice: Change to RS256 key format (production security)
+    Modified: src/auth/jwt.ts
+
+Ready to continue?
 ```
 
-## セッションJSONフォーマット
+## Context Injection
 
-```json
-{
-  "id": "2026-01-24_abc123",
-  "sessionId": "full-uuid",
-  "summary": {
-    "title": "認証機能のJWT実装",
-    "userRequests": ["JWTで認証機能を実装してほしい"],
-    "assistantActions": [],
-    "webLinks": [],
-    "filesModified": [],
-    "keyDecisions": []
-  },
-  "tags": ["auth", "jwt"],
-  "context": {
-    "branch": "feature/auth",
-    "projectDir": "/path/to/project"
-  },
-  "messages": [...],
-  "filesModified": [...]
-}
-```
+When resuming, inject the following context:
+
+1. **Purpose**: title, goal → understand session objective
+2. **Progress**: interactions → what's been decided
+3. **Thinking**: interactions[].thinking → reasoning behind decisions
+4. **Problems solved**: interactions[].problem → errors encountered
+5. **Files changed**: interactions[].filesModified → what's been modified

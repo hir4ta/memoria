@@ -1,71 +1,66 @@
 ---
 name: decision
-description: 技術的な判断を記録する。
+description: Record a technical decision (ADR: Architecture Decision Record).
 ---
 
 # /memoria:decision
 
-技術的な判断（ADR: Architecture Decision Record）を記録するスキルです。
+Record a technical decision (ADR: Architecture Decision Record).
 
-## 自動保存 vs 手動保存
+## Auto vs Manual
 
-| 保存方式 | タイミング | ステータス |
-|---------|-----------|-----------|
-| **自動** | セッション終了時 | `draft`（要レビュー） |
-| **手動** | `/memoria:decision` 実行時 | `active`（確定） |
+| Method | Timing | Status |
+|--------|--------|--------|
+| **Auto** | Session end | `draft` (needs review) |
+| **Manual** | `/memoria:decision` | `active` (confirmed) |
 
-- **自動保存**: セッション終了時に会話から技術的な判断を自動検出・保存（`status: draft`）
-- **手動保存**: このコマンドで明示的に記録（`status: active`）
+Auto-detected decisions can be reviewed/edited in the dashboard.
 
-自動検出された決定はダッシュボードでレビュー・編集できます。
-
-## 使い方
+## Usage
 
 ```
-/memoria:decision "タイトル"
+/memoria:decision "title"
 ```
 
-対話形式で技術的な判断を記録します。
+Records a technical decision interactively.
 
-## 実行手順
+## Execution Steps
 
-1. タイトルを受け取る（引数から、または対話で入力）
-2. 以下の情報を会話コンテキストから抽出（または対話で収集）:
-   - decision: 何を決定したか
-   - reasoning: なぜその決定をしたか
-   - alternatives: 検討した代替案（オプション）
-   - tags: 関連タグ
-3. `.memoria/decisions/YYYY/MM/{id}.json` に保存
+1. Receive title (from argument or interactive input)
+2. Extract from conversation context (or collect interactively):
+   - decision: What was decided
+   - reasoning: Why this decision
+   - alternatives: Other options considered (optional)
+   - tags: Related tags (reference tags.json)
+3. Save to `.memoria/decisions/YYYY/MM/{id}.json`
 
-### 具体的な操作
+### File Operations
 
 ```bash
-# 決定ディレクトリを確認・作成
+# Create decision directory
 mkdir -p .memoria/decisions/2026/01
 
-# 決定JSONを作成して保存
+# Save decision JSON
 Write: .memoria/decisions/2026/01/jwt-auth-001.json
 ```
 
-## 技術的な判断JSONスキーマ
+## Decision JSON Schema
 
 ```json
 {
   "id": "jwt-auth-001",
-  "title": "認証方式の選択",
-  "decision": "セッション管理にJWTを採用する",
-  "reasoning": "マイクロサービス間での認証共有が容易。ステートレスでスケーラブル。",
+  "title": "Auth method selection",
+  "decision": "Adopt JWT for session management",
+  "reasoning": "Easy auth sharing between microservices. Stateless and scalable.",
   "alternatives": [
     {
-      "name": "セッションCookie",
-      "reason": "サーバー側で状態管理が必要、スケールしにくい"
+      "name": "Session Cookie",
+      "reason": "Requires server-side state, doesn't scale well"
     }
   ],
   "tags": ["auth", "architecture", "jwt"],
   "createdAt": "2026-01-24T10:00:00Z",
-  "user": {
-    "name": "user-name"
-  },
+  "user": { "name": "user-name" },
   "context": {
     "branch": "feature/auth",
     "projectDir": "/path/to/project"
@@ -76,78 +71,94 @@ Write: .memoria/decisions/2026/01/jwt-auth-001.json
 }
 ```
 
-### status フィールド
+### status Field
 
-| 値 | 説明 |
-|---|------|
-| `draft` | 自動検出（要レビュー） |
-| `active` | 確定済み |
-| `superseded` | 後の決定で置き換え |
-| `deprecated` | 非推奨 |
+| Value | Description |
+|-------|-------------|
+| `draft` | Auto-detected (needs review) |
+| `active` | Confirmed |
+| `superseded` | Replaced by later decision |
+| `deprecated` | No longer recommended |
 
-### source フィールド
+### source Field
 
-| 値 | 説明 |
-|---|------|
-| `auto` | セッション終了時に自動検出 |
-| `manual` | `/memoria:decision` で手動記録 |
+| Value | Description |
+|-------|-------------|
+| `auto` | Auto-detected at session end |
+| `manual` | Recorded via `/memoria:decision` |
 
-## ID生成ルール
+## ID Generation
 
-タイトルからスラッグを生成:
-- 英数字とハイフンのみ
-- 小文字に変換
-- 末尾に連番（001, 002, ...）を付与
+Generate slug from title:
+- Alphanumeric and hyphens only
+- Lowercase
+- Append sequence number (001, 002, ...)
 
-例: "認証方式の選択" → `auth-method-selection-001`
+Example: "Auth method selection" → `auth-method-selection-001`
 
-## 入力フォーマット
+## Input Format
 
-### 対話形式
+### Interactive
 
 ```
-> /memoria:decision "認証方式の選択"
+> /memoria:decision "Auth method selection"
 
-技術的な判断を記録します。
+Recording a technical decision.
 
-決定内容を入力してください:
-> セッション管理にJWTを採用する
+Enter the decision:
+> Adopt JWT for session management
 
-その理由を入力してください:
-> マイクロサービス間での認証共有が容易。ステートレスでスケーラブル。
+Enter the reasoning:
+> Easy auth sharing between microservices. Stateless and scalable.
 
-検討した代替案があれば入力してください（スキップ: Enter）:
-> セッションCookie - サーバー側で状態管理が必要、スケールしにくい
+Enter alternatives considered (skip: Enter):
+> Session Cookie - Requires server-side state, doesn't scale well
 
-タグを入力してください（カンマ区切り）:
+Enter tags (comma separated):
 > auth, architecture, jwt
 ```
 
-### 会話コンテキストからの自動抽出
+### Auto-extraction from Context
 
-現在の会話で技術的な判断がすでに議論されている場合、Claudeがコンテキストから自動的に抽出して記録します。
-
-```
-> /memoria:decision "認証方式の選択"
-
-会話コンテキストから以下の情報を抽出しました:
-
-- 決定: セッション管理にJWTを採用する
-- 理由: マイクロサービス間での認証共有が容易
-- 代替案: セッションCookie（却下理由: スケールしにくい）
-
-この内容で保存しますか？（修正する場合は内容を入力）
-```
-
-## 出力フォーマット
+If the decision was already discussed in conversation, Claude auto-extracts:
 
 ```
-技術的な判断を保存しました。
+> /memoria:decision "Auth method selection"
+
+Extracted from conversation:
+
+- Decision: Adopt JWT for session management
+- Reasoning: Easy auth sharing between microservices
+- Alternative: Session Cookie (rejected: doesn't scale well)
+
+Save with this content? (Enter to modify)
+```
+
+## Session Integration
+
+Recording via `/memoria:decision` saves to two places:
+
+1. **decisions/{id}.json** - Standalone decision record
+2. **sessions/{id}.json interactions** - As a decision cycle in the session
+
+This allows tracing "in what context was this decision made".
+
+## Tag Selection
+
+1. Read `.memoria/tags.json`
+2. Find matching tag from aliases
+3. Use id if found (e.g., "認証" → "auth")
+4. Add new tag to tags.json if not found
+
+## Output Format
+
+```
+Technical decision saved.
 
 ID: jwt-auth-001
-タイトル: 認証方式の選択
-決定: セッション管理にJWTを採用する
-タグ: [auth] [architecture] [jwt]
+Title: Auth method selection
+Decision: Adopt JWT for session management
+Tags: [auth] [architecture] [jwt]
 
-この決定は /memoria:search で検索できます。
+Search with /memoria:search
 ```

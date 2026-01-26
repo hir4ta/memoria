@@ -1,21 +1,19 @@
 ---
 name: search
-description: ナレッジを検索する。
+description: Search saved sessions, decisions, and patterns.
 ---
 
 # /memoria:search
 
-保存されたセッション、技術的な判断、パターンを検索するスキルです。
+Search saved sessions, decisions, and patterns.
 
-## 使い方
+## Usage
 
 ```
 /memoria:search <query>
 ```
 
-指定したクエリで全てのナレッジを検索します。
-
-### 種類を指定して検索
+### Filter by Type
 
 ```
 /memoria:search <query> --type session
@@ -23,88 +21,121 @@ description: ナレッジを検索する。
 /memoria:search <query> --type pattern
 ```
 
-## 実行手順
+## Execution Steps
 
-1. `.memoria/` 配下の全JSONファイルを読み込む
-2. クエリでテキスト検索（タイトル、要約、内容、タグ）
-3. スコアリングして結果を表示
-4. ユーザーが詳細を見たい項目があれば、該当ファイルを再読み込み
+1. Read all JSON files under `.memoria/`
+2. Read `.memoria/tags.json` to include aliases in search
+3. Text search on title, interactions, tags
+4. Score and display results
+5. If user wants details, re-read the file
 
-### 具体的な操作
+### File Operations
 
 ```bash
-# 各タイプのファイルを取得
+# Load tags.json for alias search
+Read: .memoria/tags.json
+
+# Get files by type
 Glob: .memoria/sessions/**/*.json
 Glob: .memoria/decisions/**/*.json
 Glob: .memoria/patterns/*.json
 
-# 各ファイルを読み込んで検索
+# Read each file for search
 Read: .memoria/{type}/{filename}.json
 ```
 
-## 検索アルゴリズム
+## Search Algorithm
 
-各ファイルのコンテンツに対してテキストマッチングを行う:
+Text matching on each file's content:
 
-- タイトル/要約にマッチ: +3点
-- 本文/詳細にマッチ: +2点
-- タグにマッチ: +1点
-- 完全一致: スコア2倍
+- Title/topic match: +3 points
+- thinking/reasoning match: +2 points
+- Tag match: +1 point
+- Tag alias match: +1 point
+- Exact match: 2x score
 
-## 検索対象フィールド
+### Tag Alias Search
 
-### セッション (.memoria/sessions/**/*.json)
-- `summary.title` - タイトル
-- `summary.userRequests[]` - ユーザーの明確な指示
-- `messages[].content` - メッセージ内容
-- `tags` - タグ
+If query matches an alias in tags.json, search using the corresponding id:
+- Example: "フロント" → search for "frontend" tag
 
-### 技術的な判断 (.memoria/decisions/**/*.json)
-- `title` - タイトル
-- `decision` - 決定内容
-- `reasoning` - 理由
-- `tags` - タグ
+## Search Target Fields
 
-### パターン (.memoria/patterns/*.json)
-- `title` - タイトル
-- `description` - 説明
-- `example` - 例
-- `tags` - タグ
+### Sessions (.memoria/sessions/**/*.json)
+- `title` - Session title
+- `goal` - Session purpose
+- `tags` - Tags
+- `interactions[].topic` - Decision cycle topic (search keyword)
+- `interactions[].thinking` - Thought process
+- `interactions[].choice` - Final selection
+- `interactions[].reasoning` - Why this choice
+- `interactions[].problem` - Error/problem encountered
 
-## 出力フォーマット
+### Decisions (.memoria/decisions/**/*.json)
+- `title` - Title
+- `decision` - What was decided
+- `reasoning` - Why
+- `tags` - Tags
+
+### Patterns (.memoria/patterns/*.json)
+- `title` - Title
+- `description` - Description
+- `example` - Example
+- `tags` - Tags
+
+## Output Format
 
 ```
-「JWT」の検索結果: 5件
+Search results for "JWT": 5 items
 
-[decision] jwt-auth-001 (スコア: 8)
-  認証方式にJWTを採用
-  マッチ: title, reasoning
+[decision] jwt-auth-001 (score: 8)
+  Adopt JWT for authentication
+  Match: title, reasoning
 
-[session] 2026-01-24_abc123 (スコア: 6)
-  認証機能のJWT実装
-  マッチ: summary, messages
+[session] 2026-01-24_abc123 (score: 6)
+  JWT authentication implementation
+  Match: title, interactions[0].topic
 
-[pattern] pattern-tanaka-001 (スコア: 3)
-  JWTトークンの有効期限を短く設定
-  マッチ: description
+[pattern] pattern-tanaka-001 (score: 3)
+  Set short JWT token expiry
+  Match: description
 
-詳細を見るには番号を入力してください（終了: q）:
+Enter number for details (quit: q):
 ```
 
-## 詳細表示
+## Detail View
 
-ユーザーが番号を選択した場合:
+### Session Detail
+
+```
+[session] 2026-01-24_abc123
+
+Title: JWT authentication implementation
+Goal: Implement JWT-based auth
+Tags: [auth] [jwt] [backend]
+
+Decision cycles:
+  [int-001] Auth method selection
+    Choice: JWT (easy auth sharing between microservices)
+
+  [int-002] Refresh token expiry
+    Choice: 7 days (balance between security and UX)
+
+Created: 2026-01-24
+```
+
+### Decision Detail
 
 ```
 [decision] jwt-auth-001
 
-タイトル: 認証方式の選択
-決定: セッション管理にJWTを採用する
-理由: マイクロサービス間での認証共有が容易。ステートレスでスケーラブル。
+Title: Auth method selection
+Decision: Adopt JWT for session management
+Reasoning: Easy auth sharing between microservices. Stateless and scalable.
 
-代替案:
-  - セッションCookie: サーバー側で状態管理が必要、スケールしにくい
+Alternatives:
+  - Session Cookie: Requires server-side state, doesn't scale well
 
-タグ: [auth] [architecture] [jwt]
-作成日: 2026-01-24
+Tags: [auth] [architecture] [jwt]
+Created: 2026-01-24
 ```

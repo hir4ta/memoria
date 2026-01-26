@@ -1,106 +1,71 @@
 ---
 name: save
-description: 現在のセッションを手動保存する。
+description: Force flush current session state to JSON.
 ---
 
 # /memoria:save
 
-現在のセッションを手動で保存するスキルです。
+Force flush current session state to JSON.
 
-## 使い方
+## Usage
 
 ```
 /memoria:save
 ```
 
-現在の会話履歴を `.memoria/sessions/YYYY/MM/` に保存します。
+## When to Use
 
-## 実行手順
+Claude Code auto-updates session JSON on meaningful changes. Use manual save when:
 
-1. 現在の会話の要約を生成（最初のユーザーメッセージから）
-2. 関連タグを自動抽出（auth, api, ui, test, bug, feature, refactor, docs, config, db など）
-3. `.memoria/sessions/YYYY/MM/{date}_{id}.json` に保存
+- Auto-update doesn't seem to be working
+- Want to explicitly save current state
+- Reached an important milestone
 
-### 具体的な操作
+## Execution Steps
+
+1. Read session path from `.memoria/.current-session`
+2. Extract from current conversation:
+   - title: Session purpose
+   - goal: What we're trying to achieve
+   - tags: Related keywords (reference tags.json)
+   - interactions: Decision cycle history
+3. Update session JSON
+
+### File Operations
 
 ```bash
-# セッションディレクトリを確認・作成
-mkdir -p .memoria/sessions/2026/01
+# Get session path
+Read: .memoria/.current-session
+# → { "id": "...", "path": ".memoria/sessions/..." }
 
-# セッションJSONを作成して保存
-Write: .memoria/sessions/2026/01/2026-01-24_abc123.json
+# Normalize tags
+Read: .memoria/tags.json
+
+# Update session JSON
+Write: .memoria/sessions/YYYY/MM/{id}.json
 ```
 
-## セッションJSONスキーマ
+## Tag Selection
 
-```json
-{
-  "id": "2026-01-24_abc123",
-  "sessionId": "claude-session-uuid",
-  "createdAt": "2026-01-24T10:00:00Z",
-  "endedAt": null,
-  "user": {
-    "name": "user-name",
-    "email": "user@example.com"
-  },
-  "context": {
-    "branch": "feature/xxx",
-    "projectDir": "/path/to/project"
-  },
-  "tags": ["tag1", "tag2"],
-  "status": "in_progress",
-  "summary": {
-    "title": "会話の要約（明確な指示があればそれを優先）",
-    "userRequests": ["ユーザーが明確に指示した内容"],
-    "assistantActions": ["Write: path/to/file.ts"],
-    "webLinks": ["https://example.com"],
-    "filesModified": ["path/to/file.ts"],
-    "keyDecisions": ["2026-01-24-auto-abc123-001"]
-  },
-  "messages": [
-    {
-      "type": "user",
-      "timestamp": "2026-01-24T10:00:00Z",
-      "content": "ユーザーのメッセージ"
-    },
-    {
-      "type": "assistant",
-      "timestamp": "2026-01-24T10:01:00Z",
-      "content": "アシスタントの応答",
-      "thinking": "思考プロセス（あれば）"
-    }
-  ],
-  "filesModified": []
-}
-```
+1. Read `.memoria/tags.json`
+2. Find matching tag from aliases
+3. Use id if found (e.g., "フロント" → "frontend")
+4. Add new tag to tags.json if not found
 
-## タグ抽出ルール
+## Notes
 
-メッセージ内容から以下のキーワードを検索してタグを付与:
-- `auth` - 認証関連
-- `api` - API関連
-- `ui`, `component`, `react` - UI関連
-- `test` - テスト関連
-- `bug`, `fix` - バグ修正
-- `feature` - 新機能
-- `refactor` - リファクタリング
-- `doc` - ドキュメント
-- `config` - 設定関連
-- `db`, `database` - データベース
+- Error if `.current-session` doesn't exist (session not initialized)
+- Multiple saves overwrite with latest state
+- SessionEnd hook has fallback, so manual save is optional
 
-## 注意事項
-
-- セッション終了時には自動的に保存されます（hooks/session-end.sh）
-- このコマンドは途中で明示的に保存したい場合に使用します
-- 同じセッションで複数回実行すると、最新の状態で上書きされます
-
-## 出力フォーマット
+## Output Format
 
 ```
-セッションを保存しました。
+Session saved.
 
-セッションID: 2026-01-24_abc123
-要約: 認証機能のJWT実装を進行中
-タグ: [auth] [jwt] [backend]
-変更ファイル: 3件
+Session ID: 2026-01-24_abc123
+Title: JWT authentication implementation
+Goal: Implement JWT-based auth
+Tags: [auth] [jwt] [backend]
+Interactions: 3
 ```

@@ -1,37 +1,37 @@
 ---
 name: report
-description: 週次のレビュー集計レポートを生成する。
+description: Generate weekly report from review results (`.memoria/reviews/`).
 ---
 
 # /memoria:report
 
-レビュー結果（`.memoria/reviews/`）から週次レポートを生成するスキルです。
+Generate weekly report from review results (`.memoria/reviews/`).
 
-## 使い方
+## Usage
 
 ```
 /memoria:report
 /memoria:report --from 2026-01-01 --to 2026-01-07
 ```
 
-### デフォルト
+### Default
 
-- `--from/--to` 未指定の場合は **直近7日**
-- 保存先: `.memoria/reports/YYYY-MM/weekly-YYYY-MM-DD.md`（`--to`の日付基準）
+- If `--from/--to` not specified: **last 7 days**
+- Save location: `.memoria/reports/YYYY-MM/weekly-YYYY-MM-DD.md` (based on `--to` date)
 
-## 実行手順
+## Execution Steps
 
-1. **対象期間を決定**
-2. **`.memoria/reviews/YYYY/MM/*.json` を読み込む**
-3. 期間内のレビューを集計
-   - Blocker / Warning / Suggestion 数
-   - ルール命中TOP
-   - 新ルール提案一覧
-   - Stale rule 一覧
-4. **Markdownレポートを生成**
-5. `.memoria/reports/YYYY-MM/weekly-YYYY-MM-DD.md` に保存
+1. **Determine target period**
+2. **Read `.memoria/reviews/YYYY/MM/*.json`**
+3. Aggregate reviews in period:
+   - Blocker / Warning / Suggestion counts
+   - Top matched rules
+   - New rule proposals list
+   - Stale rules list
+4. **Generate Markdown report**
+5. Save to `.memoria/reports/YYYY-MM/weekly-YYYY-MM-DD.md`
 
-## 出力フォーマット（Markdown）
+## Output Format (Markdown)
 
 ```
 # Weekly Review Report (2026-01-01 - 2026-01-07)
@@ -64,7 +64,7 @@ description: 週次のレビュー集計レポートを生成する。
 - {rule.id} (lastSeenAt: YYYY-MM-DD)
 ```
 
-## 保存時の注意
+## Notes
 
-- `.memoria/reports/YYYY-MM/` がなければ作成する
-- 同日で複数回作成する場合は末尾に連番を付ける
+- Create `.memoria/reports/YYYY-MM/` if it doesn't exist
+- If multiple reports on same day, append sequence number

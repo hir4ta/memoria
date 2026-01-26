@@ -1,78 +1,76 @@
 ---
 name: review
-description: dev-rules と review-guidelines に基づいて差分レビューを行う。
+description: Code review based on repository-specific rules (`dev-rules.json` / `review-guidelines.json`).
 ---
 
 # /memoria:review
 
-リポジトリ固有のルール（`dev-rules.json` / `review-guidelines.json`）を使い、
-根拠付きでコードレビューを行うスキルです。
+Code review based on repository-specific rules (`dev-rules.json` / `review-guidelines.json`).
 
-## 使い方
+## Usage
 
 ```
-/memoria:review
-/memoria:review --staged
-/memoria:review --all
-/memoria:review --diff=main
+/memoria:review           # Default: --staged
+/memoria:review --staged  # Review staged changes
+/memoria:review --all     # Review all changes
+/memoria:review --diff=main  # Review diff against branch
 ```
 
-### デフォルト
+### Default Behavior
 
-- **`--staged` をデフォルト**とする
-- staged が空なら `--all` / `--diff=branch` を提案して選ばせる
+- **`--staged` is default**
+- If staged is empty, suggest `--all` / `--diff=branch`
 
-## 実行手順
+## Execution Steps
 
-1. **対象差分の取得**
+1. **Get target diff**
    - `--staged`: `git diff --staged`
    - `--all`: `git diff`
    - `--diff=branch`: `git diff <branch>...HEAD`
-2. **ルールの読み込み**
+2. **Load rules**
    - `.memoria/rules/dev-rules.json`
    - `.memoria/rules/review-guidelines.json`
-3. **適用対象のフィルタ**
-   - `status: active` のみ対象
-   - `scope / tags / appliesTo / exceptions` で関連ルールのみ残す
-4. **指摘作成**
-   - 差分に対してルールが命中した箇所を抽出
-   - 重大度を `priority` から決定
-5. **レビュー出力**
-   - Blocker / Warning / Suggestion の3段で構成
-6. **レビュー結果を保存**
+3. **Filter applicable rules**
+   - Only `status: active`
+   - Filter by `scope / tags / appliesTo / exceptions`
+4. **Generate findings**
+   - Extract where rules match the diff
+   - Determine severity from `priority`
+5. **Output review**
+   - Structure: Blocker / Warning / Suggestion
+6. **Save review result**
    - `.memoria/reviews/YYYY/MM/review-YYYY-MM-DD_HHMMSS.json`
 
-## 追加のレビュー観点（必須）
+## Additional Review Perspectives (Required)
 
-### ドキュメントとコードの整合性
+### Document-Code Consistency
 
-- 変更内容が**ドキュメント全般と一致**しているか確認
-- 仕様ドキュメントが存在する場合は**必ず参照**（漏れなく探索）
-  - ディレクトリ/ファイル名に `spec` / `specs` / `requirements` / `design` / `architecture` / `adr` / `decision` / `workflow` / `contract` が含まれるもの
-  - 一般的なドキュメント置き場（例: `docs/`, `documentation/`, `design/`, `spec/`, `requirements/`）
-  - ルート直下のドキュメント（例: `README*`, `DEVELOPER*`, `ARCHITECTURE*`, `CONTRIBUTING*`, `SPEC*`, `ADR*`）
-  - **MCP/仕様駆動開発系の設定・ドキュメント**（名称が特定できない場合でも、上記キーワードに該当するものは全て対象）
-  - 見つからない場合は **ユーザーに所在（ファイル/ディレクトリ）を確認** してからレビューを進める
+- Verify changes match **all documentation**
+- If spec documents exist, **always reference**:
+  - Files/dirs containing `spec` / `requirements` / `design` / `architecture` / `adr` / `decision` / `workflow` / `contract`
+  - Common doc locations: `docs/`, `documentation/`, `design/`, `spec/`, `requirements/`
+  - Root docs: `README*`, `DEVELOPER*`, `ARCHITECTURE*`, `CONTRIBUTING*`, `SPEC*`, `ADR*`
+  - If not found, **ask user for location** before proceeding
 
-### 言語・フレームワークのベストプラクティス
+### Language/Framework Best Practices
 
-- 変更されたファイルの言語/フレームワークに沿って確認する
-- 判断が難しい場合は **Webで公式ドキュメントを調査** して根拠を示す
-  - 例: React / TypeScript / Hono / Node の公式ドキュメント
-  - 不確実な場合は **「要調査」として明示** する
+- Check against language/framework conventions for changed files
+- When uncertain, **research official docs** and cite source
+  - e.g., React / TypeScript / Hono / Node official docs
+  - Mark as **"needs investigation"** if uncertain
 
-## ルール適用の指針
+## Rule Application Guidelines
 
-### scope の判定（パスから推定）
+### scope Determination (from path)
 
 - `dashboard/` → `dashboard`
 - `hooks/` → `hooks`
 - `skills/` → `skills`
 - `dashboard/server/` → `server`
 - `config`/`env`/`tsconfig`/`vite.config` → `config`
-- それ以外 → `general`
+- Other → `general`
 
-### tags の付与（パス or diff文字列から推定）
+### tags Assignment (from path or diff content)
 
 - `ui` (dashboard/react/css)
 - `api` (server/api)
@@ -81,17 +79,17 @@ description: dev-rules と review-guidelines に基づいて差分レビュー�
 - `docs` (README/docs/*.md)
 - `release` (version/changelog)
 
-### appliesTo / exceptions の扱い
+### appliesTo / exceptions Handling
 
-- `appliesTo` がある場合は **scope/tags/path** で一致したときだけ適用
-- `exceptions` に一致する場合は **除外**
+- If `appliesTo` exists, apply only when **scope/tags/path** matches
+- If `exceptions` matches, **exclude**
 
-### tokens の扱い
+### tokens Handling
 
-- `tokens` がある場合は diff 内に出現するものだけを対象にする
-- 出現しないなら **ノイズ回避のため基本はスキップ**
+- If `tokens` exists, only target those appearing in diff
+- If not appearing, **skip to avoid noise**
 
-## 重大度のマッピング
+## Severity Mapping
 
 | priority | severity |
 |----------|----------|
@@ -99,7 +97,7 @@ description: dev-rules と review-guidelines に基づいて差分レビュー�
 | p1 | Warning |
 | p2 | Suggestion |
 
-## 出力フォーマット（Markdown）
+## Output Format (Markdown)
 
 ```
 # Review: {target}
@@ -114,7 +112,7 @@ description: dev-rules と review-guidelines に基づいて差分レビュー�
 ## Findings
 
 ### Blocker
-1. {短い指摘タイトル}
+1. {short title}
    - File: path/to/file.ts:123
    - Evidence: {diff snippet}
    - Rule: {rule.id} / {rule.text}
@@ -131,15 +129,15 @@ description: dev-rules と review-guidelines に基づいて差分レビュー�
 - Skipped (scope mismatch): {rule ids}
 
 ## Rule Proposals
-- {提案内容}（根拠: {どの指摘から発生したか}）
+- {proposal} (source: {which finding triggered this})
 
 ## Stale Rules
 - {rule.id} (lastSeenAt: YYYY-MM-DD)
 ```
 
-## Review JSON 保存形式
+## Review JSON Format
 
-`.memoria/reviews/YYYY/MM/review-YYYY-MM-DD_HHMMSS.json` に保存する。
+Save to `.memoria/reviews/YYYY/MM/review-YYYY-MM-DD_HHMMSS.json`:
 
 ```json
 {
@@ -161,10 +159,10 @@ description: dev-rules と review-guidelines に基づいて差分レビュー�
     {
       "id": "finding-001",
       "severity": "blocker",
-      "title": "本番設定の秘密情報がハードコードされている",
+      "title": "Hardcoded production secret",
       "ruleId": "review-2026-01-24_abc123-0",
-      "ruleText": "シークレットは環境変数に置く",
-      "rationale": "漏洩リスクを避けるため",
+      "ruleText": "Secrets should be in environment variables",
+      "rationale": "Avoid leak risk",
       "file": "src/config.ts",
       "line": 42,
       "evidence": "API_KEY = \"xxx\""
@@ -176,7 +174,7 @@ description: dev-rules と review-guidelines に基づいて差分レビュー�
   },
   "proposals": [
     {
-      "text": "APIクライアントは必ず timeout を設定する",
+      "text": "API client must always set timeout",
       "fromFindingIds": ["finding-002"]
     }
   ],
