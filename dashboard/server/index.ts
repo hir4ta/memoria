@@ -318,6 +318,20 @@ app.put("/api/rules/:id", async (c) => {
   }
 });
 
+// Tags
+app.get("/api/tags", async (c) => {
+  const tagsPath = path.join(getMemoriaDir(), "tags.json");
+  try {
+    if (!fs.existsSync(tagsPath)) {
+      return c.json({ version: 1, tags: [] });
+    }
+    const content = fs.readFileSync(tagsPath, "utf-8");
+    return c.json(JSON.parse(content));
+  } catch {
+    return c.json({ error: "Failed to read tags" }, 500);
+  }
+});
+
 // Serve static files in production
 // When bundled, server.js is at dist/server.js and static files at dist/public/
 const distPath = path.join(import.meta.dirname, "public");

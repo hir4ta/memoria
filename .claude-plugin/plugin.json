@@ -8,11 +8,5 @@
   "homepage": "https://github.com/hir4ta/memoria",
   "repository": "https://github.com/hir4ta/memoria",
   "license": "MIT",
-  "keywords": [
-    "memory",
-    "sessions",
-    "decisions",
-    "patterns",
-    "dashboard"
-  ]
+  "keywords": ["memory", "sessions", "decisions", "patterns", "dashboard"]
 }

@@ -3154,6 +3154,18 @@ app.put("/api/rules/:id", async (c) => {
     return c.json({ error: "Failed to update rules" }, 500);
   }
 });
+app.get("/api/tags", async (c) => {
+  const tagsPath = path.join(getMemoriaDir(), "tags.json");
+  try {
+    if (!fs.existsSync(tagsPath)) {
+      return c.json({ version: 1, tags: [] });
+    }
+    const content = fs.readFileSync(tagsPath, "utf-8");
+    return c.json(JSON.parse(content));
+  } catch {
+    return c.json({ error: "Failed to read tags" }, 500);
+  }
+});
 var distPath = path.join(import.meta.dirname, "public");
 if (fs.existsSync(distPath)) {
   app.use("/*", serveStatic({ root: distPath }));

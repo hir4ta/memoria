@@ -1,68 +1,73 @@
-// Session types
+// User type
 export interface User {
   name: string;
   email?: string;
 }
 
+// Session context
 export interface SessionContext {
-  branch: string | null;
+  branch?: string | null;
   projectDir: string;
+  user?: User;
 }
 
-export interface ToolUse {
-  tool: string;
-  input: unknown;
-  output?: string;
+// Interaction types (new schema)
+export interface Proposal {
+  option: string;
+  description: string;
 }
 
-export interface Message {
-  type: "user" | "assistant";
-  timestamp: string;
-  content: string;
-  thinking?: string;
-  toolUses?: ToolUse[];
-}
-
-export interface FileModified {
+export interface Action {
+  type: "create" | "edit" | "delete";
   path: string;
-  action: "created" | "modified" | "deleted";
-  summary?: string;
+  summary: string;
 }
 
-export interface SessionSummary {
-  title: string;
-  userRequests: string[];
-  assistantActions: string[];
-  webLinks: string[];
-  filesModified: string[];
-  keyDecisions: string[];
-  stats?: {
-    messageCount: number;
-    userMessageCount: number;
-    assistantMessageCount: number;
-    toolUseCount: number;
-  };
+export interface Interaction {
+  id: string;
+  topic: string;
+  timestamp: string;
+  request?: string;
+  problem?: string;
+  thinking?: string;
+  webLinks?: string[];
+  proposals?: Proposal[];
+  choice?: string;
+  reasoning?: string;
+  actions?: Action[];
+  filesModified?: string[];
 }
 
+// Session type (new interactions-based schema)
 export interface Session {
   id: string;
   sessionId: string;
   createdAt: string;
-  endedAt?: string;
-  user: User;
   context: SessionContext;
+  title: string;
+  goal?: string;
   tags: string[];
-  status: "completed" | "in_progress";
-  summary: SessionSummary;
-  messages: Message[];
-  filesModified: FileModified[];
-  keyDecisions?: string[];
+  interactions: Interaction[];
+}
+
+// Tag type
+export interface Tag {
+  id: string;
+  label: string;
+  aliases: string[];
+  category: string;
+  color: string;
+}
+
+export interface TagsFile {
+  version: number;
+  tags: Tag[];
 }
 
 // Decision types
 export interface Alternative {
-  option: string;
-  rejected: string;
+  name: string;
+  reason: string;
 }
 
 export interface Decision {
@@ -76,6 +81,10 @@ export interface Decision {
   alternatives: Alternative[];
   relatedSessions: string[];
   tags: string[];
+  context?: {
+    branch?: string;
+    projectDir?: string;
+  };
   source?: "auto" | "manual";
   status: "draft" | "active" | "superseded" | "deprecated";
 }

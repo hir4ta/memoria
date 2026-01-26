@@ -1,4 +1,4 @@
-import type { Decision, Session } from "./types";
+import type { Decision, Session, TagsFile } from "./types";
 
 const API_BASE = "/api";
 
@@ -84,5 +84,12 @@ export async function getProjectInfo(): Promise<{
 }> {
   const res = await fetch(`${API_BASE}/info`);
   if (!res.ok) throw new Error("Failed to fetch project info");
+  return res.json();
+}
+
+// Tags
+export async function getTags(): Promise<TagsFile> {
+  const res = await fetch(`${API_BASE}/tags`);
+  if (!res.ok) throw new Error("Failed to fetch tags");
   return res.json();
 }

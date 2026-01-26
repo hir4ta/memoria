@@ -4,17 +4,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { deleteSession, getSessions } from "@/lib/api";
-import type { Session } from "@/lib/types";
+import { deleteSession, getSessions, getTags } from "@/lib/api";
+import type { Session, Tag } from "@/lib/types";
 
 function SessionCard({
   session,
+  tags,
   onDelete,
 }: {
   session: Session;
+  tags: Tag[];
   onDelete: () => void;
 }) {
-  const summaryTitle = session.summary.title;
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -33,9 +34,15 @@ function SessionCard({
     }
   };
 
-  const date = new Date(
-    session.endedAt || session.createdAt,
-  ).toLocaleDateString("ja-JP");
+  const date = new Date(session.createdAt).toLocaleDateString("ja-JP");
+  const userName = session.context.user?.name || "unknown";
+  const interactionCount = session.interactions?.length || 0;
+
+  // Get tag color from tags.json
+  const getTagColor = (tagId: string) => {
+    const tag = tags.find((t) => t.id === tagId);
+    return tag?.color || "#6B7280";
+  };
 
   return (
     <Link to={`/sessions/${session.id}`}>
@@ -43,16 +50,9 @@ function SessionCard({
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <CardTitle className="text-base font-medium flex items-center gap-2">
-              <span
-                className={
-                  session.status === "completed"
-                    ? "text-green-600"
-                    : "text-blue-600"
-                }
-              >
-                {session.status === "completed" ? "[done]" : "[...]"}
+              <span className="line-clamp-1">
+                {session.title || "Untitled session"}
               </span>
-              <span className="line-clamp-1">{summaryTitle}</span>
             </CardTitle>
             <Button
               variant="ghost"
@@ -67,7 +67,7 @@ function SessionCard({
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <span>{session.user.name}</span>
+            <span>{userName}</span>
             <span>-</span>
             <span>{date}</span>
             {session.context.branch && (
@@ -78,14 +78,42 @@ function SessionCard({
                 </span>
               </>
             )}
+            {interactionCount > 0 && (
+              <>
+                <span>-</span>
+                <span className="text-xs">
+                  {interactionCount} interaction
+                  {interactionCount !== 1 ? "s" : ""}
+                </span>
+              </>
+            )}
           </div>
+          {session.goal && (
+            <p className="text-sm text-muted-foreground mb-2 line-clamp-1">
+              {session.goal}
+            </p>
+          )}
           {session.tags.length > 0 && (
             <div className="flex flex-wrap gap-1">
-              {session.tags.slice(0, 5).map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs">
-                  {tag}
+              {session.tags.slice(0, 5).map((tagId) => (
+                <Badge
+                  key={tagId}
+                  variant="secondary"
+                  className="text-xs"
+                  style={{
+                    backgroundColor: `${getTagColor(tagId)}20`,
+                    color: getTagColor(tagId),
+                    borderColor: getTagColor(tagId),
+                  }}
+                >
+                  {tagId}
                 </Badge>
               ))}
+              {session.tags.length > 5 && (
+                <Badge variant="outline" className="text-xs">
+                  +{session.tags.length - 5}
+                </Badge>
+              )}
             </div>
           )}
         </CardContent>
@@ -96,17 +124,20 @@ function SessionCard({
 
 export function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "completed" | "in_progress"
-  >("all");
+  const [tagFilter, setTagFilter] = useState<string>("all");
 
-  const fetchSessions = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const data = await getSessions();
-      setSessions(data);
+      const [sessionsData, tagsData] = await Promise.all([
+        getSessions(),
+        getTags(),
+      ]);
+      setSessions(sessionsData);
+      setTags(tagsData.tags || []);
       setError(null);
     } catch {
       setError("Failed to load sessions");
@@ -116,32 +147,45 @@ export function SessionsPage() {
   }, []);
 
   useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
+    fetchData();
+  }, [fetchData]);
+
+  // Get unique tags from all sessions for filter dropdown
+  const availableTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    for (const session of sessions) {
+      for (const tag of session.tags) {
+        tagSet.add(tag);
+      }
+    }
+    return Array.from(tagSet).sort();
+  }, [sessions]);
 
   const filteredSessions = useMemo(() => {
     return sessions.filter((session) => {
-      if (statusFilter !== "all" && session.status !== statusFilter) {
+      // Tag filter
+      if (tagFilter !== "all" && !session.tags.includes(tagFilter)) {
         return false;
       }
+      // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const summaryText = [
-          session.summary.title,
-          ...(session.summary.userRequests ?? []),
+        const searchText = [
+          session.title,
+          session.goal || "",
+          ...session.tags,
+          ...(session.interactions?.map((i) => i.topic) || []),
         ].join(" ");
-        const matchesSummary = summaryText.toLowerCase().includes(query);
-        const matchesTags = session.tags.some((tag) =>
-          tag.toLowerCase().includes(query),
-        );
-        const matchesUser = session.user.name.toLowerCase().includes(query);
-        if (!matchesSummary && !matchesTags && !matchesUser) {
+        const matchesSearch = searchText.toLowerCase().includes(query);
+        const matchesUser =
+          session.context.user?.name?.toLowerCase().includes(query) || false;
+        if (!matchesSearch && !matchesUser) {
           return false;
         }
       }
       return true;
     });
-  }, [sessions, searchQuery, statusFilter]);
+  }, [sessions, searchQuery, tagFilter]);
 
   if (loading) {
     return <div className="text-center py-12">Loading...</div>;
@@ -178,19 +222,18 @@ export function SessionsPage() {
               className="max-w-xs"
             />
             <select
-              value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(
-                  e.target.value as "all" | "completed" | "in_progress",
-                )
-              }
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
               className="border border-border/70 bg-white/80 rounded-sm px-3 py-2 text-sm"
             >
-              <option value="all">All Status</option>
-              <option value="completed">Completed</option>
-              <option value="in_progress">In Progress</option>
+              <option value="all">All Tags</option>
+              {availableTags.map((tag) => (
+                <option key={tag} value={tag}>
+                  {tag}
+                </option>
+              ))}
             </select>
-            {(searchQuery || statusFilter !== "all") && (
+            {(searchQuery || tagFilter !== "all") && (
               <span className="text-sm text-muted-foreground">
                 {filteredSessions.length} of {sessions.length} sessions
               </span>
@@ -207,7 +250,8 @@ export function SessionsPage() {
                 <SessionCard
                   key={session.id}
                   session={session}
-                  onDelete={fetchSessions}
+                  tags={tags}
+                  onDelete={fetchData}
                 />
               ))}
             </div>
