@@ -9,16 +9,17 @@ memoria is a long-term memory plugin for Claude Code.
 
 ## Features
 
-1. **Auto-save**: Sessions saved automatically on every Claude response
-2. **Session resume**: `/memoria:resume` to restore past sessions
-3. **Knowledge search**: `/memoria:search` to find saved information
-4. **Rule-based review**: `/memoria:review` for code review based on rules
-5. **Weekly reports**: `/memoria:report` to generate review summary
-6. **Web dashboard**: Visual management of sessions and decisions
-7. **Brainstorming**: `/memoria:brainstorm` for design-first workflow
-8. **Planning**: `/memoria:plan` for detailed implementation plans
-9. **TDD**: `/memoria:tdd` for strict RED-GREEN-REFACTOR enforcement
-10. **Debugging**: `/memoria:debug` for systematic root cause analysis
+1. **Auto-save on Auto-Compact**: Sessions saved automatically before context compaction
+2. **Manual save**: `/memoria:save` or ask "save session" anytime
+3. **Session resume**: `/memoria:resume` to restore past sessions
+4. **Knowledge search**: `/memoria:search` to find saved information
+5. **Rule-based review**: `/memoria:review` for code review based on rules
+6. **Weekly reports**: `/memoria:report` to generate review summary
+7. **Web dashboard**: Visual management of sessions and decisions
+8. **Brainstorming**: `/memoria:brainstorm` for design-first workflow
+9. **Planning**: `/memoria:plan` for detailed implementation plans
+10. **TDD**: `/memoria:tdd` for strict RED-GREEN-REFACTOR enforcement
+11. **Debugging**: `/memoria:debug` for systematic root cause analysis
 
 ## Recommended Workflow
 
@@ -31,20 +32,28 @@ brainstorm → plan → tdd → review
 3. **tdd**: Implement with RED → GREEN → REFACTOR
 4. **review**: Verify against plan (--full) and code quality
 
-## Session Auto-Save
+## Session Saving
 
-Sessions are saved **automatically on every Claude response** via Stop hook.
+### Auto-Save (on Auto-Compact)
 
-### How It Works
+Sessions are saved **automatically before Auto-Compact** via PreCompact hook.
 
 ```
-[Claude responds] → [Stop hook] → [Claude updates session JSON] → [Done]
+[Context 95% full] → [PreCompact hook] → [Claude saves session] → [Compact proceeds]
 ```
 
-On each response, Claude automatically:
-1. Adds conversation to `interactions` array
-2. Updates `summary` with current state
-3. Updates `metrics` (files, decisions, errors)
+This ensures your thinking process and decisions are preserved before context is compressed.
+
+### Manual Save
+
+Save anytime by:
+- Running `/memoria:save`
+- Asking "save the session" or "セッションを保存して"
+
+Use manual save to:
+- Save important progress before ending session
+- Extract development rules to `dev-rules.json`
+- Extract review guidelines to `review-guidelines.json`
 
 ### What Gets Saved
 
@@ -57,13 +66,6 @@ On each response, Claude automatically:
 | decisions | Technical decisions with reasoning |
 | errors | Errors encountered and solutions |
 | tags | Related keywords |
-
-### Manual Save
-
-Use `/memoria:save` to:
-- Extract development rules to `dev-rules.json`
-- Extract review guidelines to `review-guidelines.json`
-- Force update if auto-save missed something
 
 ## Commands
 

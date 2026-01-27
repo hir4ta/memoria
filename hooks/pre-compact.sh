@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
-# pre-compact.sh - Backup before Auto-Compact
+# pre-compact.sh - Auto-save before Auto-Compact using Claude Code LLM
 #
 # This is the LAST CHANCE to save information before Auto-Compact.
-# Extracts thinking blocks and conversation from transcript and saves to session JSON.
+# Blocks compaction and instructs Claude Code LLM to save the session with full context.
 #
 # Input (stdin): JSON with session_id, transcript_path, cwd, trigger
-# Output: JSON with continue (boolean)
+# Output: JSON with decision to block and reason (instruction for Claude)
 
 set -euo pipefail
 
@@ -17,7 +17,6 @@ input_json=$(cat)
 session_id=$(echo "$input_json" | jq -r '.session_id // empty')
 transcript_path=$(echo "$input_json" | jq -r '.transcript_path // empty')
 cwd=$(echo "$input_json" | jq -r '.cwd // empty')
-trigger=$(echo "$input_json" | jq -r '.trigger // "auto"')
 
 # If no cwd, use PWD
 if [ -z "$cwd" ]; then
@@ -48,67 +47,71 @@ if [ -z "$transcript_path" ] || [ ! -f "$transcript_path" ]; then
     exit 0
 fi
 
-echo "[memoria] PreCompact: Extracting from transcript before Auto-Compact..." >&2
+# Get relative path for cleaner output
+session_relative="${session_file#$cwd/}"
 
-# Extract thinking blocks from transcript (these are lost after compact)
-# Transcript is JSONL format
-thinking_blocks=$(cat "$transcript_path" | jq -s '
-  [.[] | select(.type == "assistant") | .message.content[]? | select(.type == "thinking") | .thinking]
-  | map(select(. != null and . != ""))
-  | if length > 10 then .[-10:] else . end
-' 2>/dev/null || echo "[]")
+echo "[memoria] PreCompact: Triggering Claude Code LLM to save session before Auto-Compact..." >&2
 
-# Extract recent user messages
-user_messages=$(cat "$transcript_path" | jq -s '
-  [.[] | select(.type == "user") |
-    if (.message.content | type) == "string" then .message.content
-    elif (.message.content | type) == "array" then
-      [.message.content[] | select(.type == "text") | .text] | join("\n")
-    else null end
-  ] | map(select(. != null and . != "")) | if length > 5 then .[-5:] else . end
-' 2>/dev/null || echo "[]")
+# Build the instruction for Claude to save the session
+instruction="[MEMORIA AUTO-SAVE] Auto-Compact detected. Save session NOW before context is lost.
 
-# Extract tool usage
-tools_used=$(cat "$transcript_path" | jq -s '
-  [.[] | select(.type == "assistant") | .message.content[]? |
-    select(.type == "tool_use") |
-    {name: .name, target: (if .input.file_path then .input.file_path elif .input.command then (.input.command | split("\n")[0] | .[0:100]) else null end)}
-  ] | if length > 20 then .[-20:] else . end
-' 2>/dev/null || echo "[]")
+**Transcript file (read this to extract thinking):** ${transcript_path}
+**Session file to update:** ${session_relative}
 
-# Create a compact backup entry
-now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-backup_id="backup-$(date +%s)"
+## CRITICAL: Avoid Duplicates
 
-# Read current session and add backup
-current_session=$(cat "$session_file")
+1. **First, read the existing session file** to check:
+   - Last interaction's timestamp (if any)
+   - Already saved content
 
-# Add preCompactBackups array if not exists, then append new backup
-updated_session=$(echo "$current_session" | jq \
-    --arg id "$backup_id" \
-    --arg timestamp "$now" \
-    --arg trigger "$trigger" \
-    --argjson thinking "$thinking_blocks" \
-    --argjson userMessages "$user_messages" \
-    --argjson toolsUsed "$tools_used" \
-    '
-    .preCompactBackups = (.preCompactBackups // []) + [{
-        id: $id,
-        timestamp: $timestamp,
-        trigger: $trigger,
-        thinkingExcerpts: $thinking,
-        recentUserMessages: $userMessages,
-        recentToolsUsed: $toolsUsed
-    }] |
-    # Keep only last 5 backups
-    .preCompactBackups = (.preCompactBackups | if length > 5 then .[-5:] else . end) |
-    .lastPreCompactAt = $timestamp
-')
+2. **Only add NEW interactions** since the last saved timestamp
+   - If interactions array is empty, save everything
+   - If interactions exist, only add content AFTER the last timestamp
+   - Skip any content that appears to already be saved
 
-# Write updated session
-echo "$updated_session" > "$session_file"
+## Instructions
 
-echo "[memoria] PreCompact: Saved ${#thinking_blocks} thinking excerpts, ${#user_messages} messages" >&2
+1. **Read the transcript file** (JSONL format) to find:
+   - Your thinking blocks (type: \"thinking\")
+   - User messages (type: \"user\")
+   - Your responses (type: \"assistant\")
+   - Tool usage
 
-# Allow compaction to proceed
-echo '{"continue": true}'
+2. **Add to 'interactions' array** (only new ones!) with this structure:
+   \`\`\`json
+   {
+     \"id\": \"int-NNN\",
+     \"timestamp\": \"ISO8601\",
+     \"topic\": \"What this interaction was about (for search)\",
+     \"request\": \"User's original request/question\",
+     \"thinking\": \"Key insights from your thinking process\",
+     \"response\": \"Summary of your response\",
+     \"choice\": \"What was decided/chosen (if any)\",
+     \"reasoning\": \"Why this approach was taken\",
+     \"toolsUsed\": [{\"name\": \"...\", \"target\": \"...\"}],
+     \"filesModified\": [\"...\"]
+   }
+   \`\`\`
+
+3. **Update 'summary'**: title, goal, outcome, description
+
+4. **Update 'metrics'**: filesCreated, filesModified, decisionsCount, etc.
+
+5. **Update 'decisions' array** if any NEW technical decisions were made
+
+6. **Update 'errors' array** if any NEW errors were encountered/resolved
+
+7. **Update 'tags'** and 'sessionType' if needed
+
+After updating, just continue. No confirmation needed."
+
+# Escape the instruction for JSON
+escaped_instruction=$(echo "$instruction" | jq -Rs '.')
+
+# Block compaction and instruct Claude to save
+cat <<EOF
+{
+  "decision": "block",
+  "reason": ${escaped_instruction}
+}
+EOF

@@ -255,42 +255,22 @@ if [ "$is_resumed" = true ]; then
     resume_note=" (Resumed)"
 fi
 
-# Build the auto-save instruction
-auto_save_instruction="<EXTREMELY_IMPORTANT>
-You MUST update the session file at the END of EVERY response.
-
-This is not optional. This is not negotiable. You cannot skip this.
-
-**Session:** ${file_id}${resume_note}
+# Build the session info (no auto-save instruction)
+session_info="**Session:** ${file_id}${resume_note}
 **Path:** ${session_relative_path}
 
-## What to do after EVERY response
+Sessions are saved:
+- **Automatically** before Auto-Compact (context 95% full)
+- **Manually** via \`/memoria:save\` or asking \"save the session\""
 
-1. Read the current session file
-2. Add to 'interactions' array:
-   - id: \"int-NNN\" (increment)
-   - timestamp: ISO8601
-   - topic: searchable summary
-   - request: user's question
-   - thinking: your key insights
-   - response: summary of your response
-   - toolsUsed: [{name, target}]
-   - filesModified: [paths]
-3. Update 'summary': title, goal, outcome, description
-4. Update 'metrics', 'decisions', 'errors', 'tags' as needed
-5. Write the updated JSON back
-
-Do this silently. No confirmation messages needed.
-</EXTREMELY_IMPORTANT>"
-
-auto_save_escaped=$(escape_for_json "$auto_save_instruction")
+session_info_escaped=$(escape_for_json "$session_info")
 
 # Output context injection as JSON (superpowers style)
 cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "${auto_save_escaped}\n\n${using_memoria_escaped}"
+    "additionalContext": "${session_info_escaped}\n\n${using_memoria_escaped}"
   }
 }
 EOF

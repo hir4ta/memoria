@@ -9,11 +9,11 @@ Explicitly save session and extract development rules from conversation.
 
 ## When to Use
 
-**Session content is auto-saved on every response.** Use this command when you want to:
+Sessions are auto-saved **only before Auto-Compact**. Use this command when you want to:
 
-1. **Extract rules** - Save development rules/guidelines mentioned in conversation
-2. **Force update** - Manually update summary if auto-save missed something
-3. **Final save** - Ensure everything is captured before ending session
+1. **Save progress** - Capture current session state before ending
+2. **Extract rules** - Save development rules/guidelines mentioned in conversation
+3. **Important checkpoint** - Ensure a significant milestone is recorded
 
 ## Usage
 
@@ -63,13 +63,17 @@ Explicitly save session and extract development rules from conversation.
 
 1. Get session path from additionalContext (shown at session start)
 2. Read current session file
-3. Update/add:
+3. **Check for duplicates**:
+   - Look at last interaction's timestamp (if any)
+   - Only add interactions AFTER that timestamp
+   - Skip content that appears already saved
+4. Update/add:
    - **summary**: title, goal, outcome, description
-   - **interactions**: Add any missing conversation turns
+   - **interactions**: Add only NEW conversation turns (avoid duplicates!)
    - **metrics**: Count files, decisions, errors
    - **files**: All file changes with action and summary
-   - **decisions**: Technical decisions with reasoning
-   - **errors**: Errors encountered and solutions
+   - **decisions**: Technical decisions with reasoning (only new ones)
+   - **errors**: Errors encountered and solutions (only new ones)
    - **tags**: Relevant keywords
 
 ### 2. Extract and Save Rules
@@ -153,6 +157,7 @@ Rules updated:
 ## Notes
 
 - Session path is shown in additionalContext at session start
-- Auto-save runs on every response via Stop hook
-- This command is for manual updates and rule extraction
+- Auto-save runs only before Auto-Compact (context 95% full)
+- Use this command for manual saves and rule extraction
 - Rules are appended (not overwritten) - duplicates are skipped
+- Interactions are checked for duplicates before adding
