@@ -183,7 +183,7 @@ All data is stored in `.memoria/` directory as JSON:
 ```text
 .memoria/
 ├── .current-session  # Current session ID and path
-├── tags.json         # Tag master file
+├── tags.json         # Tag master file (93 tags, prevents notation variations)
 ├── sessions/         # Session history (YYYY/MM)
 ├── decisions/        # Technical decisions (YYYY/MM)
 ├── rules/            # Dev rules / review guidelines
@@ -192,6 +192,70 @@ All data is stored in `.memoria/` directory as JSON:
 ```
 
 Git-manageable. Add to `.gitignore` based on your project needs.
+
+### Session JSON Schema
+
+Sessions use an **interactions-based** schema. Each interaction represents a decision cycle (request → thinking → proposals → choice → implementation).
+
+```json
+{
+  "id": "2026-01-27_abc123",
+  "sessionId": "full-uuid-from-claude-code",
+  "createdAt": "2026-01-27T10:00:00Z",
+  "context": {
+    "branch": "feature/auth",
+    "projectDir": "/path/to/project",
+    "user": { "name": "tanaka", "email": "tanaka@example.com" }
+  },
+  "title": "JWT authentication implementation",
+  "goal": "Implement JWT-based auth with refresh token support",
+  "tags": ["auth", "jwt", "backend"],
+  "interactions": [
+    {
+      "id": "int-001",
+      "topic": "Auth method selection",
+      "timestamp": "2026-01-27T10:15:00Z",
+      "request": "Implement authentication",
+      "thinking": "Comparing JWT vs session cookies...",
+      "webLinks": ["https://jwt.io/introduction"],
+      "proposals": [
+        { "option": "JWT", "description": "Stateless, scalable" },
+        { "option": "Session Cookie", "description": "Simple" }
+      ],
+      "choice": "JWT",
+      "reasoning": "Easy auth sharing between microservices",
+      "actions": [
+        { "type": "create", "path": "src/auth/jwt.ts", "summary": "JWT module" }
+      ],
+      "filesModified": ["src/auth/jwt.ts"]
+    }
+  ]
+}
+```
+
+### Update Triggers
+
+Claude Code updates session JSON when meaningful changes occur:
+
+| Trigger | Update |
+|---------|--------|
+| Session purpose becomes clear | `title`, `goal` |
+| User instruction handled | Add to `interactions` |
+| Technical decision made | `proposals`, `choice`, `reasoning` |
+| Error encountered/resolved | `problem`, `choice`, `reasoning` |
+| File modified | `actions`, `filesModified` |
+| URL referenced | `webLinks` |
+| New keyword appears | `tags` (reference tags.json) |
+
+### Tags
+
+Tags are selected from `.memoria/tags.json` to prevent notation variations (e.g., "フロント" → "frontend"). The master file contains 93 tags across 11 categories:
+
+- **domain**: frontend, backend, api, db, infra, mobile, cli
+- **phase**: feature, bugfix, refactor, test, docs
+- **ai**: llm, ai-agent, mcp, rag, vector-db, embedding
+- **cloud**: serverless, microservices, edge, wasm
+- And more...
 
 ## License
 

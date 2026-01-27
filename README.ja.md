@@ -183,7 +183,7 @@ flowchart TB
 ```text
 .memoria/
 ├── .current-session  # 現在のセッションID・パス
-├── tags.json         # タグマスターファイル
+├── tags.json         # タグマスターファイル（93タグ、表記揺れ防止）
 ├── sessions/         # セッション履歴 (YYYY/MM)
 ├── decisions/        # 技術的な判断 (YYYY/MM)
 ├── rules/            # 開発ルール / レビュー観点
@@ -192,6 +192,70 @@ flowchart TB
 ```
 
 Gitでバージョン管理可能です。`.gitignore` に追加するかはプロジェクトに応じて判断してください。
+
+### セッションJSONスキーマ
+
+セッションは **interactions ベース** のスキーマを使用します。各 interaction は決定サイクル（リクエスト → 思考 → 提案 → 選択 → 実装）を表します。
+
+```json
+{
+  "id": "2026-01-27_abc123",
+  "sessionId": "claude-code-からの-full-uuid",
+  "createdAt": "2026-01-27T10:00:00Z",
+  "context": {
+    "branch": "feature/auth",
+    "projectDir": "/path/to/project",
+    "user": { "name": "tanaka", "email": "tanaka@example.com" }
+  },
+  "title": "JWT認証機能の実装",
+  "goal": "JWTベースの認証機能を実装し、リフレッシュトークンにも対応する",
+  "tags": ["auth", "jwt", "backend"],
+  "interactions": [
+    {
+      "id": "int-001",
+      "topic": "認証方式の選択",
+      "timestamp": "2026-01-27T10:15:00Z",
+      "request": "認証機能を実装したい",
+      "thinking": "JWTとセッションCookieを比較...",
+      "webLinks": ["https://jwt.io/introduction"],
+      "proposals": [
+        { "option": "JWT", "description": "ステートレス、スケーラブル" },
+        { "option": "セッションCookie", "description": "シンプル" }
+      ],
+      "choice": "JWT",
+      "reasoning": "マイクロサービス間の認証共有が容易",
+      "actions": [
+        { "type": "create", "path": "src/auth/jwt.ts", "summary": "JWTモジュール" }
+      ],
+      "filesModified": ["src/auth/jwt.ts"]
+    }
+  ]
+}
+```
+
+### 更新トリガー
+
+Claude Code は意味のある変化があった時にセッションJSONを更新します：
+
+| トリガー | 更新内容 |
+|---------|---------|
+| セッションの目的が明確になった | `title`, `goal` |
+| ユーザーの指示に対応した | `interactions` に追加 |
+| 技術的決定を下した | `proposals`, `choice`, `reasoning` |
+| エラーに遭遇・解決した | `problem`, `choice`, `reasoning` |
+| ファイルを変更した | `actions`, `filesModified` |
+| URLを参照した | `webLinks` |
+| 新しいキーワードが出現 | `tags`（tags.jsonを参照） |
+
+### タグ
+
+タグは `.memoria/tags.json` から選択され、表記揺れを防止します（例: 「フロント」→「frontend」）。マスターファイルには11カテゴリ93タグが含まれています：
+
+- **domain**: frontend, backend, api, db, infra, mobile, cli
+- **phase**: feature, bugfix, refactor, test, docs
+- **ai**: llm, ai-agent, mcp, rag, vector-db, embedding
+- **cloud**: serverless, microservices, edge, wasm
+- その他...
 
 ## ライセンス
 

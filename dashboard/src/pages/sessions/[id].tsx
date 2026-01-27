@@ -64,17 +64,25 @@ function InteractionCard({
         <div>
           <div className="text-xs text-muted-foreground mb-1">Web Links</div>
           <div className="flex flex-wrap gap-1">
-            {interaction.webLinks.map((link) => (
-              <a
-                key={link}
-                href={link}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-primary underline hover:no-underline"
-              >
-                {new URL(link).hostname}
-              </a>
-            ))}
+            {interaction.webLinks.map((link) => {
+              let displayText = link;
+              try {
+                displayText = new URL(link).hostname;
+              } catch {
+                // Invalid URL, use raw link as display text
+              }
+              return (
+                <a
+                  key={link}
+                  href={link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-primary underline hover:no-underline"
+                >
+                  {displayText}
+                </a>
+              );
+            })}
           </div>
         </div>
       )}
@@ -386,12 +394,90 @@ export function SessionDetailPage() {
           <div>
             <span className="text-muted-foreground text-sm">Tags:</span>
             {isEditing ? (
-              <Input
-                value={editTags}
-                onChange={(e) => setEditTags(e.target.value)}
-                placeholder="tag1, tag2, tag3"
-                className="mt-1"
-              />
+              <div className="mt-2 space-y-2">
+                <div className="flex flex-wrap gap-1">
+                  {editTags
+                    .split(",")
+                    .map((t) => t.trim())
+                    .filter(Boolean)
+                    .map((tagId) => (
+                      <Badge
+                        key={tagId}
+                        variant="secondary"
+                        className="text-xs cursor-pointer"
+                        style={{
+                          backgroundColor: `${getTagColor(tagId)}20`,
+                          color: getTagColor(tagId),
+                          borderColor: getTagColor(tagId),
+                        }}
+                        onClick={() => {
+                          const currentTags = editTags
+                            .split(",")
+                            .map((t) => t.trim())
+                            .filter(Boolean);
+                          setEditTags(
+                            currentTags.filter((t) => t !== tagId).join(", "),
+                          );
+                        }}
+                      >
+                        {tagId} ×
+                      </Badge>
+                    ))}
+                  {editTags.trim() === "" && (
+                    <span className="text-muted-foreground text-xs">
+                      Click tags below to add
+                    </span>
+                  )}
+                </div>
+                <details className="text-sm">
+                  <summary className="text-muted-foreground cursor-pointer text-xs">
+                    Available tags ({tags.length})
+                  </summary>
+                  <div className="flex flex-wrap gap-1 mt-2 max-h-48 overflow-y-auto p-2 border rounded">
+                    {tags.map((tag) => {
+                      const isSelected = editTags
+                        .split(",")
+                        .map((t) => t.trim())
+                        .includes(tag.id);
+                      return (
+                        <Badge
+                          key={tag.id}
+                          variant={isSelected ? "default" : "outline"}
+                          className="text-xs cursor-pointer"
+                          style={
+                            isSelected
+                              ? {
+                                  backgroundColor: tag.color,
+                                  color: "#fff",
+                                }
+                              : {
+                                  borderColor: tag.color,
+                                  color: tag.color,
+                                }
+                          }
+                          onClick={() => {
+                            const currentTags = editTags
+                              .split(",")
+                              .map((t) => t.trim())
+                              .filter(Boolean);
+                            if (isSelected) {
+                              setEditTags(
+                                currentTags
+                                  .filter((t) => t !== tag.id)
+                                  .join(", "),
+                              );
+                            } else {
+                              setEditTags([...currentTags, tag.id].join(", "));
+                            }
+                          }}
+                        >
+                          {tag.id}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </details>
+              </div>
             ) : (
               <div className="flex flex-wrap gap-1 mt-1">
                 {session.tags.length > 0 ? (
