@@ -44,17 +44,15 @@ date_part=$(echo "$now" | cut -d'T' -f1)
 year_part=$(echo "$date_part" | cut -d'-' -f1)
 month_part=$(echo "$date_part" | cut -d'-' -f2)
 
-# Generate session ID: YYYY-MM-DD_short-uuid
+# Generate session ID based on session_id (not date)
 if [ -n "$session_id" ]; then
     session_short_id="${session_id:0:8}"
 else
     session_short_id=$(uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]' | cut -c1-8 || date +%s | md5sum | cut -c1-8)
 fi
-file_id="${date_part}_${session_short_id}"
 
-# Create sessions directory (year/month)
-session_year_month_dir="${sessions_dir}/${year_part}/${month_part}"
-mkdir -p "$session_year_month_dir"
+# file_id is now just the session_short_id (no date prefix)
+file_id="${session_short_id}"
 
 # Get git info
 current_branch=""
@@ -68,12 +66,34 @@ if git -C "$cwd" rev-parse --git-dir &> /dev/null 2>&1; then
 fi
 
 # ============================================
+# Find existing session file or create new one
+# ============================================
+session_path=""
+is_resumed=false
+
+# Search for existing session file across all year/month directories
+if [ -d "$sessions_dir" ]; then
+    existing_file=$(find "$sessions_dir" -name "${file_id}.json" -type f 2>/dev/null | head -1)
+    if [ -n "$existing_file" ] && [ -f "$existing_file" ]; then
+        session_path="$existing_file"
+        is_resumed=true
+    fi
+fi
+
+# If no existing file, create in current year/month directory
+if [ -z "$session_path" ]; then
+    session_year_month_dir="${sessions_dir}/${year_part}/${month_part}"
+    mkdir -p "$session_year_month_dir"
+    session_path="${session_year_month_dir}/${file_id}.json"
+fi
+
+# ============================================
 # Find related sessions (same branch) for auto-linking
 # ============================================
 related_session_ids="[]"
 if [ -d "$sessions_dir" ] && [ -n "$current_branch" ]; then
     # Find sessions on same branch (last 3, excluding current)
-    related_session_ids=$(find "$sessions_dir" -mindepth 3 -maxdepth 3 -name "*.json" -type f 2>/dev/null | \
+    related_session_ids=$(find "$sessions_dir" -name "*.json" -type f 2>/dev/null | \
         xargs -I {} jq -r --arg branch "$current_branch" --arg current "$file_id" \
         'select(.context.branch == $branch and .id != $current) | .id' {} 2>/dev/null | \
         head -3 | jq -R -s -c 'split("\n") | map(select(length > 0))')
@@ -85,13 +105,15 @@ if [ -d "$sessions_dir" ] && [ -n "$current_branch" ]; then
 fi
 
 # ============================================
-# Initialize session JSON (only if not exists)
+# Initialize or update session JSON
 # ============================================
-session_path="${session_year_month_dir}/${file_id}.json"
-
-if [ -f "$session_path" ]; then
-    echo "[memoria] Session resumed: ${session_path}" >&2
+if [ "$is_resumed" = true ]; then
+    # Resume: reset status to null for re-processing at SessionEnd
+    jq --arg resumedAt "$now" '.status = null | .resumedAt = $resumedAt' "$session_path" > "${session_path}.tmp" \
+        && mv "${session_path}.tmp" "$session_path"
+    echo "[memoria] Session resumed (status reset): ${session_path}" >&2
 else
+    # New session: create initial JSON with analysis-friendly structure
     session_json=$(jq -n \
         --arg id "$file_id" \
         --arg sessionId "${session_id:-$session_short_id}" \
@@ -113,20 +135,37 @@ else
                     email: (if $userEmail == "" then null else $userEmail end)
                 } | with_entries(select(.value != null))
             } | with_entries(select(.value != null)),
-            title: "",
-            goal: "",
+            summary: {
+                title: "",
+                goal: "",
+                outcome: null,
+                description: ""
+            },
+            metrics: {
+                durationMinutes: 0,
+                filesCreated: 0,
+                filesModified: 0,
+                filesDeleted: 0,
+                decisionsCount: 0,
+                errorsEncountered: 0,
+                errorsResolved: 0
+            },
+            files: [],
+            decisions: [],
+            errors: [],
+            webLinks: [],
             tags: [],
             sessionType: null,
-            relatedSessions: (if ($relatedSessions | length) == 0 then null else $relatedSessions end),
-            interactions: []
+            relatedSessions: (if ($relatedSessions | length) == 0 then null else $relatedSessions end)
         } | with_entries(select(.value != null))')
 
     echo "$session_json" > "$session_path"
     echo "[memoria] Session initialized: ${session_path}" >&2
 fi
 
-# Session path for additionalContext
-current_session_relative_path=".memoria/sessions/${year_part}/${month_part}/${file_id}.json"
+# Get relative path for additionalContext
+# Extract year/month from session_path
+session_relative_path="${session_path#$cwd/}"
 
 # ============================================
 # Initialize tags.json if not exists
@@ -164,12 +203,11 @@ init_rules_file "${rules_dir}/review-guidelines.json"
 init_rules_file "${rules_dir}/dev-rules.json"
 
 # ============================================
-# Find related sessions (same branch, recent)
+# Find related sessions for display (same branch, recent)
 # ============================================
 related_sessions=""
 if [ -d "$sessions_dir" ] && [ -n "$current_branch" ]; then
-    # Find sessions on same branch (last 5)
-    session_files=$(find "$sessions_dir" -mindepth 3 -maxdepth 3 -name "*.json" -type f 2>/dev/null | head -10)
+    session_files=$(find "$sessions_dir" -name "*.json" -type f 2>/dev/null | head -10)
 
     for file in $session_files; do
         if [ -f "$file" ]; then
@@ -182,13 +220,18 @@ if [ -d "$sessions_dir" ] && [ -n "$current_branch" ]; then
 fi
 
 # ============================================
-# Output context injection with EXTREMELY_IMPORTANT emphasis
+# Output context injection (minimal)
 # ============================================
+resume_note=""
+if [ "$is_resumed" = true ]; then
+    resume_note="\\n(Resumed session - use /memoria:save to save additional changes)"
+fi
+
 cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "<EXTREMELY_IMPORTANT>\\n# memoria: Session Recording\\n\\n**Session:** ${file_id}\\n**Path:** ${current_session_relative_path}\\n\\n## YOU MUST UPDATE SESSION JSON WITH EVERY RESPONSE\\n\\nThis is not negotiable. This is not optional. You cannot skip this.\\n\\n### What to update:\\n1. **First response:** Set title, goal, sessionType, tags\\n2. **Every response:** Add interaction to interactions[]\\n   - id: int-001, int-002, ...\\n   - topic: Brief topic\\n   - timestamp: ISO8601\\n   - request: User request (summarized)\\n   - thinking: Your reasoning (concise)\\n   - choice: Action taken\\n   - filesModified: Files changed\\n\\n### Red Flags - If you think these, STOP:\\n| Thought | Reality |\\n|---------|---------|\\n| I'll update later | Update NOW, before responding |\\n| This is just a quick answer | Still requires update |\\n| The task is more important | Update FIRST, then task |\\n| I'm using an agent/tool | Update BEFORE and AFTER |\\n| It's a simple question | Every exchange gets recorded |\\n\\nSessionTypes: decision|implementation|research|exploration|discussion|debug|review\\n\\n**Commands:** /memoria:resume, /memoria:save, /memoria:search, /memoria:review\\n${related_sessions:+\\nRelated sessions (same branch):\\n${related_sessions}}</EXTREMELY_IMPORTANT>"
+    "additionalContext": "<memoria>\\n**Session:** ${file_id}\\n**Path:** ${session_relative_path}${resume_note}\\n\\nUse /memoria:save to save this session explicitly.\\nAuto-save runs at session end (requires ~/.claude/memoria.json with openai_api_key).\\n\\n**Commands:** /memoria:resume, /memoria:save, /memoria:search, /memoria:review\\n${related_sessions:+\\nRelated sessions (same branch):\\n${related_sessions}}</memoria>"
   }
 }
 EOF

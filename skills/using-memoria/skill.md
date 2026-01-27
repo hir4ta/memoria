@@ -9,17 +9,18 @@ memoria is a long-term memory plugin for Claude Code.
 
 ## Features
 
-1. **Real-time updates**: Update session JSON when meaningful changes occur
-2. **Session resume**: `/memoria:resume` to restore past sessions
-3. **Decision recording**: Auto-detect at session end + `/memoria:decision` for manual recording
-4. **Knowledge search**: `/memoria:search` to find saved information
-5. **Rule-based review**: `/memoria:review` for code review based on rules
-6. **Weekly reports**: `/memoria:report` to generate review summary
-7. **Web dashboard**: Visual management of sessions and decisions
-8. **Brainstorming**: `/memoria:brainstorm` for design-first workflow with Socratic questioning
-9. **Planning**: `/memoria:plan` for detailed implementation plans with 2-5 min tasks
-10. **TDD**: `/memoria:tdd` for strict RED-GREEN-REFACTOR enforcement
-11. **Debugging**: `/memoria:debug` for systematic root cause analysis
+1. **Explicit session saving**: Save with `/memoria:save` or "save session" request
+2. **Auto-fallback**: PreCompact/SessionEnd auto-save via OpenAI API (if configured)
+3. **Session resume**: `/memoria:resume` to restore past sessions
+4. **Decision recording**: Auto-detect at session end + `/memoria:decision` for manual recording
+5. **Knowledge search**: `/memoria:search` to find saved information
+6. **Rule-based review**: `/memoria:review` for code review based on rules
+7. **Weekly reports**: `/memoria:report` to generate review summary
+8. **Web dashboard**: Visual management of sessions and decisions
+9. **Brainstorming**: `/memoria:brainstorm` for design-first workflow with Socratic questioning
+10. **Planning**: `/memoria:plan` for detailed implementation plans with 2-5 min tasks
+11. **TDD**: `/memoria:tdd` for strict RED-GREEN-REFACTOR enforcement
+12. **Debugging**: `/memoria:debug` for systematic root cause analysis
 
 ## Recommended Workflow
 
@@ -32,21 +33,37 @@ brainstorm → plan → tdd → review
 3. **tdd**: Implement with RED → GREEN → REFACTOR
 4. **review**: Verify against plan (--full) and code quality
 
-## Real-time Updates
+## Session Saving
 
-Update session JSON when **meaningful changes occur**, not at session end.
+Sessions are saved **explicitly** (not automatically on every change).
 
-### Update Triggers
+### Saving Methods
 
-| Trigger | Update |
-|---------|--------|
-| Session purpose becomes clear | title, goal, sessionType |
-| User instruction handled | Add to interactions |
-| Technical decision made | proposals, choice, reasoning in interaction |
-| Error encountered/resolved | problem, choice, reasoning in interaction |
-| File modified | actions, filesModified in interaction |
-| URL referenced | webLinks in interaction |
-| New keyword appears | tags (reference tags.json) |
+| Method | Trigger | Status |
+|--------|---------|--------|
+| **Explicit** | `/memoria:save` or "save session" request | `complete` |
+| **PreCompact** | Before Auto-Compact (API fallback) | `draft` |
+| **SessionEnd** | Session end (API fallback) | `complete` |
+
+### Status Flow
+
+```
+null (template) → draft (API saved) → complete (confirmed)
+                      ↓
+              explicit save → complete
+```
+
+**Note**: API fallback requires `~/.claude/memoria.json` with `openai_api_key`.
+
+### What to Save
+
+| Field | Description |
+|-------|-------------|
+| title, goal | Session purpose |
+| sessionType | Session classification |
+| tags | Related keywords (reference tags.json) |
+| interactions | Decision cycle history (request → thinking → choice) |
+| status | `complete` for explicit save |
 
 ### sessionType (Required)
 
@@ -128,6 +145,7 @@ When executing skills, directly operate JSON files under `.memoria/`:
   "goal": "Implement JWT-based auth with refresh token support",
   "tags": ["auth", "jwt", "backend"],
   "sessionType": "implementation",
+  "status": "complete",
   "interactions": [
     {
       "id": "int-001",

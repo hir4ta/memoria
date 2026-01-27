@@ -2,12 +2,13 @@
 
 Long-term memory plugin for Claude Code
 
-Provides automatic session saving, technical decision recording, and web dashboard management.
+Provides explicit session saving with API fallback, technical decision recording, and web dashboard management.
 
 ## Features
 
 ### Core Features
-- **Real-time Session Updates**: Session JSON is updated when meaningful changes occur
+- **Explicit Session Saving**: Save with `/memoria:save` or "save session" request
+- **API Fallback**: Auto-save via OpenAI API before Auto-Compact and at session end
 - **Session Resume**: Resume past sessions with `/memoria:resume`
 - **Technical Decision Recording**: Record decisions with `/memoria:decision`
 - **Rule-based Review**: Code review based on `dev-rules.json` / `review-guidelines.json`
@@ -95,22 +96,47 @@ Restart Claude Code.
 
 This will auto-update on Claude Code startup.
 
+## Configuration (Optional)
+
+To enable API fallback for automatic session saving, run `/memoria:init` or manually create `~/.claude/memoria.json`:
+
+```json
+{
+  "openai_api_key": "sk-...",
+  "model": "gpt-5-mini"
+}
+```
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `openai_api_key` | No | - | Enables auto-save at PreCompact/SessionEnd |
+| `model` | No | `gpt-5-mini` | Model to use (gpt-5-mini, gpt-5, gpt-5.2, etc.) |
+
+**Without `openai_api_key`**: Sessions are only saved when you explicitly use `/memoria:save`.
+
+**With `openai_api_key`**: Auto-save is enabled. Sessions are automatically saved:
+- Before Auto-Compact (status: `draft`)
+- At session end (status: `complete`)
+
 ## Usage
 
-### Automatic Behavior
+### Session Saving
 
-| Timing | Action |
-|--------|--------|
-| Session Start | Suggest related sessions, initialize session JSON |
-| During Session | Claude Code updates session JSON on meaningful changes |
-| Session End | Log completion |
+| Method | When | Status |
+|--------|------|--------|
+| **Explicit** | `/memoria:save` or "save session" | `complete` |
+| **PreCompact** | Before Auto-Compact (API) | `draft` |
+| **SessionEnd** | Session end (API) | `complete` |
+
+**Note**: PreCompact/SessionEnd API fallback requires `~/.claude/memoria.json` configuration.
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
+| `/memoria:init` | Initialize config file (`~/.claude/memoria.json`) |
 | `/memoria:resume [id]` | Resume session (show list if ID omitted) |
-| `/memoria:save` | Force flush current session |
+| `/memoria:save` | Save session + extract rules from conversation |
 | `/memoria:decision "title"` | Record a technical decision |
 | `/memoria:search "query"` | Search sessions and decisions |
 | `/memoria:review [--staged\|--all\|--diff=branch\|--full]` | Rule-based code review (--full for two-stage) |
@@ -217,42 +243,59 @@ Git-manageable. Add to `.gitignore` based on your project needs.
 
 ### Session JSON Schema
 
-Sessions use an **interactions-based** schema. Each interaction represents a decision cycle (request → thinking → proposals → choice → implementation).
+Sessions use an **analysis-friendly** schema. Quantitative data (metrics) and qualitative data (summary) are separated, with files/decisions/errors as independent arrays for easy aggregation.
 
 ```json
 {
-  "id": "2026-01-27_abc123",
+  "id": "abc12345",
   "sessionId": "full-uuid-from-claude-code",
   "createdAt": "2026-01-27T10:00:00Z",
+  "endedAt": "2026-01-27T12:00:00Z",
   "context": {
     "branch": "feature/auth",
     "projectDir": "/path/to/project",
     "user": { "name": "tanaka", "email": "tanaka@example.com" }
   },
-  "title": "JWT authentication implementation",
-  "goal": "Implement JWT-based auth with refresh token support",
+  "summary": {
+    "title": "JWT authentication implementation",
+    "goal": "Implement JWT-based auth with refresh token support",
+    "outcome": "success",
+    "description": "Implemented JWT auth with RS256 signing"
+  },
+  "metrics": {
+    "durationMinutes": 120,
+    "filesCreated": 2,
+    "filesModified": 1,
+    "decisionsCount": 2,
+    "errorsEncountered": 1,
+    "errorsResolved": 1
+  },
+  "files": [
+    { "path": "src/auth/jwt.ts", "action": "create", "summary": "JWT module" }
+  ],
+  "decisions": [
+    {
+      "id": "dec-001",
+      "topic": "Auth method",
+      "choice": "JWT",
+      "alternatives": ["Session Cookie"],
+      "reasoning": "Easy auth sharing between microservices",
+      "timestamp": "2026-01-27T10:15:00Z"
+    }
+  ],
+  "errors": [
+    {
+      "id": "err-001",
+      "message": "secretOrPrivateKey must be asymmetric",
+      "type": "runtime",
+      "resolved": true,
+      "solution": "Changed to PEM format for RS256"
+    }
+  ],
+  "webLinks": ["https://jwt.io/introduction"],
   "tags": ["auth", "jwt", "backend"],
   "sessionType": "implementation",
-  "interactions": [
-    {
-      "id": "int-001",
-      "topic": "Auth method selection",
-      "timestamp": "2026-01-27T10:15:00Z",
-      "request": "Implement authentication",
-      "thinking": "Comparing JWT vs session cookies...",
-      "webLinks": ["https://jwt.io/introduction"],
-      "proposals": [
-        { "option": "JWT", "description": "Stateless, scalable" },
-        { "option": "Session Cookie", "description": "Simple" }
-      ],
-      "choice": "JWT",
-      "reasoning": "Easy auth sharing between microservices",
-      "actions": [
-        { "type": "create", "path": "src/auth/jwt.ts", "summary": "JWT module" }
-      ],
-      "filesModified": ["src/auth/jwt.ts"]
-    }
-  ]
+  "status": "complete"
 }
 ```
 
@@ -262,17 +305,16 @@ Claude Code updates session JSON when meaningful changes occur:
 
 | Trigger | Update |
 |---------|--------|
-| Session purpose becomes clear | `title`, `goal`, `sessionType` |
-| User instruction handled | Add to `interactions` |
-| Technical decision made | `proposals`, `choice`, `reasoning` |
-| Error encountered/resolved | `problem`, `choice`, `reasoning` |
-| File modified | `actions`, `filesModified` |
+| Session purpose becomes clear | `summary.title`, `summary.goal`, `sessionType` |
+| File modified | Add to `files`, update `metrics` |
+| Technical decision made | Add to `decisions` |
+| Error encountered/resolved | Add to `errors` |
 | URL referenced | `webLinks` |
 | New keyword appears | `tags` (reference tags.json) |
 
 ### Session Types
 
-The `sessionType` field classifies the session type. **Always set this** even if interactions is empty.
+The `sessionType` field classifies the session type.
 
 | Type | Description |
 |------|-------------|

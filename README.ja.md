@@ -7,7 +7,8 @@ Claude Codeの長期記憶を実現するプラグイン
 ## 機能
 
 ### コア機能
-- **リアルタイムセッション更新**: 意味のある変化があった時にセッションJSONを自動更新
+- **明示的セッション保存**: `/memoria:save` または「セッション保存して」で保存
+- **APIフォールバック**: Auto-Compact前とセッション終了時にOpenAI APIで自動保存
 - **セッション再開**: `/memoria:resume` で過去のセッションを再開
 - **技術的な判断の記録**: `/memoria:decision` で判断を記録
 - **ルールベースレビュー**: `dev-rules.json` / `review-guidelines.json` に基づくレビュー
@@ -31,7 +32,7 @@ Claude Codeの長期記憶を実現するプラグイン
 
 ### memoria でできること／解消できること
 
-- **リアルタイム保存 + 再開**で、セッションを跨いだ文脈の継続が可能
+- **自動保存 + 再開**で、セッションを跨いだ文脈の継続が可能
 - **判断記録**で、理由・代替案を後から追跡
 - **検索とダッシュボード**で、過去の記録を素早く参照
 - **レビュー機能**で、リポジトリ固有の観点に基づいて指摘
@@ -95,22 +96,47 @@ Claude Codeを再起動
 
 これによりClaude Code起動時に自動でアップデートされます
 
+## 設定（オプション）
+
+APIフォールバックによる自動セッション保存を有効にするには、`/memoria:init` を実行するか、手動で `~/.claude/memoria.json` を作成してください：
+
+```json
+{
+  "openai_api_key": "sk-...",
+  "model": "gpt-5-mini"
+}
+```
+
+| フィールド | 必須 | デフォルト | 説明 |
+|-----------|------|-----------|------|
+| `openai_api_key` | いいえ | - | 設定すると自動保存が有効になる |
+| `model` | いいえ | `gpt-5-mini` | 使用するモデル（gpt-5-mini, gpt-5, gpt-5.2など） |
+
+**`openai_api_key` なし**: `/memoria:save` での手動保存のみ。
+
+**`openai_api_key` あり**: 自動保存が有効になり、以下のタイミングで保存：
+- Auto-Compact前（status: `draft`）
+- セッション終了時（status: `complete`）
+
 ## 使い方
 
-### 自動動作
+### セッション保存
 
-| タイミング | 動作 |
-| ----------- | ------ |
-| セッション開始時 | セッションJSONを初期化、関連セッションの提案 |
-| 会話中 | 意味のある変化があった時にセッションJSONを更新 |
-| セッション終了時 | ログ出力 |
+| 方法 | タイミング | ステータス |
+|------|----------|-----------|
+| **明示的保存** | `/memoria:save` または「セッション保存して」 | `complete` |
+| **PreCompact** | Auto-Compact前（API） | `draft` |
+| **SessionEnd** | セッション終了時（API） | `complete` |
+
+**注意**: PreCompact/SessionEnd のAPIフォールバックには `~/.claude/memoria.json` の設定が必要です。
 
 ### コマンド
 
 | コマンド | 説明 |
 | --------- | ------ |
+| `/memoria:init` | 設定ファイルを初期化（`~/.claude/memoria.json`） |
 | `/memoria:resume [id]` | セッションを再開（ID省略で一覧表示） |
-| `/memoria:save` | 現在のセッションを強制保存 |
+| `/memoria:save` | セッション保存 + 会話からルール抽出 |
 | `/memoria:decision "タイトル"` | 技術的な判断を記録 |
 | `/memoria:search "クエリ"` | セッション・判断記録を検索 |
 | `/memoria:review [--staged\|--all\|--diff=branch\|--full]` | ルールに基づくレビュー（--fullで二段階） |
@@ -217,42 +243,59 @@ Gitでバージョン管理可能です。`.gitignore` に追加するかはプ�
 
 ### セッションJSONスキーマ
 
-セッションは **interactions ベース** のスキーマを使用します。各 interaction は決定サイクル（リクエスト → 思考 → 提案 → 選択 → 実装）を表します。
+セッションは **分析向け** のスキーマを使用します。定量データ（metrics）と定性データ（summary）を分離し、files/decisions/errorsを独立配列として集計可能にしています。
 
 ```json
 {
-  "id": "2026-01-27_abc123",
+  "id": "abc12345",
   "sessionId": "claude-code-からの-full-uuid",
   "createdAt": "2026-01-27T10:00:00Z",
+  "endedAt": "2026-01-27T12:00:00Z",
   "context": {
     "branch": "feature/auth",
     "projectDir": "/path/to/project",
     "user": { "name": "tanaka", "email": "tanaka@example.com" }
   },
-  "title": "JWT認証機能の実装",
-  "goal": "JWTベースの認証機能を実装し、リフレッシュトークンにも対応する",
+  "summary": {
+    "title": "JWT認証機能の実装",
+    "goal": "JWTベースの認証機能を実装",
+    "outcome": "success",
+    "description": "RS256署名でJWT認証を実装"
+  },
+  "metrics": {
+    "durationMinutes": 120,
+    "filesCreated": 2,
+    "filesModified": 1,
+    "decisionsCount": 2,
+    "errorsEncountered": 1,
+    "errorsResolved": 1
+  },
+  "files": [
+    { "path": "src/auth/jwt.ts", "action": "create", "summary": "JWTモジュール" }
+  ],
+  "decisions": [
+    {
+      "id": "dec-001",
+      "topic": "認証方式",
+      "choice": "JWT",
+      "alternatives": ["セッションCookie"],
+      "reasoning": "マイクロサービス間の認証共有が容易",
+      "timestamp": "2026-01-27T10:15:00Z"
+    }
+  ],
+  "errors": [
+    {
+      "id": "err-001",
+      "message": "secretOrPrivateKey must be asymmetric",
+      "type": "runtime",
+      "resolved": true,
+      "solution": "RS256用にPEM形式に変更"
+    }
+  ],
+  "webLinks": ["https://jwt.io/introduction"],
   "tags": ["auth", "jwt", "backend"],
   "sessionType": "implementation",
-  "interactions": [
-    {
-      "id": "int-001",
-      "topic": "認証方式の選択",
-      "timestamp": "2026-01-27T10:15:00Z",
-      "request": "認証機能を実装したい",
-      "thinking": "JWTとセッションCookieを比較...",
-      "webLinks": ["https://jwt.io/introduction"],
-      "proposals": [
-        { "option": "JWT", "description": "ステートレス、スケーラブル" },
-        { "option": "セッションCookie", "description": "シンプル" }
-      ],
-      "choice": "JWT",
-      "reasoning": "マイクロサービス間の認証共有が容易",
-      "actions": [
-        { "type": "create", "path": "src/auth/jwt.ts", "summary": "JWTモジュール" }
-      ],
-      "filesModified": ["src/auth/jwt.ts"]
-    }
-  ]
+  "status": "complete"
 }
 ```
 
@@ -262,17 +305,18 @@ Claude Code は意味のある変化があった時にセッションJSONを更�
 
 | トリガー | 更新内容 |
 |---------|---------|
-| セッションの目的が明確になった | `title`, `goal`, `sessionType` |
-| ユーザーの指示に対応した | `interactions` に追加 |
-| 技術的決定を下した | `proposals`, `choice`, `reasoning` |
-| エラーに遭遇・解決した | `problem`, `choice`, `reasoning` |
-| ファイルを変更した | `actions`, `filesModified` |
+| セッションの目的が明確になった | `summary.title`, `summary.goal`, `sessionType` |
+| ファイルを変更した | `files` に追加、`metrics` 更新 |
+| 技術的決定を下した | `decisions` に追加 |
+| エラーに遭遇・解決した | `errors` に追加 |
 | URLを参照した | `webLinks` |
 | 新しいキーワードが出現 | `tags`（tags.jsonを参照） |
 
+**注意**: 明示的に `/memoria:save` を実行するか、APIフォールバックが発動するまでセッションは保存されません。
+
 ### セッションタイプ
 
-`sessionType` フィールドはセッションの種類を分類します。interactions が空でも**必ず設定**してください。
+`sessionType` フィールドはセッションの種類を分類します。
 
 | タイプ | 説明 |
 |--------|------|
