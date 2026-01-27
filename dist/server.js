@@ -3154,6 +3154,118 @@ app.put("/api/rules/:id", async (c) => {
     return c.json({ error: "Failed to update rules" }, 500);
   }
 });
+app.get("/api/timeline", async (c) => {
+  const sessionsDir = path.join(getMemoriaDir(), "sessions");
+  try {
+    const files = listDatedJsonFiles(sessionsDir);
+    if (files.length === 0) {
+      return c.json({ timeline: {} });
+    }
+    const sessions = files.map((filePath) => {
+      const content = fs.readFileSync(filePath, "utf-8");
+      return JSON.parse(content);
+    });
+    const grouped = {};
+    for (const session of sessions) {
+      const date = session.createdAt?.split("T")[0] || "unknown";
+      if (!grouped[date]) grouped[date] = [];
+      grouped[date].push({
+        id: session.id,
+        title: session.title || "Untitled",
+        sessionType: session.sessionType,
+        branch: session.context?.branch,
+        tags: session.tags || [],
+        createdAt: session.createdAt
+      });
+    }
+    const sortedTimeline = {};
+    for (const date of Object.keys(grouped).sort().reverse()) {
+      sortedTimeline[date] = grouped[date].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    }
+    return c.json({ timeline: sortedTimeline });
+  } catch {
+    return c.json({ error: "Failed to build timeline" }, 500);
+  }
+});
+app.get("/api/tag-network", async (c) => {
+  const sessionsDir = path.join(getMemoriaDir(), "sessions");
+  try {
+    const files = listDatedJsonFiles(sessionsDir);
+    const tagCounts = /* @__PURE__ */ new Map();
+    const coOccurrences = /* @__PURE__ */ new Map();
+    for (const filePath of files) {
+      const content = fs.readFileSync(filePath, "utf-8");
+      const session = JSON.parse(content);
+      const tags = session.tags || [];
+      for (const tag of tags) {
+        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+      }
+      for (let i = 0; i < tags.length; i++) {
+        for (let j = i + 1; j < tags.length; j++) {
+          const key = [tags[i], tags[j]].sort().join("|");
+          coOccurrences.set(key, (coOccurrences.get(key) || 0) + 1);
+        }
+      }
+    }
+    const nodes = Array.from(tagCounts.entries()).map(([id, count]) => ({
+      id,
+      count
+    }));
+    const edges = Array.from(coOccurrences.entries()).map(([key, weight]) => {
+      const [source, target] = key.split("|");
+      return { source, target, weight };
+    });
+    return c.json({ nodes, edges });
+  } catch {
+    return c.json({ error: "Failed to build tag network" }, 500);
+  }
+});
+app.get("/api/decisions/:id/impact", async (c) => {
+  const decisionId = c.req.param("id");
+  const sessionsDir = path.join(getMemoriaDir(), "sessions");
+  const patternsDir = path.join(getMemoriaDir(), "patterns");
+  try {
+    const impactedSessions = [];
+    const impactedPatterns = [];
+    const sessionFiles = listDatedJsonFiles(sessionsDir);
+    for (const filePath of sessionFiles) {
+      const content = fs.readFileSync(filePath, "utf-8");
+      const session = JSON.parse(content);
+      const hasReference = session.relatedSessions?.includes(decisionId) || session.interactions?.some(
+        (i) => i.reasoning?.includes(decisionId) || i.choice?.includes(decisionId)
+      );
+      if (hasReference) {
+        impactedSessions.push({
+          id: session.id,
+          title: session.title || "Untitled"
+        });
+      }
+    }
+    const patternFiles = listJsonFiles(patternsDir);
+    for (const filePath of patternFiles) {
+      const content = fs.readFileSync(filePath, "utf-8");
+      const data = JSON.parse(content);
+      const patterns = data.patterns || [];
+      for (const pattern of patterns) {
+        if (pattern.sourceId?.includes(decisionId) || pattern.description?.includes(decisionId)) {
+          impactedPatterns.push({
+            id: `${path.basename(filePath, ".json")}-${pattern.type}`,
+            description: pattern.description || "No description"
+          });
+        }
+      }
+    }
+    return c.json({
+      decisionId,
+      impactedSessions,
+      impactedPatterns
+    });
+  } catch {
+    return c.json({ error: "Failed to analyze decision impact" }, 500);
+  }
+});
 app.get("/api/tags", async (c) => {
   const tagsPath = path.join(getMemoriaDir(), "tags.json");
   try {

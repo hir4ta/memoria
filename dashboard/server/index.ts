@@ -318,6 +318,155 @@ app.put("/api/rules/:id", async (c) => {
   }
 });
 
+// Timeline API - セッションを時系列でグループ化
+app.get("/api/timeline", async (c) => {
+  const sessionsDir = path.join(getMemoriaDir(), "sessions");
+  try {
+    const files = listDatedJsonFiles(sessionsDir);
+    if (files.length === 0) {
+      return c.json({ timeline: {} });
+    }
+    const sessions = files.map((filePath) => {
+      const content = fs.readFileSync(filePath, "utf-8");
+      return JSON.parse(content);
+    });
+
+    // 日付でグループ化
+    const grouped: Record<string, typeof sessions> = {};
+    for (const session of sessions) {
+      const date = session.createdAt?.split("T")[0] || "unknown";
+      if (!grouped[date]) grouped[date] = [];
+      grouped[date].push({
+        id: session.id,
+        title: session.title || "Untitled",
+        sessionType: session.sessionType,
+        branch: session.context?.branch,
+        tags: session.tags || [],
+        createdAt: session.createdAt,
+      });
+    }
+
+    // 日付をソート
+    const sortedTimeline: Record<string, typeof sessions> = {};
+    for (const date of Object.keys(grouped).sort().reverse()) {
+      sortedTimeline[date] = grouped[date].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+    }
+
+    return c.json({ timeline: sortedTimeline });
+  } catch {
+    return c.json({ error: "Failed to build timeline" }, 500);
+  }
+});
+
+// Tag Network API - タグの共起ネットワーク
+app.get("/api/tag-network", async (c) => {
+  const sessionsDir = path.join(getMemoriaDir(), "sessions");
+  try {
+    const files = listDatedJsonFiles(sessionsDir);
+    const tagCounts: Map<string, number> = new Map();
+    const coOccurrences: Map<string, number> = new Map();
+
+    for (const filePath of files) {
+      const content = fs.readFileSync(filePath, "utf-8");
+      const session = JSON.parse(content);
+      const tags: string[] = session.tags || [];
+
+      // タグカウント
+      for (const tag of tags) {
+        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+      }
+
+      // 共起カウント
+      for (let i = 0; i < tags.length; i++) {
+        for (let j = i + 1; j < tags.length; j++) {
+          const key = [tags[i], tags[j]].sort().join("|");
+          coOccurrences.set(key, (coOccurrences.get(key) || 0) + 1);
+        }
+      }
+    }
+
+    const nodes = Array.from(tagCounts.entries()).map(([id, count]) => ({
+      id,
+      count,
+    }));
+
+    const edges = Array.from(coOccurrences.entries()).map(([key, weight]) => {
+      const [source, target] = key.split("|");
+      return { source, target, weight };
+    });
+
+    return c.json({ nodes, edges });
+  } catch {
+    return c.json({ error: "Failed to build tag network" }, 500);
+  }
+});
+
+// Decision Impact API - 決定の影響範囲
+app.get("/api/decisions/:id/impact", async (c) => {
+  const decisionId = c.req.param("id");
+  const sessionsDir = path.join(getMemoriaDir(), "sessions");
+  const patternsDir = path.join(getMemoriaDir(), "patterns");
+
+  try {
+    const impactedSessions: { id: string; title: string }[] = [];
+    const impactedPatterns: { id: string; description: string }[] = [];
+
+    // セッションを検索
+    const sessionFiles = listDatedJsonFiles(sessionsDir);
+    for (const filePath of sessionFiles) {
+      const content = fs.readFileSync(filePath, "utf-8");
+      const session = JSON.parse(content);
+
+      // interactions の reasoning や relatedSessions に決定IDが含まれるかチェック
+      const hasReference =
+        session.relatedSessions?.includes(decisionId) ||
+        session.interactions?.some(
+          (i: Record<string, unknown>) =>
+            (i.reasoning as string)?.includes(decisionId) ||
+            (i.choice as string)?.includes(decisionId),
+        );
+
+      if (hasReference) {
+        impactedSessions.push({
+          id: session.id,
+          title: session.title || "Untitled",
+        });
+      }
+    }
+
+    // パターンを検索
+    const patternFiles = listJsonFiles(patternsDir);
+    for (const filePath of patternFiles) {
+      const content = fs.readFileSync(filePath, "utf-8");
+      const data = JSON.parse(content);
+      const patterns = data.patterns || [];
+
+      for (const pattern of patterns) {
+        if (
+          pattern.sourceId?.includes(decisionId) ||
+          pattern.description?.includes(decisionId)
+        ) {
+          impactedPatterns.push({
+            id: `${path.basename(filePath, ".json")}-${pattern.type}`,
+            description: pattern.description || "No description",
+          });
+        }
+      }
+    }
+
+    return c.json({
+      decisionId,
+      impactedSessions,
+      impactedPatterns,
+    });
+  } catch {
+    return c.json({ error: "Failed to analyze decision impact" }, 500);
+  }
+});
+
 // Tags
 app.get("/api/tags", async (c) => {
   const tagsPath = path.join(getMemoriaDir(), "tags.json");

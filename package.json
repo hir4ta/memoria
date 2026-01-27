@@ -1,6 +1,6 @@
 {
   "name": "@hir4ta/memoria",
-  "version": "0.9.5",
+  "version": "0.10.0",
   "description": "Long-term memory plugin for Claude Code - automated session saving, recording technical decisions, and web dashboard",
   "keywords": [
     "claude",
@@ -22,12 +22,15 @@
   "scripts": {
     "dev": "vite",
     "dev:server": "tsx watch dashboard/server/index.ts",
-    "build": "vite build && npm run build:server",
+    "build": "vite build && npm run build:server && npm run build:lib",
     "build:server": "esbuild dashboard/server/index.ts --bundle --platform=node --outfile=dist/server.js --format=esm --external:fsevents",
+    "build:lib": "esbuild lib/*.ts --bundle --platform=node --outdir=dist/lib --format=esm --packages=external",
     "preview": "npm run build && node dist/server.js",
     "lint": "biome check .",
     "format": "biome format . --write",
-    "lint:fix": "biome check . --write"
+    "lint:fix": "biome check . --write",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
@@ -57,7 +60,8 @@
     "tailwindcss": "^4",
     "tsx": "^4.19.2",
     "typescript": "^5",
-    "vite": "^6.0.7"
+    "vite": "^6.0.7",
+    "vitest": "^4.0.18"
   },
   "volta": {
     "node": "24.12.0"
