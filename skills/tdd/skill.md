@@ -67,20 +67,14 @@ CORRECT:
 
 ### Recording
 
-Add interaction:
-```json
-{
-  "id": "int-XXX",
-  "topic": "TDD RED: [behavior being tested]",
-  "timestamp": "[ISO8601]",
-  "phase": "tdd-red",
-  "tddCycle": {
-    "testFile": "[test file path]",
-    "implFile": "[implementation file path]",
-    "phase": "red",
-    "testOutput": "[actual test output showing failure]"
-  }
-}
+**Note:** TDD cycle details are captured in auto-saved interactions (user messages, thinking, assistant responses).
+
+When TDD cycle completes for a feature, use `/memoria:save` to update YAML plan section:
+```yaml
+plan:
+  tasks:
+    - "[x] RED: Test for [behavior]"
+    - "[ ] GREEN: Implement [behavior]"
 ```
 
 ### Commit
@@ -128,24 +122,15 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 
 ### Recording
 
-Add interaction:
-```json
-{
-  "id": "int-XXX",
-  "topic": "TDD GREEN: [behavior implemented]",
-  "timestamp": "[ISO8601]",
-  "phase": "tdd-green",
-  "tddCycle": {
-    "testFile": "[test file path]",
-    "implFile": "[implementation file path]",
-    "phase": "green",
-    "testOutput": "[test output showing pass]"
-  },
-  "actions": [
-    { "type": "create|edit", "path": "[impl file]", "summary": "[what was implemented]" }
-  ],
-  "filesModified": ["[impl file]"]
-}
+**Note:** Implementation details are captured in auto-saved interactions.
+
+When GREEN phase completes, the plan progress should be updated via `/memoria:save`:
+```yaml
+plan:
+  tasks:
+    - "[x] RED: Test for [behavior]"
+    - "[x] GREEN: Implement [behavior]"
+    - "[ ] REFACTOR: Improve [behavior]"
 ```
 
 ### Commit
@@ -206,23 +191,15 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 
 ### Recording
 
-Add interaction:
-```json
-{
-  "id": "int-XXX",
-  "topic": "TDD REFACTOR: [improvement made]",
-  "timestamp": "[ISO8601]",
-  "phase": "tdd-refactor",
-  "tddCycle": {
-    "testFile": "[test file path]",
-    "implFile": "[implementation file path]",
-    "phase": "refactor",
-    "testOutput": "[test output confirming still green]"
-  },
-  "actions": [
-    { "type": "edit", "path": "[impl file]", "summary": "[refactoring done]" }
-  ]
-}
+**Note:** Refactoring details are captured in auto-saved interactions.
+
+When REFACTOR phase completes, update plan via `/memoria:save`:
+```yaml
+plan:
+  tasks:
+    - "[x] RED: Test for [behavior]"
+    - "[x] GREEN: Implement [behavior]"
+    - "[x] REFACTOR: Improve [behavior]"
 ```
 
 ### Commit

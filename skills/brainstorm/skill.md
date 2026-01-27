@@ -37,7 +37,8 @@ Phase 5: Record & Output    → Save to interactions + docs/plans/
 
 1. **Search sessions** for similar implementations:
    ```
-   Glob: .memoria/sessions/**/*.json
+   Glob: .memoria/sessions/**/*.json   # Search title, tags
+   Glob: .memoria/sessions/**/*.yaml   # Search summary, discussions, errors
    Grep: keywords from user request (feature name, component type, etc.)
    ```
 
@@ -286,30 +287,33 @@ Which approach do you prefer? (A/B/C/modify)
 
 **Save the design process to memoria and output design document.**
 
-### Record to Session (interactions)
+### Record to Session
 
-Add interaction with:
+**Note:** Session interactions are auto-saved by SessionEnd hook. Design discussions should be saved to YAML via `/memoria:save`.
 
-```json
-{
-  "id": "int-XXX",
-  "topic": "[Feature name] design",
-  "timestamp": "[ISO8601]",
-  "phase": "brainstorm",
-  "request": "[Original user request]",
-  "thinking": "[Key considerations, tradeoffs evaluated]",
-  "proposals": [
-    { "option": "[Approach A]", "description": "[Summary]" },
-    { "option": "[Approach B]", "description": "[Summary]" }
-  ],
-  "choice": "[Selected approach]",
-  "reasoning": "[Why this approach was chosen]",
-  "designSection": {
-    "sectionName": "[Current section]",
-    "approved": true,
-    "feedback": "[User feedback if any]"
-  }
-}
+When design is complete, prompt user to run `/memoria:save` to capture:
+
+**YAML discussions section:**
+```yaml
+discussions:
+  - topic: "[Feature name] design"
+    timestamp: "[ISO8601]"
+    options:
+      - "[Approach A]: [Summary]"
+      - "[Approach B]: [Summary]"
+    decision: "[Selected approach]"
+    reasoning: "[Why this approach was chosen]"
+```
+
+**YAML plan section (if design document created):**
+```yaml
+plan:
+  goals:
+    - "[Feature name] design complete"
+  tasks:
+    - "[x] Architecture section approved"
+    - "[x] Component design approved"
+    - "[ ] Implementation plan (next: /memoria:plan)"
 ```
 
 ### Record Important Decisions

@@ -23,9 +23,9 @@ Search saved sessions, decisions, and patterns.
 
 ## Execution Steps
 
-1. Read all JSON files under `.memoria/`
+1. Read all JSON and YAML files under `.memoria/`
 2. Read `.memoria/tags.json` to include aliases in search
-3. Text search on title, interactions, tags
+3. Text search on title, interactions, tags (JSON) and summary, discussions, errors (YAML)
 4. Score and display results
 5. If user wants details, re-read the file
 
@@ -35,13 +35,15 @@ Search saved sessions, decisions, and patterns.
 # Load tags.json for alias search
 Read: .memoria/tags.json
 
-# Get files by type
-Glob: .memoria/sessions/**/*.json
+# Get files by type (both JSON and YAML)
+Glob: .memoria/sessions/**/*.json   # Log + search index
+Glob: .memoria/sessions/**/*.yaml   # Structured data
 Glob: .memoria/decisions/**/*.json
 Glob: .memoria/patterns/*.json
 
 # Read each file for search
 Read: .memoria/{type}/{filename}.json
+Read: .memoria/{type}/{filename}.yaml  # For detailed data
 ```
 
 ## Search Algorithm
@@ -61,15 +63,31 @@ If query matches an alias in tags.json, search using the corresponding id:
 
 ## Search Target Fields
 
-### Sessions (.memoria/sessions/**/*.json)
-- `title` - Session title
-- `goal` - Session purpose
+### Sessions JSON (.memoria/sessions/**/*.json)
+Search index fields:
+- `title` - Session title (search keyword)
 - `tags` - Tags
-- `interactions[].topic` - Decision cycle topic (search keyword)
+
+Auto-saved interaction fields:
+- `interactions[].user` - User's request
 - `interactions[].thinking` - Thought process
-- `interactions[].choice` - Final selection
-- `interactions[].reasoning` - Why this choice
-- `interactions[].problem` - Error/problem encountered
+- `interactions[].assistant` - Assistant response
+
+### Sessions YAML (.memoria/sessions/**/*.yaml)
+Structured data (created via /memoria:save):
+- `summary.title` - Session title
+- `summary.goal` - Session goal
+- `summary.description` - What was accomplished
+- `plan.goals[]` - Planned goals
+- `plan.tasks[]` - Task list
+- `discussions[].topic` - Discussion topic
+- `discussions[].decision` - What was decided
+- `discussions[].reasoning` - Why this decision
+- `errors[].error` - Error encountered
+- `errors[].cause` - Root cause
+- `errors[].solution` - How it was resolved
+- `handoff.reason` - Why session ended
+- `handoff.nextSteps[]` - Next steps
 
 ### Decisions (.memoria/decisions/**/*.json)
 - `title` - Title
@@ -111,15 +129,24 @@ Enter number for details (quit: q):
 [session] 2026-01-24_abc123
 
 Title: JWT authentication implementation
-Goal: Implement JWT-based auth
 Tags: [auth] [jwt] [backend]
 
-Decision cycles:
-  [int-001] Auth method selection
-    Choice: JWT (easy auth sharing between microservices)
+--- From YAML (if exists) ---
+Goal: Implement JWT-based auth
+Outcome: success
 
-  [int-002] Refresh token expiry
-    Choice: 7 days (balance between security and UX)
+Discussions:
+  - Auth method selection
+    Decision: JWT (easy auth sharing between microservices)
+  - Refresh token expiry
+    Decision: 7 days (balance between security and UX)
+
+Errors resolved:
+  - Token validation failed → Fixed by using correct public key
+
+Next steps:
+  - Add refresh token rotation
+  - Implement logout endpoint
 
 Created: 2026-01-24
 ```

@@ -8,9 +8,10 @@ Claude Codeの長期記憶を実現するプラグイン
 
 ### コア機能
 - **会話の自動保存**: セッション終了時にjqで自動保存（確実・高速）
-- **要約の自動作成**: Auto-Compact前に要約を作成（コンテキスト95%で発動）
-- **手動保存**: `/memoria:save` で要約作成 + ルール抽出
-- **セッション再開**: `/memoria:resume` で過去のセッションを再開
+- **PreCompactバックアップ**: Auto-Compact前にinteractionsをバックアップ（コンテキスト95%で発動）
+- **手動保存**: `/memoria:save` で要約作成 + YAMLファイル生成
+- **セッション再開**: `/memoria:resume` で過去のセッションを再開（チェーン追跡付き）
+- **セッション提案**: セッション開始時に最新3件を提案
 - **技術的な判断の記録**: `/memoria:decision` で判断を記録
 - **ルールベースレビュー**: `dev-rules.json` / `review-guidelines.json` に基づくレビュー
 - **週次レポート**: レビュー結果を集計したMarkdownレポートを自動生成
@@ -41,7 +42,7 @@ Claude Codeの長期記憶を実現するプラグイン
 
 ### チーム利用のメリット
 
-- `.memoria/` のJSONは**Git管理可能**なので、判断や会話の履歴をチームで共有できる
+- `.memoria/` のJSON/YAMLは**Git管理可能**なので、判断や会話の履歴をチームで共有できる
 - オンボーディングやレビュー時に「背景・経緯」を短時間で把握できる
 
 ## インストール
@@ -103,21 +104,43 @@ Claude Codeを再起動
 
 **会話ログは自動保存**されます（セッション終了時にjqで抽出）。設定不要。
 
-**要約は以下のタイミングで作成**されます：
-- **PreCompact**: Auto-Compact前（コンテキスト95%で発動）
-- **手動**: `/memoria:save` で要約作成 + ルール抽出
+**PreCompact**ではinteractionsを`preCompactBackups`にバックアップします（コンテキスト95%で発動）。要約は自動作成されません。
 
-保存される内容：
-- `interactions`: 自動保存（ユーザーメッセージ、アシスタント応答、思考ブロック）
-- `summary`: PreCompact または `/memoria:save` で作成
-- `metrics`: ツール使用、ファイル変更（自動保存）
+**要約と構造化データ**は `/memoria:save` で手動作成：
+- JSON: `title`, `tags` を更新（検索インデックス）
+- YAML: 構造化データを作成（summary, plan, discussions, errors, handoff）
+
+### セッション提案
+
+セッション開始時に最新3件が表示されます：
+
+```
+**Recent sessions:**
+  1. [abc123] JWT認証の実装 (2026-01-27, main)
+  2. [def456] ダッシュボードUI (2026-01-26, main)
+  3. [ghi789] バグ修正 (2026-01-25, main)
+
+Continue from a previous session? Use `/memoria:resume <id>`
+```
+
+### セッションチェーン追跡
+
+セッションを再開すると、チェーンが追跡されます：
+
+```
+/memoria:resume abc123
+  ↓
+現在のセッションJSONを更新: "resumedFrom": "abc123"
+  ↓
+チェーン: current ← abc123
+```
 
 ### コマンド
 
 | コマンド | 説明 |
 | --------- | ------ |
 | `/memoria:resume [id]` | セッションを再開（ID省略で一覧表示） |
-| `/memoria:save` | 要約作成 + ルール抽出 |
+| `/memoria:save` | 要約作成 + YAML生成 + ルール抽出 |
 | `/memoria:decision "タイトル"` | 技術的な判断を記録 |
 | `/memoria:search "クエリ"` | セッション・判断記録を検索 |
 | `/memoria:review [--staged\|--all\|--diff=branch\|--full]` | ルールに基づくレビュー（--fullで二段階） |
@@ -170,19 +193,19 @@ flowchart TB
         C --> D[interactions + files + metrics]
     end
 
-    subgraph summary [要約の作成]
+    subgraph backup [PreCompactバックアップ]
         E[コンテキスト95%] --> F[PreCompactフック]
-        F --> G[Claudeが要約作成]
+        F --> G[interactionsをpreCompactBackupsに保存]
     end
 
     subgraph manual [手動操作]
-        H["memoria:save"] --> I[要約作成 + ルール抽出]
+        H["memoria:save"] --> I[YAML作成 + JSON更新]
         J["memoria:decision"] --> K[判断を明示的に記録]
     end
 
     subgraph resume [セッション再開]
         L["memoria:resume"] --> M[一覧から選択]
-        M --> N[過去の文脈を復元]
+        M --> N[過去の文脈を復元 + resumedFrom設定]
     end
 
     subgraph search [検索]
@@ -215,12 +238,15 @@ flowchart TB
 
 ## データ保存
 
-すべてのデータは `.memoria/` ディレクトリにJSON形式で保存
+すべてのデータは `.memoria/` ディレクトリに保存
 
 ```text
 .memoria/
 ├── tags.json         # タグマスターファイル（93タグ、表記揺れ防止）
 ├── sessions/         # セッション履歴 (YYYY/MM)
+│   └── YYYY/MM/
+│       ├── {id}.json # ログ + 検索インデックス（自動保存）
+│       └── {id}.yaml # 構造化データ（手動保存）
 ├── decisions/        # 技術的な判断 (YYYY/MM)
 ├── rules/            # 開発ルール / レビュー観点
 ├── reviews/          # レビュー結果 (YYYY/MM)
@@ -229,7 +255,7 @@ flowchart TB
 
 Gitでバージョン管理可能です。`.gitignore` に追加するかはプロジェクトに応じて判断してください。
 
-### セッションJSONスキーマ
+### セッションJSONスキーマ（ログ + 検索インデックス）
 
 ```json
 {
@@ -237,19 +263,16 @@ Gitでバージョン管理可能です。`.gitignore` に追加するかはプ�
   "sessionId": "claude-code-からの-full-uuid",
   "createdAt": "2026-01-27T10:00:00Z",
   "endedAt": "2026-01-27T12:00:00Z",
+  "title": "JWT認証機能の実装",
+  "tags": ["auth", "jwt"],
   "context": {
     "branch": "feature/auth",
     "projectDir": "/path/to/project",
     "user": { "name": "tanaka", "email": "tanaka@example.com" }
   },
-  "summary": {
-    "title": "JWT認証機能の実装",
-    "goal": "JWTベースの認証機能を実装",
-    "outcome": "success",
-    "description": "RS256署名でJWT認証を実装"
-  },
   "interactions": [
     {
+      "id": "int-001",
       "timestamp": "2026-01-27T10:15:00Z",
       "user": "認証機能を実装して",
       "thinking": "思考プロセスの重要なポイント",
@@ -263,37 +286,72 @@ Gitでバージョン管理可能です。`.gitignore` に追加するかはプ�
     "toolUsage": [{"name": "Edit", "count": 3}, {"name": "Write", "count": 2}]
   },
   "files": [
-    { "path": "src/auth/jwt.ts", "action": "create", "summary": "JWTモジュール" }
+    { "path": "src/auth/jwt.ts", "action": "create" }
   ],
-  "decisions": [
-    {
-      "id": "dec-001",
-      "topic": "認証方式",
-      "choice": "JWT",
-      "alternatives": ["セッションCookie"],
-      "reasoning": "マイクロサービス間の認証共有が容易",
-      "timestamp": "2026-01-27T10:15:00Z"
-    }
-  ],
-  "errors": [
-    {
-      "id": "err-001",
-      "message": "secretOrPrivateKey must be asymmetric",
-      "type": "runtime",
-      "resolved": true,
-      "solution": "RS256用にPEM形式に変更"
-    }
-  ],
-  "webLinks": ["https://jwt.io/introduction"],
-  "tags": ["auth", "jwt", "backend"],
-  "sessionType": "implementation",
+  "preCompactBackups": [],
+  "resumedFrom": "def45678",
   "status": "complete"
 }
 ```
 
+### セッションYAMLスキーマ（構造化データ）
+
+```yaml
+version: 1
+session_id: abc12345
+
+summary:
+  title: "JWT認証機能の実装"
+  goal: "JWTベースの認証機能を実装"
+  outcome: success  # success | partial | blocked | abandoned
+  description: "RS256署名でJWT認証を実装"
+  session_type: implementation
+
+plan:
+  tasks:
+    - "[x] JWT署名方式の選定"
+    - "[x] ミドルウェア実装"
+    - "[ ] テスト追加"
+  remaining:
+    - "テスト追加"
+
+discussions:
+  - topic: "署名方式"
+    decision: "RS256を採用"
+    reasoning: "本番環境でのセキュリティを考慮"
+    alternatives:
+      - "HS256（シンプルだが秘密鍵共有が必要）"
+
+code_examples:
+  - file: "src/auth/jwt.ts"
+    description: "JWT生成関数"
+    after: |
+      export function generateToken(payload: JWTPayload): string {
+        return jwt.sign(payload, privateKey, { algorithm: 'RS256' });
+      }
+
+errors:
+  - error: "secretOrPrivateKey must be asymmetric"
+    cause: "HS256用の秘密鍵をRS256で使用"
+    solution: "RS256用のキーペアを生成"
+
+handoff:
+  stopped_reason: "テスト作成は次回に持ち越し"
+  notes:
+    - "vitest設定済み"
+    - "モック用のキーペアは test/fixtures/ に配置"
+  next_steps:
+    - "jwt.test.ts を作成"
+    - "E2Eテスト追加"
+
+references:
+  - url: "https://jwt.io/introduction"
+    title: "JWT Introduction"
+```
+
 ### セッションタイプ
 
-`sessionType` フィールドはセッションの種類を分類します。
+`session_type` フィールド（YAML内）はセッションの種類を分類します。
 
 | タイプ | 説明 |
 |--------|------|

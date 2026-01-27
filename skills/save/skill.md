@@ -13,7 +13,7 @@ Create session summary and extract development rules from conversation.
 
 1. **Create summary** - Write title, goal, outcome, description for the session
 2. **Extract rules** - Save development rules/guidelines mentioned in conversation
-3. **Generate MD file** - Create detailed markdown context for future resume
+3. **Generate YAML file** - Create structured context for dashboard and future resume
 
 ## Usage
 
@@ -25,50 +25,126 @@ Create session summary and extract development rules from conversation.
 
 | Target | Content |
 |--------|---------|
-| Session JSON | summary, metrics, sessionType, tags |
-| Session MD | Detailed context for AI (plans, discussions, code examples, handoff notes) |
+| Session JSON | title, tags (search index only) |
+| Session YAML | summary, plan, discussions, code_examples, errors, handoff, references |
 | dev-rules.json | Development rules mentioned in conversation |
 | review-guidelines.json | Review guidelines mentioned in conversation |
 
-**Note:** `interactions`, `files`, `toolUsage` are auto-saved by SessionEnd hook.
+**Note:** `interactions`, `files`, `toolUsage` are auto-saved by SessionEnd hook to JSON.
 
-## Session JSON Structure
+## File Structure
+
+### JSON (Log + Search Index) - Auto-saved
 
 ```json
 {
   "id": "abc12345",
-  "summary": {
-    "title": "JWT認証の実装",
-    "goal": "JWTベースの認証機能を実装",
-    "outcome": "success",
-    "description": "JWTを使った認証機能を実装。RS256署名エラーを解決"
-  },
-  "interactions": [...],  // Auto-saved by SessionEnd
+  "sessionId": "abc12345-...",
+  "createdAt": "2026-01-27T10:00:00Z",
+  "title": "JWT認証の実装",
+  "tags": ["auth", "jwt"],
+  "context": { ... },
+  "interactions": [...],
   "metrics": { ... },
-  "files": [...],         // Auto-saved by SessionEnd
-  "decisions": [...],
-  "errors": [...],
-  "tags": [...],
-  "sessionType": "implementation",
+  "files": [...],
+  "preCompactBackups": [...],
+  "resumedFrom": "def456",
   "status": "complete"
 }
 ```
 
+### YAML (Structured Data) - Manual save
+
+```yaml
+version: 1
+session_id: abc12345
+
+summary:
+  title: "JWT認証の実装"
+  goal: "JWTベースの認証を実装"
+  outcome: success  # success | partial | blocked | abandoned
+  description: "RS256署名でJWT認証を実装"
+  session_type: implementation  # decision | implementation | research | exploration | discussion | debug | review
+
+plan:
+  tasks:
+    - "[x] JWT署名方式の選定"
+    - "[x] ミドルウェア実装"
+    - "[ ] テスト追加"
+  remaining:
+    - "テスト追加"
+
+discussions:
+  - topic: "署名方式"
+    decision: "RS256を採用"
+    reasoning: "本番環境でのセキュリティを考慮"
+    alternatives:
+      - "HS256（シンプルだが秘密鍵共有が必要）"
+
+code_examples:
+  - file: "src/auth/jwt.ts"
+    description: "JWT生成関数"
+    before: |
+      // なし（新規作成）
+    after: |
+      export function generateToken(payload: JWTPayload): string {
+        return jwt.sign(payload, privateKey, { algorithm: 'RS256' });
+      }
+
+errors:
+  - error: "secretOrPrivateKey must be asymmetric"
+    cause: "HS256用の秘密鍵をRS256で使用"
+    solution: "RS256用のキーペアを生成して使用"
+
+handoff:
+  stopped_reason: "テスト作成は次回に持ち越し"
+  notes:
+    - "vitest設定済み"
+    - "モック用のキーペアは test/fixtures/ に配置"
+  next_steps:
+    - "jwt.test.ts を作成"
+    - "E2Eテスト追加"
+
+references:
+  - url: "https://jwt.io/introduction"
+    title: "JWT Introduction"
+  - file: "docs/auth-spec.md"
+    title: "認証仕様書"
+```
+
 ## Execution Steps
 
-### 1. Update Session JSON
+### 1. Update Session JSON (title, tags only)
 
 1. Get session path from additionalContext (shown at session start)
 2. Read current session file
-3. Update/add:
-   - **summary**: title, goal, outcome, description
-   - **metrics**: Update counts if needed
-   - **decisions**: Technical decisions with reasoning (if any new ones)
-   - **errors**: Errors encountered and solutions (if any new ones)
-   - **tags**: Relevant keywords from .memoria/tags.json
-   - **sessionType**: decision, implementation, research, exploration, discussion, debug, review
+3. Update:
+   - **title**: Brief descriptive title
+   - **tags**: Relevant keywords from `.memoria/tags.json`
 
-### 2. Extract and Save Rules
+### 2. Generate Session YAML
+
+Generate a YAML file alongside the JSON for structured data.
+
+**File path**: `.memoria/sessions/YYYY/MM/{id}.yaml`
+
+Extract from the conversation:
+- **summary**: title, goal, outcome, description, session_type
+- **plan**: tasks, remaining
+- **discussions**: decisions with reasoning and alternatives
+- **code_examples**: significant code changes with before/after
+- **errors**: problems encountered and solutions
+- **handoff**: stopped_reason, notes, next_steps
+- **references**: URLs and files referenced
+
+**Guidelines**:
+- Extract information from the conversation
+- Focus on what the next Claude session needs to know
+- Include specific code snippets when relevant
+- Document decisions and their reasoning
+- Be concise but comprehensive
+
+### 3. Extract and Save Rules
 
 Scan the conversation for user instructions that should become persistent rules.
 
@@ -111,106 +187,14 @@ Categories for dev-rules: `code-style`, `architecture`, `error-handling`, `perfo
 
 Categories for review-guidelines: `must-check`, `warning`, `suggestion`, `other`
 
-### 3. Generate Session MD File
-
-Generate a markdown file alongside the JSON for detailed context preservation.
-
-**File path**: `.memoria/sessions/YYYY/MM/{id}.md`
-
-**Template**:
-
-```markdown
-# {title}
-
-**Session ID:** {id}
-**Date:** {createdAt}
-**Status:** {status}
-**Branch:** {branch}
-
----
-
-## 計画・タスク
-
-### 目標
-{goal from conversation}
-
-### タスクリスト
-- [ ] Task 1
-- [x] Task 2 (completed)
-
-### 残タスク
-{incomplete tasks if any}
-
----
-
-## 議論の経緯
-
-### 決定事項
-| 項目 | 決定 | 理由 |
-|------|------|------|
-{decisions made during session}
-
-### 検討した代替案
-{alternatives considered with reasons}
-
----
-
-## コード例
-
-### 変更箇所
-**ファイル:** `path/to/file.ts`
-
-\`\`\`typescript
-// Before
-{original code}
-
-// After
-{modified code}
-\`\`\`
-
----
-
-## 参照情報
-
-{documents, URLs, resources referenced}
-
----
-
-## 次回への引き継ぎ
-
-### 中断理由
-{why session ended}
-
-### 再開時の注意点
-{things to be aware of when resuming}
-
-### 次にやること
-{next steps}
-
----
-
-## エラー・解決策
-
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-{errors encountered and how they were resolved}
-```
-
-**Guidelines**:
-- Extract information from the conversation
-- Focus on what the next Claude session needs to know
-- Include specific code snippets when relevant
-- Document decisions and their reasoning
-- Be concise but comprehensive
-
 ### File Operations
 
 ```bash
-# Session JSON
+# Session JSON (update title, tags)
 Read + Edit: .memoria/sessions/YYYY/MM/{id}.json
 
-# Session MD (new)
-Write: .memoria/sessions/YYYY/MM/{id}.md
+# Session YAML (create new)
+Write: .memoria/sessions/YYYY/MM/{id}.yaml
 
 # Rules (read for duplicate check, edit to append)
 Read + Edit: .memoria/rules/dev-rules.json
@@ -223,17 +207,16 @@ Read + Edit: .memoria/rules/review-guidelines.json
 Session saved.
 
 Session ID: abc12345
-Title: JWT authentication implementation
-Outcome: success
 
 Files:
-  JSON: .memoria/sessions/2026/01/abc12345.json
-  MD:   .memoria/sessions/2026/01/abc12345.md
+  JSON: .memoria/sessions/2026/01/abc12345.json (title, tags updated)
+  YAML: .memoria/sessions/2026/01/abc12345.yaml (created)
 
 Summary:
   Title: JWT authentication implementation
   Goal: Implement JWT-based auth with refresh token support
   Outcome: success
+  Type: implementation
 
 Rules updated:
   dev-rules.json:
@@ -248,7 +231,6 @@ Rules updated:
 
 - Session path is shown in additionalContext at session start
 - **Interactions are auto-saved by SessionEnd hook** - no need to manually save them
-- Use this command for summary creation and rule extraction
+- JSON stores log data + search index (title, tags)
+- YAML stores structured data for dashboard and AI resume
 - Rules are appended (not overwritten) - duplicates are skipped
-- MD file is generated alongside JSON for detailed context
-- MD file contains plans, discussions, code examples - everything needed to resume

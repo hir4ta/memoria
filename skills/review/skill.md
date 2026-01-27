@@ -331,20 +331,21 @@ Extended format for `--full` reviews:
 
 ## Recording Review in Session
 
-Add interaction when review is performed:
+**Note:** Review interactions are auto-saved by SessionEnd hook.
 
-```json
-{
-  "id": "int-XXX",
-  "topic": "Code review",
-  "timestamp": "[ISO8601]",
-  "phase": "review",
-  "request": "/memoria:review --full",
-  "thinking": "[Review considerations]",
-  "choice": "[Review outcome: pass/fail]",
-  "reasoning": "[Summary of findings]",
-  "actions": [
-    { "type": "create", "path": ".memoria/reviews/...", "summary": "Review result" }
-  ]
-}
+Review results are saved to `.memoria/reviews/` directory (separate from session files).
+
+If significant decisions were made during review (e.g., architectural changes), capture them via `/memoria:save`:
+
+```yaml
+discussions:
+  - topic: "Code review findings"
+    timestamp: "[ISO8601]"
+    decision: "[Key decision from review]"
+    reasoning: "[Why this change was required]"
+
+references:
+  - type: review
+    path: ".memoria/reviews/YYYY/MM/review-YYYY-MM-DD_HHMMSS.json"
+    description: "Review result"
 ```

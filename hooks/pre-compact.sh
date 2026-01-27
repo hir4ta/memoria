@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 #
-# pre-compact.sh - Create summary before Auto-Compact
+# pre-compact.sh - Backup interactions before Auto-Compact
 #
-# Blocks compaction and instructs Claude to create a session summary.
-# Interactions are auto-saved by session-end.sh via jq, so this hook
-# focuses only on summary creation which requires Claude's intelligence.
+# Saves current interactions to preCompactBackups before context is compressed.
+# Does NOT create summary - summary creation is manual via /memoria:save.
 #
 # Input (stdin): JSON with session_id, transcript_path, cwd, trigger
-# Output: JSON with decision to block and reason (instruction for Claude)
+# Output: JSON with decision to continue (non-blocking)
 
 set -euo pipefail
 
@@ -16,6 +15,7 @@ input_json=$(cat)
 
 # Extract fields
 session_id=$(echo "$input_json" | jq -r '.session_id // empty')
+transcript_path=$(echo "$input_json" | jq -r '.transcript_path // empty')
 cwd=$(echo "$input_json" | jq -r '.cwd // empty')
 
 # If no cwd, use PWD
@@ -40,46 +40,62 @@ if [ -z "$session_file" ] || [ ! -f "$session_file" ]; then
     exit 0
 fi
 
-# Get relative path for cleaner output
-session_relative="${session_file#$cwd/}"
+echo "[memoria] PreCompact: Backing up interactions before Auto-Compact..." >&2
 
-echo "[memoria] PreCompact: Creating session summary before Auto-Compact..." >&2
+# Extract current interactions from transcript (same logic as session-end.sh)
+if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
+    interactions_json=$(cat "$transcript_path" | jq -s '
+        # User messages (text only, exclude tool results)
+        [.[] | select(.type == "user" and .message.role == "user" and (.message.content | type) == "string") | {
+            timestamp: .timestamp,
+            content: .message.content
+        }] as $user_messages |
 
-# Build the instruction for Claude to create summary
-instruction="[MEMORIA PRE-COMPACT] Auto-Compact detected (context 95% full). Create session summary NOW.
+        # All assistant messages with thinking or text
+        [.[] | select(.type == "assistant") | . as $msg |
+            ($msg.message.content // []) |
+            {
+                timestamp: $msg.timestamp,
+                thinking: ([.[] | select(.type == "thinking") | .thinking] | join("\n")),
+                text: ([.[] | select(.type == "text") | .text] | join("\n"))
+            } | select(.thinking != "" or .text != "")
+        ] as $all_assistant |
 
-**Session file:** ${session_relative}
+        # Build interactions by grouping all assistant responses between user messages
+        [range(0; $user_messages | length) | . as $i |
+            $user_messages[$i] as $user |
+            # Get next user message timestamp (or far future if last)
+            (if $i + 1 < ($user_messages | length) then $user_messages[$i + 1].timestamp else "9999-12-31T23:59:59Z" end) as $next_user_ts |
+            # Collect all assistant responses between this user message and next
+            [$all_assistant[] | select(.timestamp > $user.timestamp and .timestamp < $next_user_ts)] as $turn_responses |
+            if ($turn_responses | length) > 0 then {
+                id: ("int-" + (($i + 1) | tostring | if length < 3 then "00"[0:(3-length)] + . else . end)),
+                timestamp: $user.timestamp,
+                user: $user.content,
+                thinking: ([$turn_responses[].thinking | select(. != "")] | join("\n")),
+                assistant: ([$turn_responses[].text | select(. != "")] | join("\n"))
+            } else empty end
+        ]
+    ' 2>/dev/null || echo '[]')
 
-## What to Do
+    # Create backup entry
+    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    backup_entry=$(jq -n \
+        --arg timestamp "$now" \
+        --argjson interactions "$interactions_json" \
+        '{
+            timestamp: $timestamp,
+            interactions: $interactions
+        }')
 
-Read the session file and update **summary** field with:
+    # Add to preCompactBackups array
+    jq --argjson backup "$backup_entry" \
+       '.preCompactBackups = ((.preCompactBackups // []) + [$backup])' \
+       "$session_file" > "${session_file}.tmp" && mv "${session_file}.tmp" "$session_file"
 
-\`\`\`json
-{
-  \"summary\": {
-    \"title\": \"Brief descriptive title (e.g., 'JWT authentication implementation')\",
-    \"goal\": \"What was the main objective\",
-    \"outcome\": \"success\" | \"partial\" | \"blocked\" | \"abandoned\",
-    \"description\": \"2-3 sentence summary of what was accomplished\"
-  }
-}
-\`\`\`
+    interaction_count=$(echo "$interactions_json" | jq 'length')
+    echo "[memoria] PreCompact: Backed up ${interaction_count} interactions to preCompactBackups" >&2
+fi
 
-Also update if needed:
-- **sessionType**: decision, implementation, research, exploration, discussion, debug, review
-- **tags**: Relevant keywords from .memoria/tags.json
-
-**Note:** Interactions are auto-saved by SessionEnd hook. Focus on summary only.
-
-After updating, just continue. No confirmation needed."
-
-# Escape the instruction for JSON
-escaped_instruction=$(echo "$instruction" | jq -Rs '.')
-
-# Block compaction and instruct Claude to save
-cat <<EOF
-{
-  "decision": "block",
-  "reason": ${escaped_instruction}
-}
-EOF
+# Continue with compaction (non-blocking)
+echo '{"continue": true}'

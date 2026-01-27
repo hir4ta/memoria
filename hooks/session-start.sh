@@ -88,36 +88,32 @@ if [ -z "$session_path" ]; then
 fi
 
 # ============================================
-# Find related sessions (same branch) for auto-linking
+# Find recent sessions for auto-suggestion (latest 3)
 # ============================================
-related_session_ids="[]"
-if [ -d "$sessions_dir" ] && [ -n "$current_branch" ]; then
-    # Find sessions on same branch (last 3, excluding current)
-    # Use a safer approach with error handling
-    related_ids=""
-    while IFS= read -r session_file; do
-        if [ -f "$session_file" ]; then
-            session_branch=$(jq -r '.context.branch // ""' "$session_file" 2>/dev/null || echo "")
-            session_id_val=$(jq -r '.id // ""' "$session_file" 2>/dev/null || echo "")
-            if [ "$session_branch" = "$current_branch" ] && [ -n "$session_id_val" ] && [ "$session_id_val" != "$file_id" ]; then
-                if [ -n "$related_ids" ]; then
-                    related_ids="${related_ids}\n${session_id_val}"
-                else
-                    related_ids="$session_id_val"
-                fi
+recent_sessions_info=""
+if [ -d "$sessions_dir" ] && [ "$is_resumed" = false ]; then
+    # Get all sessions sorted by createdAt descending, excluding current
+    recent_sessions=$(find "$sessions_dir" -name "*.json" -type f 2>/dev/null | while read -r f; do
+        if [ -f "$f" ]; then
+            session_data=$(jq -r '[.id, .createdAt, .title // "", .context.branch // ""] | @tsv' "$f" 2>/dev/null || echo "")
+            if [ -n "$session_data" ]; then
+                echo "$session_data"
             fi
         fi
-    done < <(find "$sessions_dir" -name "*.json" -type f 2>/dev/null | head -20)
+    done | sort -t$'\t' -k2 -r | head -4)  # Get 4 to filter out current
 
-    # Convert to JSON array (last 3)
-    if [ -n "$related_ids" ]; then
-        related_session_ids=$(echo -e "$related_ids" | head -3 | jq -R -s -c 'split("\n") | map(select(length > 0))' 2>/dev/null || echo "[]")
-    fi
-
-    # Fallback if jq pipeline fails
-    if [ -z "$related_session_ids" ] || [ "$related_session_ids" = "null" ]; then
-        related_session_ids="[]"
-    fi
+    # Build recent sessions list (excluding current session)
+    count=0
+    while IFS=$'\t' read -r sid screated stitle sbranch; do
+        if [ -n "$sid" ] && [ "$sid" != "$file_id" ] && [ $count -lt 3 ]; then
+            count=$((count + 1))
+            # Format: [id] title (date, branch)
+            date_part=$(echo "$screated" | cut -d'T' -f1 2>/dev/null || echo "")
+            title_display="${stitle:-no title}"
+            branch_display="${sbranch:-no branch}"
+            recent_sessions_info="${recent_sessions_info}  ${count}. [${sid}] ${title_display} (${date_part}, ${branch_display})\n"
+        fi
+    done <<< "$recent_sessions"
 fi
 
 # ============================================
@@ -129,7 +125,8 @@ if [ "$is_resumed" = true ]; then
         && mv "${session_path}.tmp" "$session_path"
     echo "[memoria] Session resumed (status reset): ${session_path}" >&2
 else
-    # New session: create initial JSON with analysis-friendly structure
+    # New session: create initial JSON (log-focused schema)
+    # Note: summary, decisions, errors, sessionType are now in YAML file
     session_json=$(jq -n \
         --arg id "$file_id" \
         --arg sessionId "${session_id:-$session_short_id}" \
@@ -138,11 +135,12 @@ else
         --arg projectDir "$cwd" \
         --arg userName "$git_user_name" \
         --arg userEmail "$git_user_email" \
-        --argjson relatedSessions "$related_session_ids" \
         '{
             id: $id,
             sessionId: $sessionId,
             createdAt: $createdAt,
+            title: "",
+            tags: [],
             context: {
                 branch: (if $branch == "" then null else $branch end),
                 projectDir: $projectDir,
@@ -151,31 +149,17 @@ else
                     email: (if $userEmail == "" then null else $userEmail end)
                 } | with_entries(select(.value != null))
             } | with_entries(select(.value != null)),
-            summary: {
-                title: "",
-                goal: "",
-                outcome: null,
-                description: ""
-            },
+            interactions: [],
             metrics: {
-                durationMinutes: 0,
-                filesCreated: 0,
-                filesModified: 0,
-                filesDeleted: 0,
-                decisionsCount: 0,
-                errorsEncountered: 0,
-                errorsResolved: 0
+                userMessages: 0,
+                assistantResponses: 0,
+                thinkingBlocks: 0,
+                toolUsage: []
             },
             files: [],
-            decisions: [],
-            errors: [],
-            interactions: [],
             preCompactBackups: [],
-            webLinks: [],
-            tags: [],
-            sessionType: null,
-            relatedSessions: (if ($relatedSessions | length) == 0 then null else $relatedSessions end)
-        } | with_entries(select(.value != null))')
+            status: null
+        }')
 
     echo "$session_json" > "$session_path"
     echo "[memoria] Session initialized: ${session_path}" >&2
@@ -221,23 +205,6 @@ init_rules_file "${rules_dir}/review-guidelines.json"
 init_rules_file "${rules_dir}/dev-rules.json"
 
 # ============================================
-# Find related sessions for display (only when resuming)
-# ============================================
-related_sessions=""
-if [ "$is_resumed" = true ] && [ -d "$sessions_dir" ] && [ -n "$current_branch" ]; then
-    session_files=$(find "$sessions_dir" -name "*.json" -type f 2>/dev/null | head -10)
-
-    for file in $session_files; do
-        if [ -f "$file" ]; then
-            branch_match=$(jq -r --arg branch "$current_branch" 'select(.context.branch == $branch) | "\(.id): \(.title // "no title")"' "$file" 2>/dev/null || echo "")
-            if [ -n "$branch_match" ]; then
-                related_sessions="${related_sessions}  - ${branch_match}\\n"
-            fi
-        fi
-    done
-fi
-
-# ============================================
 # Build additionalContext (superpowers style)
 # ============================================
 PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -270,9 +237,9 @@ resume_note=""
 needs_summary=false
 if [ "$is_resumed" = true ]; then
     resume_note=" (Resumed)"
-    # Check if summary.title is empty
-    summary_title=$(jq -r '.summary.title // ""' "$session_path" 2>/dev/null || echo "")
-    if [ -z "$summary_title" ]; then
+    # Check if title is empty
+    session_title=$(jq -r '.title // ""' "$session_path" 2>/dev/null || echo "")
+    if [ -z "$session_title" ]; then
         needs_summary=true
     fi
 fi
@@ -285,7 +252,17 @@ Sessions are saved:
 - **Automatically** before Auto-Compact (context 95% full)
 - **Manually** via \`/memoria:save\` or asking \"save the session\""
 
-# Add summary creation prompt if needed
+# Add recent sessions suggestion for new sessions
+if [ "$is_resumed" = false ] && [ -n "$recent_sessions_info" ]; then
+    session_info="${session_info}
+
+---
+**Recent sessions:**
+$(echo -e "$recent_sessions_info")
+Continue from a previous session? Use \`/memoria:resume <id>\` or \`/memoria:resume\` to see more."
+fi
+
+# Add summary creation prompt if needed (for resumed sessions)
 if [ "$needs_summary" = true ]; then
     session_info="${session_info}
 

@@ -37,15 +37,16 @@ Phase 3: Plan Output       → Save to docs/plans/ + interactions
 
 1. **Search sessions** for similar feature implementations:
    ```
-   Glob: .memoria/sessions/**/*.json
+   Glob: .memoria/sessions/**/*.json   # Search title, tags
+   Glob: .memoria/sessions/**/*.yaml   # Search plan, discussions
    Grep: keywords from feature (component type, API type, etc.)
-   Focus: interactions with phase "plan" or "tdd-*"
+   Focus: YAML files with plan.tasks containing similar features
    ```
 
-2. **Search for related test patterns**:
+2. **Search for related test patterns and errors**:
    ```
-   Glob: .memoria/sessions/**/*.json
-   Look for: tddCycle objects, test file patterns
+   Glob: .memoria/sessions/**/*.yaml
+   Look for: errors section with solutions, discussions about testing
    ```
 
 3. **Check recent design documents**:
@@ -280,28 +281,31 @@ File: docs/plans/YYYY-MM-DD-[topic]-tasks.md
 Content: [Full plan from template above]
 ```
 
-### Record to Session (interactions)
+### Record to Session
 
-Add interaction with:
+**Note:** Session interactions are auto-saved by SessionEnd hook. Plan details should be saved to YAML via `/memoria:save`.
 
-```json
-{
-  "id": "int-XXX",
-  "topic": "[Feature name] implementation plan",
-  "timestamp": "[ISO8601]",
-  "phase": "plan",
-  "request": "[Original request or design reference]",
-  "thinking": "[Planning considerations, past references used]",
-  "proposals": [
-    { "option": "Task breakdown", "description": "[Total tasks] tasks, [Duration] estimated" }
-  ],
-  "choice": "Approved plan",
-  "reasoning": "[Why this structure was chosen]",
-  "actions": [
-    { "type": "create", "path": "docs/plans/YYYY-MM-DD-[topic]-tasks.md", "summary": "Implementation plan" }
-  ],
-  "filesModified": ["docs/plans/YYYY-MM-DD-[topic]-tasks.md"]
-}
+When plan is approved, prompt user to run `/memoria:save` to capture:
+
+**YAML plan section:**
+```yaml
+plan:
+  goals:
+    - "[Feature name] implementation"
+  tasks:
+    - "[ ] Task 1: [description] (RED)"
+    - "[ ] Task 2: [description] (GREEN)"
+    - "[ ] Task 3: [description] (REFACTOR)"
+  remaining:
+    - "All tasks pending"
+```
+
+**YAML references section:**
+```yaml
+references:
+  - type: plan
+    path: "docs/plans/YYYY-MM-DD-[topic]-tasks.md"
+    description: "Implementation plan document"
 ```
 
 ### Commit Plan
@@ -319,25 +323,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 
 As tasks are completed during implementation:
 
-### Update interactions
-
-For each completed task, add or update interaction:
-
-```json
-{
-  "id": "int-XXX",
-  "topic": "Task N: [task title]",
-  "phase": "tdd-red|tdd-green|tdd-refactor",
-  "tddCycle": {
-    "testFile": "[test file path]",
-    "implFile": "[impl file path]",
-    "phase": "red|green|refactor",
-    "testOutput": "[actual test output]"
-  }
-}
-```
-
-### Mark tasks complete
+### Update plan file
 
 In the plan file, update task status:
 
@@ -347,6 +333,20 @@ In the plan file, update task status:
 [... task details ...]
 
 **Status**: Complete (2026-01-27 10:15)
+```
+
+### Update YAML (via /memoria:save)
+
+When saving session, update plan.tasks to reflect progress:
+
+```yaml
+plan:
+  tasks:
+    - "[x] Task 1: Create failing test (RED)"
+    - "[x] Task 2: Implement minimal code (GREEN)"
+    - "[ ] Task 3: Refactor (REFACTOR)"
+  remaining:
+    - "Task 3: Refactor"
 ```
 
 ---

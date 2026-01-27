@@ -49,9 +49,9 @@ CORRECT:
 
 1. **Search sessions** for similar errors:
    ```
-   Glob: .memoria/sessions/**/*.json
+   Glob: .memoria/sessions/**/*.yaml   # Search errors section
    Grep: error keywords, error codes, module names
-   Look for: interaction.problem field
+   Look for: errors[].error, errors[].cause, errors[].solution
    ```
 
 2. **Search patterns** (type: error-solution):
@@ -63,8 +63,9 @@ CORRECT:
 
 3. **Check recent sessions** in same area:
    ```
-   Glob: .memoria/sessions/**/*.json
-   Filter: same tags, same files modified
+   Glob: .memoria/sessions/**/*.json   # Search by tags
+   Filter: same tags
+   Then read corresponding .yaml for detailed error info
    ```
 
 ### Presentation Format
@@ -164,22 +165,17 @@ No matching error patterns in memoria. Starting fresh investigation.
 
 ### Recording
 
-Add interaction:
-```json
-{
-  "id": "int-XXX",
-  "topic": "Debug investigation: [error summary]",
-  "timestamp": "[ISO8601]",
-  "phase": "debug",
-  "problem": "[full error message]",
-  "debugInvestigation": {
-    "errorMessage": "[error message]",
-    "stackTrace": "[stack trace if available]",
-    "hypotheses": [],
-    "rootCause": null,
-    "solution": null
-  }
-}
+**Note:** Debug details should be saved to YAML via `/memoria:save` when investigation completes.
+
+During investigation, interactions are auto-saved (user questions, assistant responses, thinking).
+
+When debug completes, the YAML errors section will capture:
+```yaml
+errors:
+  - error: "[error message - first line]"
+    context: "[what was being done when error occurred]"
+    cause: null  # Filled when root cause found
+    solution: null  # Filled when fixed
 ```
 
 ---
@@ -260,24 +256,14 @@ Add interaction:
 
 ### Recording Hypotheses
 
-Update interaction:
-```json
-{
-  "debugInvestigation": {
-    "hypotheses": [
-      {
-        "hypothesis": "[what you thought was wrong]",
-        "tested": true,
-        "result": "rejected|confirmed"
-      },
-      {
-        "hypothesis": "[second hypothesis]",
-        "tested": true,
-        "result": "confirmed"
-      }
-    ]
-  }
-}
+Hypotheses are captured in the conversation (auto-saved interactions).
+When debug completes, use `/memoria:save` to create structured error record.
+
+**Keep track mentally or in markdown during investigation:**
+```markdown
+## Hypotheses
+1. [hypothesis 1] - REJECTED (evidence: ...)
+2. [hypothesis 2] - CONFIRMED (evidence: ...)
 ```
 
 ### Escalation Rule
@@ -341,23 +327,21 @@ Continue investigating or escalate?
 **Test added:** `[test file if applicable]`
 ```
 
-### Recording
+### Recording (via /memoria:save)
 
-Update interaction:
-```json
-{
-  "debugInvestigation": {
-    "rootCause": "[what was actually wrong]",
-    "solution": "[how it was fixed]"
-  },
-  "choice": "[the fix applied]",
-  "reasoning": "[why this fix is correct]",
-  "actions": [
-    { "type": "edit", "path": "[file]", "summary": "[fix description]" }
-  ],
-  "filesModified": ["[files changed]"]
-}
+When debug completes, run `/memoria:save` to update YAML errors section:
+
+```yaml
+errors:
+  - error: "[error message]"
+    context: "[what was happening]"
+    cause: "[root cause identified]"
+    solution: "[how it was fixed]"
+    files:
+      - "[file that was fixed]"
 ```
+
+This creates searchable error patterns for future debugging sessions.
 
 ### Save to Patterns (REQUIRED)
 

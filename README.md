@@ -8,9 +8,10 @@ Provides automatic session saving, technical decision recording, and web dashboa
 
 ### Core Features
 - **Auto-save interactions**: Conversations auto-saved at session end (jq-based, reliable)
-- **Summary on PreCompact**: Summary created before Auto-Compact (context 95% full)
-- **Manual save**: Create summary and extract rules with `/memoria:save`
-- **Session Resume**: Resume past sessions with `/memoria:resume`
+- **Backup on PreCompact**: Interactions backed up before Auto-Compact (context 95% full)
+- **Manual save**: Create summary and YAML file with `/memoria:save`
+- **Session Resume**: Resume past sessions with `/memoria:resume` (with chain tracking)
+- **Session Suggestion**: Recent 3 sessions shown at session start
 - **Technical Decision Recording**: Record decisions with `/memoria:decision`
 - **Rule-based Review**: Code review based on `dev-rules.json` / `review-guidelines.json`
 - **Weekly Reports**: Auto-generate Markdown reports aggregating review results
@@ -41,7 +42,7 @@ Provides automatic session saving, technical decision recording, and web dashboa
 
 ### Team Benefits
 
-- `.memoria/` JSON files are **Git-manageable**, enabling team sharing of decisions and session history
+- `.memoria/` JSON/YAML files are **Git-manageable**, enabling team sharing of decisions and session history
 - Quickly understand background and context during onboarding or reviews
 
 ## Installation
@@ -103,21 +104,43 @@ This will auto-update on Claude Code startup.
 
 **Interactions are auto-saved** at session end using jq (no Claude dependency). No configuration needed.
 
-**Summary is created** in these scenarios:
-- **PreCompact**: Before Auto-Compact (context 95% full)
-- **Manual**: Run `/memoria:save` to create summary and extract rules
+**PreCompact** backs up interactions to `preCompactBackups` before Auto-Compact (context 95% full). Summary is NOT auto-created.
 
-What gets saved:
-- `interactions`: Auto-saved at session end (user messages, assistant responses, thinking blocks)
-- `summary`: Created by PreCompact or `/memoria:save`
-- `metrics`: Tool usage, file changes (auto-saved)
+**Summary and structured data** are created manually via `/memoria:save`:
+- JSON: Updates `title`, `tags` (search index)
+- YAML: Creates structured data (summary, plan, discussions, errors, handoff)
+
+### Session Suggestion
+
+At session start, recent 3 sessions are shown:
+
+```
+**Recent sessions:**
+  1. [abc123] JWT認証の実装 (2026-01-27, main)
+  2. [def456] ダッシュボードUI (2026-01-26, main)
+  3. [ghi789] バグ修正 (2026-01-25, main)
+
+Continue from a previous session? Use `/memoria:resume <id>`
+```
+
+### Session Chain Tracking
+
+When resuming a session, the chain is tracked:
+
+```
+/memoria:resume abc123
+  ↓
+Current session JSON updated: "resumedFrom": "abc123"
+  ↓
+Chain: current ← abc123
+```
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
 | `/memoria:resume [id]` | Resume session (show list if ID omitted) |
-| `/memoria:save` | Create summary + extract rules |
+| `/memoria:save` | Create summary + YAML + extract rules |
 | `/memoria:decision "title"` | Record a technical decision |
 | `/memoria:search "query"` | Search sessions and decisions |
 | `/memoria:review [--staged\|--all\|--diff=branch\|--full]` | Rule-based code review (--full for two-stage) |
@@ -170,19 +193,19 @@ flowchart TB
         C --> D[interactions + files + metrics]
     end
 
-    subgraph summary [Summary Creation]
+    subgraph backup [PreCompact Backup]
         E[Context 95% Full] --> F[PreCompact Hook]
-        F --> G[Claude creates summary]
+        F --> G[Backup interactions to preCompactBackups]
     end
 
     subgraph manual [Manual Actions]
-        H["memoria:save"] --> I[Create summary + extract rules]
+        H["memoria:save"] --> I[Create YAML + update JSON]
         J["memoria:decision"] --> K[Record decision explicitly]
     end
 
     subgraph resume [Session Resume]
         L["memoria:resume"] --> M[Select from list]
-        M --> N[Restore past context]
+        M --> N[Restore past context + set resumedFrom]
     end
 
     subgraph search [Search]
@@ -215,12 +238,15 @@ flowchart TB
 
 ## Data Storage
 
-All data is stored in `.memoria/` directory as JSON:
+All data is stored in `.memoria/` directory:
 
 ```text
 .memoria/
 ├── tags.json         # Tag master file (93 tags, prevents notation variations)
 ├── sessions/         # Session history (YYYY/MM)
+│   └── YYYY/MM/
+│       ├── {id}.json # Log + search index (auto-saved)
+│       └── {id}.yaml # Structured data (manual save)
 ├── decisions/        # Technical decisions (YYYY/MM)
 ├── rules/            # Dev rules / review guidelines
 ├── reviews/          # Review results (YYYY/MM)
@@ -229,7 +255,7 @@ All data is stored in `.memoria/` directory as JSON:
 
 Git-manageable. Add to `.gitignore` based on your project needs.
 
-### Session JSON Schema
+### Session JSON Schema (Log + Search Index)
 
 ```json
 {
@@ -237,19 +263,16 @@ Git-manageable. Add to `.gitignore` based on your project needs.
   "sessionId": "full-uuid-from-claude-code",
   "createdAt": "2026-01-27T10:00:00Z",
   "endedAt": "2026-01-27T12:00:00Z",
+  "title": "JWT authentication implementation",
+  "tags": ["auth", "jwt"],
   "context": {
     "branch": "feature/auth",
     "projectDir": "/path/to/project",
     "user": { "name": "tanaka", "email": "tanaka@example.com" }
   },
-  "summary": {
-    "title": "JWT authentication implementation",
-    "goal": "Implement JWT-based auth with refresh token support",
-    "outcome": "success",
-    "description": "Implemented JWT auth with RS256 signing"
-  },
   "interactions": [
     {
+      "id": "int-001",
       "timestamp": "2026-01-27T10:15:00Z",
       "user": "Implement authentication",
       "thinking": "Key insights from thinking process",
@@ -263,37 +286,72 @@ Git-manageable. Add to `.gitignore` based on your project needs.
     "toolUsage": [{"name": "Edit", "count": 3}, {"name": "Write", "count": 2}]
   },
   "files": [
-    { "path": "src/auth/jwt.ts", "action": "create", "summary": "JWT module" }
+    { "path": "src/auth/jwt.ts", "action": "create" }
   ],
-  "decisions": [
-    {
-      "id": "dec-001",
-      "topic": "Auth method",
-      "choice": "JWT",
-      "alternatives": ["Session Cookie"],
-      "reasoning": "Easy auth sharing between microservices",
-      "timestamp": "2026-01-27T10:15:00Z"
-    }
-  ],
-  "errors": [
-    {
-      "id": "err-001",
-      "message": "secretOrPrivateKey must be asymmetric",
-      "type": "runtime",
-      "resolved": true,
-      "solution": "Changed to PEM format for RS256"
-    }
-  ],
-  "webLinks": ["https://jwt.io/introduction"],
-  "tags": ["auth", "jwt", "backend"],
-  "sessionType": "implementation",
+  "preCompactBackups": [],
+  "resumedFrom": "def45678",
   "status": "complete"
 }
 ```
 
+### Session YAML Schema (Structured Data)
+
+```yaml
+version: 1
+session_id: abc12345
+
+summary:
+  title: "JWT authentication implementation"
+  goal: "Implement JWT-based auth with refresh token support"
+  outcome: success  # success | partial | blocked | abandoned
+  description: "Implemented JWT auth with RS256 signing"
+  session_type: implementation
+
+plan:
+  tasks:
+    - "[x] JWT signing method selection"
+    - "[x] Middleware implementation"
+    - "[ ] Add tests"
+  remaining:
+    - "Add tests"
+
+discussions:
+  - topic: "Signing algorithm"
+    decision: "Adopt RS256"
+    reasoning: "Security considerations for production"
+    alternatives:
+      - "HS256 (simpler but requires shared secret)"
+
+code_examples:
+  - file: "src/auth/jwt.ts"
+    description: "JWT generation function"
+    after: |
+      export function generateToken(payload: JWTPayload): string {
+        return jwt.sign(payload, privateKey, { algorithm: 'RS256' });
+      }
+
+errors:
+  - error: "secretOrPrivateKey must be asymmetric"
+    cause: "Using HS256 secret with RS256"
+    solution: "Generate RS256 key pair"
+
+handoff:
+  stopped_reason: "Test creation postponed to next session"
+  notes:
+    - "vitest configured"
+    - "Mock key pair in test/fixtures/"
+  next_steps:
+    - "Create jwt.test.ts"
+    - "Add E2E tests"
+
+references:
+  - url: "https://jwt.io/introduction"
+    title: "JWT Introduction"
+```
+
 ### Session Types
 
-The `sessionType` field classifies the session type.
+The `session_type` field (in YAML) classifies the session type.
 
 | Type | Description |
 |------|-------------|

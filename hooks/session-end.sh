@@ -54,30 +54,36 @@ if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
             content: .message.content
         }] as $user_messages |
 
-        # Assistant responses with thinking and text
+        # Get user message timestamps for grouping
+        ($user_messages | map(.timestamp)) as $user_timestamps |
+
+        # All assistant messages with thinking or text
         [.[] | select(.type == "assistant") | . as $msg |
-            ($msg.message.content // []) | map(select(.type == "thinking" or .type == "text")) |
-            if length > 0 then {
+            ($msg.message.content // []) |
+            {
                 timestamp: $msg.timestamp,
-                thinking: (map(select(.type == "thinking") | .thinking) | join("\n")),
-                text: (map(select(.type == "text") | .text) | join("\n"))
-            } else empty end
-        ] | map(select(.thinking != "" or .text != "")) as $assistant_responses |
+                thinking: ([.[] | select(.type == "thinking") | .thinking] | join("\n")),
+                text: ([.[] | select(.type == "text") | .text] | join("\n"))
+            } | select(.thinking != "" or .text != "")
+        ] as $all_assistant |
 
         # Tool usage summary
         [.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use") | .name] |
         group_by(.) | map({name: .[0], count: length}) | sort_by(-.count) as $tool_usage |
 
-        # Build interactions by pairing user messages with following assistant responses
+        # Build interactions by grouping all assistant responses between user messages
         [range(0; $user_messages | length) | . as $i |
             $user_messages[$i] as $user |
-            ([$assistant_responses[] | select(.timestamp > $user.timestamp)] | .[0]) as $assistant |
-            if $assistant then {
+            # Get next user message timestamp (or far future if last)
+            (if $i + 1 < ($user_messages | length) then $user_messages[$i + 1].timestamp else "9999-12-31T23:59:59Z" end) as $next_user_ts |
+            # Collect all assistant responses between this user message and next
+            [$all_assistant[] | select(.timestamp > $user.timestamp and .timestamp < $next_user_ts)] as $turn_responses |
+            if ($turn_responses | length) > 0 then {
                 id: ("int-" + (($i + 1) | tostring | if length < 3 then "00"[0:(3-length)] + . else . end)),
                 timestamp: $user.timestamp,
                 user: $user.content,
-                thinking: $assistant.thinking,
-                assistant: $assistant.text
+                thinking: ([$turn_responses[].thinking | select(. != "")] | join("\n")),
+                assistant: ([$turn_responses[].text | select(. != "")] | join("\n"))
             } else empty end
         ] as $interactions |
 
