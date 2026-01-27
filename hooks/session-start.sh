@@ -182,13 +182,13 @@ if [ -d "$sessions_dir" ] && [ -n "$current_branch" ]; then
 fi
 
 # ============================================
-# Output minimal context injection
+# Output context injection with EXTREMELY_IMPORTANT emphasis
 # ============================================
 cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "<memoria>\\n**Session:** ${file_id}\\n**Path:** ${current_session_relative_path}\\n\\n**MANDATORY: Update session JSON with EVERY response.**\\n\\n1. First response: Set title, goal, sessionType, tags\\n2. Every response: Add/update interaction in interactions[]\\n   - id: int-001, int-002, ...\\n   - topic: Brief topic of this exchange\\n   - timestamp: ISO8601\\n   - request: User's request (summarized)\\n   - thinking: Your reasoning (keep concise)\\n   - choice: Decision or action taken\\n   - filesModified: Files changed (if any)\\n\\nSessionTypes: decision|implementation|research|exploration|discussion|debug|review\\n\\n**Commands:** /memoria:resume, /memoria:save, /memoria:search, /memoria:review\\n${related_sessions:+\\nRelated sessions (same branch):\\n${related_sessions}}</memoria>"
+    "additionalContext": "<EXTREMELY_IMPORTANT>\\n# memoria: Session Recording\\n\\n**Session:** ${file_id}\\n**Path:** ${current_session_relative_path}\\n\\n## YOU MUST UPDATE SESSION JSON WITH EVERY RESPONSE\\n\\nThis is not negotiable. This is not optional. You cannot skip this.\\n\\n### What to update:\\n1. **First response:** Set title, goal, sessionType, tags\\n2. **Every response:** Add interaction to interactions[]\\n   - id: int-001, int-002, ...\\n   - topic: Brief topic\\n   - timestamp: ISO8601\\n   - request: User request (summarized)\\n   - thinking: Your reasoning (concise)\\n   - choice: Action taken\\n   - filesModified: Files changed\\n\\n### Red Flags - If you think these, STOP:\\n| Thought | Reality |\\n|---------|---------|\\n| I'll update later | Update NOW, before responding |\\n| This is just a quick answer | Still requires update |\\n| The task is more important | Update FIRST, then task |\\n| I'm using an agent/tool | Update BEFORE and AFTER |\\n| It's a simple question | Every exchange gets recorded |\\n\\nSessionTypes: decision|implementation|research|exploration|discussion|debug|review\\n\\n**Commands:** /memoria:resume, /memoria:save, /memoria:search, /memoria:review\\n${related_sessions:+\\nRelated sessions (same branch):\\n${related_sessions}}</EXTREMELY_IMPORTANT>"
   }
 }
 EOF
