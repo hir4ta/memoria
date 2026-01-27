@@ -9,6 +9,20 @@ function safeReadJson(filePath, fallback) {
     return fallback;
   }
 }
+function safeReadJsonWithSchema(filePath, schema, fallback) {
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    const data = JSON.parse(content);
+    const result = schema.safeParse(data);
+    if (result.success) {
+      return result.data;
+    }
+    console.warn(`Validation failed for ${filePath}: ${result.error.message}`);
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
 function safeWriteJson(filePath, data) {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
@@ -43,5 +57,6 @@ export {
   findJsonFiles,
   nowISO,
   safeReadJson,
+  safeReadJsonWithSchema,
   safeWriteJson
 };

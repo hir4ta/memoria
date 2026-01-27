@@ -1,12 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import type { Tag } from "./schemas/index.js";
 import { findJsonFiles, safeReadJson } from "./utils.js";
-
-export interface Tag {
-  id: string;
-  label: string;
-  aliases: string[];
-}
 
 export interface SearchResult {
   type: "session" | "decision" | "pattern";
@@ -251,7 +246,7 @@ if (isMain && process.argv.length > 2) {
   const args = process.argv.slice(2);
   const queryIndex = args.indexOf("--query");
   const query = queryIndex !== -1 ? args[queryIndex + 1] : "";
-  const memoriaDir = process.cwd() + "/.memoria";
+  const memoriaDir = `${process.cwd()}/.memoria`;
 
   if (!query) {
     console.error(JSON.stringify({ success: false, error: "Missing --query" }));

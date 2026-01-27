@@ -1,3 +1,4 @@
+import type { Interaction, Session } from "./schemas/index.js";
 import { safeReadJson, safeWriteJson } from "./utils.js";
 
 export interface AutoRecordInput {
@@ -8,19 +9,13 @@ export interface AutoRecordInput {
   timestamp: string;
 }
 
-interface Interaction {
-  id: string;
-  topic: string;
-  timestamp: string;
-  filesModified?: string[];
-  problem?: string;
-  actions?: { type: string; path: string; summary: string }[];
-}
+// Partial types for auto-recording (minimal required fields)
+type PartialInteraction = Pick<Interaction, "id" | "topic" | "timestamp"> &
+  Partial<Pick<Interaction, "filesModified" | "problem" | "actions">>;
 
-interface Session {
-  id: string;
-  interactions: Interaction[];
-}
+type PartialSession = Pick<Session, "id"> & {
+  interactions: PartialInteraction[];
+};
 
 /**
  * ツール使用を記録する
@@ -40,13 +35,13 @@ export function recordToolUse(input: AutoRecordInput): void {
     return;
   }
 
-  const session = safeReadJson<Session>(sessionPath, {
+  const session = safeReadJson<PartialSession>(sessionPath, {
     id: "",
     interactions: [],
   });
   const interactionId = `auto-${Date.now()}`;
 
-  const interaction: Interaction = {
+  const interaction: PartialInteraction = {
     id: interactionId,
     topic: "",
     timestamp,

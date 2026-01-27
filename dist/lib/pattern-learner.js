@@ -88,11 +88,7 @@ function aggregateReviewFindings(reviews, minOccurrences = 3) {
 }
 async function learnPatterns(memoriaDir, options = {}) {
   const patterns = [];
-  const {
-    analyzeCommits = true,
-    analyzeReviews = true,
-    analyzeCoChanges = true
-  } = options;
+  const { analyzeReviews = true } = options;
   if (analyzeReviews) {
     const reviewsDir = path2.join(memoriaDir, "reviews");
     const reviewFiles = findJsonFiles(reviewsDir);
@@ -120,7 +116,7 @@ async function learnPatterns(memoriaDir, options = {}) {
 var isMain = process.argv[1]?.endsWith("pattern-learner.js") || process.argv[1]?.endsWith("pattern-learner.ts");
 if (isMain && process.argv.length > 2) {
   const args = process.argv.slice(2);
-  const memoriaDir = process.cwd() + "/.memoria";
+  const memoriaDir = `${process.cwd()}/.memoria`;
   learnPatterns(memoriaDir, {
     analyzeCommits: args.includes("--analyze-commits"),
     analyzeReviews: args.includes("--analyze-reviews"),

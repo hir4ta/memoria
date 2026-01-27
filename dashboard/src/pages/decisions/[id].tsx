@@ -67,6 +67,11 @@ export function DecisionDetailPage() {
     }
   };
 
+  const handleExport = () => {
+    if (!id) return;
+    window.open(`/api/export/decisions/${id}/markdown`, "_blank");
+  };
+
   if (loading) {
     return <div className="text-center py-12">Loading...</div>;
   }
@@ -113,6 +118,9 @@ export function DecisionDetailPage() {
             </>
           ) : (
             <>
+              <Button variant="outline" onClick={handleExport}>
+                Export
+              </Button>
               <Button variant="outline" onClick={() => setIsEditing(true)}>
                 Edit
               </Button>

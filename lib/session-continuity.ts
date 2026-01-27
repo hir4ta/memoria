@@ -115,7 +115,7 @@ const isMain =
   process.argv[1]?.endsWith("session-continuity.ts");
 
 if (isMain && process.argv.length > 2) {
-  const memoriaDir = process.cwd() + "/.memoria";
+  const memoriaDir = `${process.cwd()}/.memoria`;
 
   buildContinueContext(memoriaDir)
     .then((context) => {

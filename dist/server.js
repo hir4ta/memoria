@@ -1,6 +1,6 @@
 // dashboard/server/index.ts
-import fs from "node:fs";
-import path from "node:path";
+import fs4 from "node:fs";
+import path3 from "node:path";
 
 // node_modules/@hono/node-server/dist/index.mjs
 import { createServer as createServerHTTP } from "http";
@@ -666,10 +666,10 @@ var createStreamBody = (stream) => {
   });
   return body;
 };
-var getStats = (path2) => {
+var getStats = (path4) => {
   let stats;
   try {
-    stats = statSync(path2);
+    stats = statSync(path4);
   } catch {
   }
   return stats;
@@ -698,21 +698,21 @@ var serveStatic = (options = { root: "" }) => {
         return next();
       }
     }
-    let path2 = join(
+    let path4 = join(
       root,
       !optionPath && options.rewriteRequestPath ? options.rewriteRequestPath(filename, c) : filename
     );
-    let stats = getStats(path2);
+    let stats = getStats(path4);
     if (stats && stats.isDirectory()) {
       const indexFile = options.index ?? "index.html";
-      path2 = join(path2, indexFile);
-      stats = getStats(path2);
+      path4 = join(path4, indexFile);
+      stats = getStats(path4);
     }
     if (!stats) {
-      await options.onNotFound?.(path2, c);
+      await options.onNotFound?.(path4, c);
       return next();
     }
-    const mimeType = getMimeType(path2);
+    const mimeType = getMimeType(path4);
     c.header("Content-Type", mimeType || "application/octet-stream");
     if (options.precompressed && (!mimeType || COMPRESSIBLE_CONTENT_TYPE_REGEX.test(mimeType))) {
       const acceptEncodingSet = new Set(
@@ -722,12 +722,12 @@ var serveStatic = (options = { root: "" }) => {
         if (!acceptEncodingSet.has(encoding)) {
           continue;
         }
-        const precompressedStats = getStats(path2 + ENCODINGS[encoding]);
+        const precompressedStats = getStats(path4 + ENCODINGS[encoding]);
         if (precompressedStats) {
           c.header("Content-Encoding", encoding);
           c.header("Vary", "Accept-Encoding", { append: true });
           stats = precompressedStats;
-          path2 = path2 + ENCODINGS[encoding];
+          path4 = path4 + ENCODINGS[encoding];
           break;
         }
       }
@@ -741,7 +741,7 @@ var serveStatic = (options = { root: "" }) => {
       result = c.body(null);
     } else if (!range) {
       c.header("Content-Length", size.toString());
-      result = c.body(createStreamBody(createReadStream(path2)), 200);
+      result = c.body(createStreamBody(createReadStream(path4)), 200);
     } else {
       c.header("Accept-Ranges", "bytes");
       c.header("Date", stats.birthtime.toUTCString());
@@ -752,12 +752,12 @@ var serveStatic = (options = { root: "" }) => {
         end = size - 1;
       }
       const chunksize = end - start + 1;
-      const stream = createReadStream(path2, { start, end });
+      const stream = createReadStream(path4, { start, end });
       c.header("Content-Length", chunksize.toString());
       c.header("Content-Range", `bytes ${start}-${end}/${stats.size}`);
       result = c.body(createStreamBody(stream), 206);
     }
-    await options.onFound?.(path2, c);
+    await options.onFound?.(path4, c);
     return result;
   };
 };
@@ -879,26 +879,26 @@ var handleParsingNestedValues = (form, key, value) => {
 };
 
 // node_modules/hono/dist/utils/url.js
-var splitPath = (path2) => {
-  const paths = path2.split("/");
+var splitPath = (path4) => {
+  const paths = path4.split("/");
   if (paths[0] === "") {
     paths.shift();
   }
   return paths;
 };
 var splitRoutingPath = (routePath) => {
-  const { groups, path: path2 } = extractGroupsFromPath(routePath);
-  const paths = splitPath(path2);
+  const { groups, path: path4 } = extractGroupsFromPath(routePath);
+  const paths = splitPath(path4);
   return replaceGroupMarks(paths, groups);
 };
-var extractGroupsFromPath = (path2) => {
+var extractGroupsFromPath = (path4) => {
   const groups = [];
-  path2 = path2.replace(/\{[^}]+\}/g, (match2, index) => {
+  path4 = path4.replace(/\{[^}]+\}/g, (match2, index) => {
     const mark = `@${index}`;
     groups.push([mark, match2]);
     return mark;
   });
-  return { groups, path: path2 };
+  return { groups, path: path4 };
 };
 var replaceGroupMarks = (paths, groups) => {
   for (let i = groups.length - 1; i >= 0; i--) {
@@ -953,8 +953,8 @@ var getPath = (request) => {
     const charCode = url.charCodeAt(i);
     if (charCode === 37) {
       const queryIndex = url.indexOf("?", i);
-      const path2 = url.slice(start, queryIndex === -1 ? void 0 : queryIndex);
-      return tryDecodeURI(path2.includes("%25") ? path2.replace(/%25/g, "%2525") : path2);
+      const path4 = url.slice(start, queryIndex === -1 ? void 0 : queryIndex);
+      return tryDecodeURI(path4.includes("%25") ? path4.replace(/%25/g, "%2525") : path4);
     } else if (charCode === 63) {
       break;
     }
@@ -971,11 +971,11 @@ var mergePath = (base, sub, ...rest) => {
   }
   return `${base?.[0] === "/" ? "" : "/"}${base}${sub === "/" ? "" : `${base?.at(-1) === "/" ? "" : "/"}${sub?.[0] === "/" ? sub.slice(1) : sub}`}`;
 };
-var checkOptionalParameter = (path2) => {
-  if (path2.charCodeAt(path2.length - 1) !== 63 || !path2.includes(":")) {
+var checkOptionalParameter = (path4) => {
+  if (path4.charCodeAt(path4.length - 1) !== 63 || !path4.includes(":")) {
     return null;
   }
-  const segments = path2.split("/");
+  const segments = path4.split("/");
   const results = [];
   let basePath = "";
   segments.forEach((segment) => {
@@ -1116,9 +1116,9 @@ var HonoRequest = class {
    */
   path;
   bodyCache = {};
-  constructor(request, path2 = "/", matchResult = [[]]) {
+  constructor(request, path4 = "/", matchResult = [[]]) {
     this.raw = request;
-    this.path = path2;
+    this.path = path4;
     this.#matchResult = matchResult;
     this.#validatedData = {};
   }
@@ -1854,8 +1854,8 @@ var Hono = class _Hono {
         return this;
       };
     });
-    this.on = (method, path2, ...handlers) => {
-      for (const p of [path2].flat()) {
+    this.on = (method, path4, ...handlers) => {
+      for (const p of [path4].flat()) {
         this.#path = p;
         for (const m of [method].flat()) {
           handlers.map((handler) => {
@@ -1912,8 +1912,8 @@ var Hono = class _Hono {
    * app.route("/api", app2) // GET /api/user
    * ```
    */
-  route(path2, app2) {
-    const subApp = this.basePath(path2);
+  route(path4, app2) {
+    const subApp = this.basePath(path4);
     app2.routes.map((r) => {
       let handler;
       if (app2.errorHandler === errorHandler) {
@@ -1939,9 +1939,9 @@ var Hono = class _Hono {
    * const api = new Hono().basePath('/api')
    * ```
    */
-  basePath(path2) {
+  basePath(path4) {
     const subApp = this.#clone();
-    subApp._basePath = mergePath(this._basePath, path2);
+    subApp._basePath = mergePath(this._basePath, path4);
     return subApp;
   }
   /**
@@ -2015,7 +2015,7 @@ var Hono = class _Hono {
    * })
    * ```
    */
-  mount(path2, applicationHandler, options) {
+  mount(path4, applicationHandler, options) {
     let replaceRequest;
     let optionHandler;
     if (options) {
@@ -2042,7 +2042,7 @@ var Hono = class _Hono {
       return [c.env, executionContext];
     };
     replaceRequest ||= (() => {
-      const mergedPath = mergePath(this._basePath, path2);
+      const mergedPath = mergePath(this._basePath, path4);
       const pathPrefixLength = mergedPath === "/" ? 0 : mergedPath.length;
       return (request) => {
         const url = new URL(request.url);
@@ -2057,14 +2057,14 @@ var Hono = class _Hono {
       }
       await next();
     };
-    this.#addRoute(METHOD_NAME_ALL, mergePath(path2, "*"), handler);
+    this.#addRoute(METHOD_NAME_ALL, mergePath(path4, "*"), handler);
     return this;
   }
-  #addRoute(method, path2, handler) {
+  #addRoute(method, path4, handler) {
     method = method.toUpperCase();
-    path2 = mergePath(this._basePath, path2);
-    const r = { basePath: this._basePath, path: path2, method, handler };
-    this.router.add(method, path2, [handler, r]);
+    path4 = mergePath(this._basePath, path4);
+    const r = { basePath: this._basePath, path: path4, method, handler };
+    this.router.add(method, path4, [handler, r]);
     this.routes.push(r);
   }
   #handleError(err, c) {
@@ -2077,10 +2077,10 @@ var Hono = class _Hono {
     if (method === "HEAD") {
       return (async () => new Response(null, await this.#dispatch(request, executionCtx, env, "GET")))();
     }
-    const path2 = this.getPath(request, { env });
-    const matchResult = this.router.match(method, path2);
+    const path4 = this.getPath(request, { env });
+    const matchResult = this.router.match(method, path4);
     const c = new Context(request, {
-      path: path2,
+      path: path4,
       matchResult,
       env,
       executionCtx,
@@ -2180,7 +2180,7 @@ var Hono = class _Hono {
 
 // node_modules/hono/dist/router/reg-exp-router/matcher.js
 var emptyParam = [];
-function match(method, path2) {
+function match(method, path4) {
   const matchers = this.buildAllMatchers();
   const match2 = (method2, path22) => {
     const matcher = matchers[method2] || matchers[METHOD_NAME_ALL];
@@ -2196,7 +2196,7 @@ function match(method, path2) {
     return [matcher[1][index], match3];
   };
   this.match = match2;
-  return match2(method, path2);
+  return match2(method, path4);
 }
 
 // node_modules/hono/dist/router/reg-exp-router/node.js
@@ -2311,12 +2311,12 @@ var Node = class _Node {
 var Trie = class {
   #context = { varIndex: 0 };
   #root = new Node();
-  insert(path2, index, pathErrorCheckOnly) {
+  insert(path4, index, pathErrorCheckOnly) {
     const paramAssoc = [];
     const groups = [];
     for (let i = 0; ; ) {
       let replaced = false;
-      path2 = path2.replace(/\{[^}]+\}/g, (m) => {
+      path4 = path4.replace(/\{[^}]+\}/g, (m) => {
         const mark = `@\\${i}`;
         groups[i] = [mark, m];
         i++;
@@ -2327,7 +2327,7 @@ var Trie = class {
         break;
       }
     }
-    const tokens = path2.match(/(?::[^\/]+)|(?:\/\*$)|./g) || [];
+    const tokens = path4.match(/(?::[^\/]+)|(?:\/\*$)|./g) || [];
     for (let i = groups.length - 1; i >= 0; i--) {
       const [mark] = groups[i];
       for (let j = tokens.length - 1; j >= 0; j--) {
@@ -2366,9 +2366,9 @@ var Trie = class {
 // node_modules/hono/dist/router/reg-exp-router/router.js
 var nullMatcher = [/^$/, [], /* @__PURE__ */ Object.create(null)];
 var wildcardRegExpCache = /* @__PURE__ */ Object.create(null);
-function buildWildcardRegExp(path2) {
-  return wildcardRegExpCache[path2] ??= new RegExp(
-    path2 === "*" ? "" : `^${path2.replace(
+function buildWildcardRegExp(path4) {
+  return wildcardRegExpCache[path4] ??= new RegExp(
+    path4 === "*" ? "" : `^${path4.replace(
       /\/\*$|([.\\+*[^\]$()])/g,
       (_, metaChar) => metaChar ? `\\${metaChar}` : "(?:|/.*)"
     )}$`
@@ -2390,17 +2390,17 @@ function buildMatcherFromPreprocessedRoutes(routes) {
   );
   const staticMap = /* @__PURE__ */ Object.create(null);
   for (let i = 0, j = -1, len = routesWithStaticPathFlag.length; i < len; i++) {
-    const [pathErrorCheckOnly, path2, handlers] = routesWithStaticPathFlag[i];
+    const [pathErrorCheckOnly, path4, handlers] = routesWithStaticPathFlag[i];
     if (pathErrorCheckOnly) {
-      staticMap[path2] = [handlers.map(([h]) => [h, /* @__PURE__ */ Object.create(null)]), emptyParam];
+      staticMap[path4] = [handlers.map(([h]) => [h, /* @__PURE__ */ Object.create(null)]), emptyParam];
     } else {
       j++;
     }
     let paramAssoc;
     try {
-      paramAssoc = trie.insert(path2, j, pathErrorCheckOnly);
+      paramAssoc = trie.insert(path4, j, pathErrorCheckOnly);
     } catch (e) {
-      throw e === PATH_ERROR ? new UnsupportedPathError(path2) : e;
+      throw e === PATH_ERROR ? new UnsupportedPathError(path4) : e;
     }
     if (pathErrorCheckOnly) {
       continue;
@@ -2434,12 +2434,12 @@ function buildMatcherFromPreprocessedRoutes(routes) {
   }
   return [regexp, handlerMap, staticMap];
 }
-function findMiddleware(middleware, path2) {
+function findMiddleware(middleware, path4) {
   if (!middleware) {
     return void 0;
   }
   for (const k of Object.keys(middleware).sort((a, b) => b.length - a.length)) {
-    if (buildWildcardRegExp(k).test(path2)) {
+    if (buildWildcardRegExp(k).test(path4)) {
       return [...middleware[k]];
     }
   }
@@ -2453,7 +2453,7 @@ var RegExpRouter = class {
     this.#middleware = { [METHOD_NAME_ALL]: /* @__PURE__ */ Object.create(null) };
     this.#routes = { [METHOD_NAME_ALL]: /* @__PURE__ */ Object.create(null) };
   }
-  add(method, path2, handler) {
+  add(method, path4, handler) {
     const middleware = this.#middleware;
     const routes = this.#routes;
     if (!middleware || !routes) {
@@ -2468,18 +2468,18 @@ var RegExpRouter = class {
         });
       });
     }
-    if (path2 === "/*") {
-      path2 = "*";
+    if (path4 === "/*") {
+      path4 = "*";
     }
-    const paramCount = (path2.match(/\/:/g) || []).length;
-    if (/\*$/.test(path2)) {
-      const re = buildWildcardRegExp(path2);
+    const paramCount = (path4.match(/\/:/g) || []).length;
+    if (/\*$/.test(path4)) {
+      const re = buildWildcardRegExp(path4);
       if (method === METHOD_NAME_ALL) {
         Object.keys(middleware).forEach((m) => {
-          middleware[m][path2] ||= findMiddleware(middleware[m], path2) || findMiddleware(middleware[METHOD_NAME_ALL], path2) || [];
+          middleware[m][path4] ||= findMiddleware(middleware[m], path4) || findMiddleware(middleware[METHOD_NAME_ALL], path4) || [];
         });
       } else {
-        middleware[method][path2] ||= findMiddleware(middleware[method], path2) || findMiddleware(middleware[METHOD_NAME_ALL], path2) || [];
+        middleware[method][path4] ||= findMiddleware(middleware[method], path4) || findMiddleware(middleware[METHOD_NAME_ALL], path4) || [];
       }
       Object.keys(middleware).forEach((m) => {
         if (method === METHOD_NAME_ALL || method === m) {
@@ -2497,7 +2497,7 @@ var RegExpRouter = class {
       });
       return;
     }
-    const paths = checkOptionalParameter(path2) || [path2];
+    const paths = checkOptionalParameter(path4) || [path4];
     for (let i = 0, len = paths.length; i < len; i++) {
       const path22 = paths[i];
       Object.keys(routes).forEach((m) => {
@@ -2524,13 +2524,13 @@ var RegExpRouter = class {
     const routes = [];
     let hasOwnRoute = method === METHOD_NAME_ALL;
     [this.#middleware, this.#routes].forEach((r) => {
-      const ownRoute = r[method] ? Object.keys(r[method]).map((path2) => [path2, r[method][path2]]) : [];
+      const ownRoute = r[method] ? Object.keys(r[method]).map((path4) => [path4, r[method][path4]]) : [];
       if (ownRoute.length !== 0) {
         hasOwnRoute ||= true;
         routes.push(...ownRoute);
       } else if (method !== METHOD_NAME_ALL) {
         routes.push(
-          ...Object.keys(r[METHOD_NAME_ALL]).map((path2) => [path2, r[METHOD_NAME_ALL][path2]])
+          ...Object.keys(r[METHOD_NAME_ALL]).map((path4) => [path4, r[METHOD_NAME_ALL][path4]])
         );
       }
     });
@@ -2550,13 +2550,13 @@ var SmartRouter = class {
   constructor(init) {
     this.#routers = init.routers;
   }
-  add(method, path2, handler) {
+  add(method, path4, handler) {
     if (!this.#routes) {
       throw new Error(MESSAGE_MATCHER_IS_ALREADY_BUILT);
     }
-    this.#routes.push([method, path2, handler]);
+    this.#routes.push([method, path4, handler]);
   }
-  match(method, path2) {
+  match(method, path4) {
     if (!this.#routes) {
       throw new Error("Fatal error");
     }
@@ -2571,7 +2571,7 @@ var SmartRouter = class {
         for (let i2 = 0, len2 = routes.length; i2 < len2; i2++) {
           router.add(...routes[i2]);
         }
-        res = router.match(method, path2);
+        res = router.match(method, path4);
       } catch (e) {
         if (e instanceof UnsupportedPathError) {
           continue;
@@ -2615,10 +2615,10 @@ var Node2 = class _Node2 {
     }
     this.#patterns = [];
   }
-  insert(method, path2, handler) {
+  insert(method, path4, handler) {
     this.#order = ++this.#order;
     let curNode = this;
-    const parts = splitRoutingPath(path2);
+    const parts = splitRoutingPath(path4);
     const possibleKeys = [];
     for (let i = 0, len = parts.length; i < len; i++) {
       const p = parts[i];
@@ -2669,12 +2669,12 @@ var Node2 = class _Node2 {
     }
     return handlerSets;
   }
-  search(method, path2) {
+  search(method, path4) {
     const handlerSets = [];
     this.#params = emptyParams;
     const curNode = this;
     let curNodes = [curNode];
-    const parts = splitPath(path2);
+    const parts = splitPath(path4);
     const curNodesQueue = [];
     for (let i = 0, len = parts.length; i < len; i++) {
       const part = parts[i];
@@ -2762,18 +2762,18 @@ var TrieRouter = class {
   constructor() {
     this.#node = new Node2();
   }
-  add(method, path2, handler) {
-    const results = checkOptionalParameter(path2);
+  add(method, path4, handler) {
+    const results = checkOptionalParameter(path4);
     if (results) {
       for (let i = 0, len = results.length; i < len; i++) {
         this.#node.insert(method, results[i], handler);
       }
       return;
     }
-    this.#node.insert(method, path2, handler);
+    this.#node.insert(method, path4, handler);
   }
-  match(method, path2) {
-    return this.#node.search(method, path2);
+  match(method, path4) {
+    return this.#node.search(method, path4);
   }
 };
 
@@ -2877,21 +2877,218 @@ var cors = (options) => {
   };
 };
 
+// lib/index/manager.ts
+import * as fs3 from "node:fs";
+import * as path2 from "node:path";
+
+// lib/utils.ts
+import * as fs from "node:fs";
+function safeReadJson(filePath, fallback) {
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    return JSON.parse(content);
+  } catch {
+    return fallback;
+  }
+}
+function ensureDir(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
+// lib/index/builder.ts
+import * as fs2 from "node:fs";
+import * as path from "node:path";
+function listDatedJsonFiles(dir) {
+  if (!fs2.existsSync(dir)) {
+    return [];
+  }
+  const files = [];
+  const years = fs2.readdirSync(dir, { withFileTypes: true });
+  for (const year of years) {
+    if (!year.isDirectory() || !/^\d{4}$/.test(year.name)) continue;
+    const yearPath = path.join(dir, year.name);
+    const months = fs2.readdirSync(yearPath, { withFileTypes: true });
+    for (const month of months) {
+      if (!month.isDirectory() || !/^\d{2}$/.test(month.name)) continue;
+      const monthPath = path.join(yearPath, month.name);
+      const jsonFiles = fs2.readdirSync(monthPath, { withFileTypes: true });
+      for (const file of jsonFiles) {
+        if (file.isFile() && file.name.endsWith(".json")) {
+          files.push(path.join(monthPath, file.name));
+        }
+      }
+    }
+  }
+  return files;
+}
+function buildSessionIndex(memoriaDir2) {
+  const sessionsDir = path.join(memoriaDir2, "sessions");
+  const files = listDatedJsonFiles(sessionsDir);
+  const items = [];
+  for (const filePath of files) {
+    try {
+      const session = safeReadJson(filePath, {});
+      if (!session.id || !session.createdAt) continue;
+      const relativePath = path.relative(sessionsDir, filePath);
+      const interactions = session.interactions || [];
+      const context = session.context || {};
+      const user = context.user;
+      items.push({
+        id: session.id,
+        title: session.title || "Untitled",
+        createdAt: session.createdAt,
+        tags: session.tags || [],
+        sessionType: session.sessionType || null,
+        branch: context.branch || null,
+        user: user?.name,
+        interactionCount: interactions.length,
+        filePath: relativePath
+      });
+    } catch {
+    }
+  }
+  items.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  return {
+    version: 1,
+    updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    items
+  };
+}
+function buildDecisionIndex(memoriaDir2) {
+  const decisionsDir = path.join(memoriaDir2, "decisions");
+  const files = listDatedJsonFiles(decisionsDir);
+  const items = [];
+  for (const filePath of files) {
+    try {
+      const decision = safeReadJson(filePath, {});
+      if (!decision.id || !decision.createdAt) continue;
+      const relativePath = path.relative(decisionsDir, filePath);
+      const user = decision.user;
+      items.push({
+        id: decision.id,
+        title: decision.title || "Untitled",
+        createdAt: decision.createdAt,
+        updatedAt: decision.updatedAt,
+        tags: decision.tags || [],
+        status: decision.status || "active",
+        user: user?.name,
+        filePath: relativePath
+      });
+    } catch {
+    }
+  }
+  items.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  return {
+    version: 1,
+    updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    items
+  };
+}
+
+// lib/index/manager.ts
+var INDEXES_DIR = ".indexes";
+function getIndexDir(memoriaDir2) {
+  return path2.join(memoriaDir2, INDEXES_DIR);
+}
+function getSessionIndexPath(memoriaDir2) {
+  return path2.join(getIndexDir(memoriaDir2), "sessions.json");
+}
+function getDecisionIndexPath(memoriaDir2) {
+  return path2.join(getIndexDir(memoriaDir2), "decisions.json");
+}
+function readSessionIndex(memoriaDir2) {
+  const indexPath = getSessionIndexPath(memoriaDir2);
+  if (!fs3.existsSync(indexPath)) {
+    return null;
+  }
+  return safeReadJson(indexPath, {
+    version: 1,
+    updatedAt: "",
+    items: []
+  });
+}
+function readDecisionIndex(memoriaDir2) {
+  const indexPath = getDecisionIndexPath(memoriaDir2);
+  if (!fs3.existsSync(indexPath)) {
+    return null;
+  }
+  return safeReadJson(indexPath, {
+    version: 1,
+    updatedAt: "",
+    items: []
+  });
+}
+function writeSessionIndex(memoriaDir2, index) {
+  const indexDir = getIndexDir(memoriaDir2);
+  ensureDir(indexDir);
+  const indexPath = getSessionIndexPath(memoriaDir2);
+  fs3.writeFileSync(indexPath, JSON.stringify(index, null, 2));
+}
+function writeDecisionIndex(memoriaDir2, index) {
+  const indexDir = getIndexDir(memoriaDir2);
+  ensureDir(indexDir);
+  const indexPath = getDecisionIndexPath(memoriaDir2);
+  fs3.writeFileSync(indexPath, JSON.stringify(index, null, 2));
+}
+function rebuildSessionIndex(memoriaDir2) {
+  const index = buildSessionIndex(memoriaDir2);
+  writeSessionIndex(memoriaDir2, index);
+  return index;
+}
+function rebuildDecisionIndex(memoriaDir2) {
+  const index = buildDecisionIndex(memoriaDir2);
+  writeDecisionIndex(memoriaDir2, index);
+  return index;
+}
+function rebuildAllIndexes(memoriaDir2) {
+  const sessions = rebuildSessionIndex(memoriaDir2);
+  const decisions = rebuildDecisionIndex(memoriaDir2);
+  return { sessions, decisions };
+}
+function getOrCreateSessionIndex(memoriaDir2) {
+  const existing = readSessionIndex(memoriaDir2);
+  if (existing && existing.items.length > 0) {
+    return existing;
+  }
+  return rebuildSessionIndex(memoriaDir2);
+}
+function getOrCreateDecisionIndex(memoriaDir2) {
+  const existing = readDecisionIndex(memoriaDir2);
+  if (existing && existing.items.length > 0) {
+    return existing;
+  }
+  return rebuildDecisionIndex(memoriaDir2);
+}
+function isIndexStale(index, maxAgeMs = 5 * 60 * 1e3) {
+  if (!index || !index.updatedAt) {
+    return true;
+  }
+  const updatedAt = new Date(index.updatedAt).getTime();
+  const now = Date.now();
+  return now - updatedAt > maxAgeMs;
+}
+
 // dashboard/server/index.ts
 var app = new Hono2();
 var getProjectRoot = () => {
   return process.env.MEMORIA_PROJECT_ROOT || process.cwd();
 };
 var getMemoriaDir = () => {
-  return path.join(getProjectRoot(), ".memoria");
+  return path3.join(getProjectRoot(), ".memoria");
 };
 var listJsonFiles = (dir) => {
-  if (!fs.existsSync(dir)) {
+  if (!fs4.existsSync(dir)) {
     return [];
   }
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const entries = fs4.readdirSync(dir, { withFileTypes: true });
   return entries.flatMap((entry) => {
-    const fullPath = path.join(dir, entry.name);
+    const fullPath = path3.join(dir, entry.name);
     if (entry.isDirectory()) {
       return listJsonFiles(fullPath);
     }
@@ -2901,11 +3098,11 @@ var listJsonFiles = (dir) => {
     return [];
   });
 };
-var listDatedJsonFiles = (dir) => {
+var listDatedJsonFiles2 = (dir) => {
   const files = listJsonFiles(dir);
   return files.filter((filePath) => {
-    const rel = path.relative(dir, filePath);
-    const parts = rel.split(path.sep);
+    const rel = path3.relative(dir, filePath);
+    const parts = rel.split(path3.sep);
     if (parts.length < 3) {
       return false;
     }
@@ -2917,17 +3114,17 @@ var findJsonFileById = (dir, id) => {
   const queue = [dir];
   while (queue.length > 0) {
     const current = queue.shift();
-    if (!current || !fs.existsSync(current)) {
+    if (!current || !fs4.existsSync(current)) {
       continue;
     }
-    const entries = fs.readdirSync(current, { withFileTypes: true });
+    const entries = fs4.readdirSync(current, { withFileTypes: true });
     for (const entry of entries) {
-      const fullPath = path.join(current, entry.name);
+      const fullPath = path3.join(current, entry.name);
       if (entry.isDirectory()) {
         queue.push(fullPath);
       } else if (entry.isFile() && entry.name === target) {
-        const rel = path.relative(dir, fullPath);
-        const parts = rel.split(path.sep);
+        const rel = path3.relative(dir, fullPath);
+        const parts = rel.split(path3.sep);
         if (parts.length >= 3 && /^\d{4}$/.test(parts[0]) && /^\d{2}$/.test(parts[1])) {
           return fullPath;
         }
@@ -2936,13 +3133,13 @@ var findJsonFileById = (dir, id) => {
   }
   return null;
 };
-var rulesDir = () => path.join(getMemoriaDir(), "rules");
+var rulesDir = () => path3.join(getMemoriaDir(), "rules");
 var getYearMonthDir = (baseDir, isoDate) => {
   const parsed = new Date(isoDate);
   const date = Number.isNaN(parsed.getTime()) ? /* @__PURE__ */ new Date() : parsed;
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  return path.join(baseDir, String(year), month);
+  return path3.join(baseDir, String(year), month);
 };
 app.use(
   "/api/*",
@@ -2950,34 +3147,103 @@ app.use(
     origin: ["http://localhost:5173", "http://localhost:7777"]
   })
 );
-app.get("/api/sessions", async (c) => {
-  const sessionsDir = path.join(getMemoriaDir(), "sessions");
-  try {
-    const files = listDatedJsonFiles(sessionsDir);
-    if (files.length === 0) {
-      return c.json([]);
+function parsePaginationParams(c) {
+  return {
+    page: Math.max(1, Number.parseInt(c.req.query("page") || "1", 10)),
+    limit: Math.min(
+      100,
+      Math.max(1, Number.parseInt(c.req.query("limit") || "20", 10))
+    ),
+    tag: c.req.query("tag"),
+    type: c.req.query("type"),
+    search: c.req.query("search")
+  };
+}
+function paginateArray(items, page, limit) {
+  const total = items.length;
+  const totalPages = Math.ceil(total / limit);
+  const start = (page - 1) * limit;
+  const data = items.slice(start, start + limit);
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1
     }
-    const sessions = files.map((filePath) => {
-      const content = fs.readFileSync(filePath, "utf-8");
-      return JSON.parse(content);
-    });
-    sessions.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-    return c.json(sessions);
+  };
+}
+app.get("/api/sessions", async (c) => {
+  const useIndex = c.req.query("useIndex") !== "false";
+  const usePagination = c.req.query("paginate") !== "false";
+  const memoriaDir2 = getMemoriaDir();
+  const params = parsePaginationParams(c);
+  try {
+    let items;
+    if (useIndex) {
+      const index = getOrCreateSessionIndex(memoriaDir2);
+      items = index.items;
+    } else {
+      const sessionsDir = path3.join(memoriaDir2, "sessions");
+      const files = listDatedJsonFiles2(sessionsDir);
+      if (files.length === 0) {
+        return usePagination ? c.json({
+          data: [],
+          pagination: {
+            page: 1,
+            limit: params.limit,
+            total: 0,
+            totalPages: 0,
+            hasNext: false,
+            hasPrev: false
+          }
+        }) : c.json([]);
+      }
+      items = files.map((filePath) => {
+        const content = fs4.readFileSync(filePath, "utf-8");
+        return JSON.parse(content);
+      });
+      items.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    }
+    let filtered = items;
+    if (params.tag) {
+      filtered = filtered.filter(
+        (s) => s.tags?.includes(params.tag)
+      );
+    }
+    if (params.type) {
+      filtered = filtered.filter((s) => s.sessionType === params.type);
+    }
+    if (params.search) {
+      const query = params.search.toLowerCase();
+      filtered = filtered.filter((s) => {
+        const title = (s.title || "").toLowerCase();
+        const goal = (s.goal || "").toLowerCase();
+        return title.includes(query) || goal.includes(query);
+      });
+    }
+    if (!usePagination) {
+      return c.json(filtered);
+    }
+    return c.json(paginateArray(filtered, params.page, params.limit));
   } catch {
     return c.json({ error: "Failed to read sessions" }, 500);
   }
 });
 app.get("/api/sessions/:id", async (c) => {
   const id = c.req.param("id");
-  const sessionsDir = path.join(getMemoriaDir(), "sessions");
+  const sessionsDir = path3.join(getMemoriaDir(), "sessions");
   try {
     const filePath = findJsonFileById(sessionsDir, id);
     if (!filePath) {
       return c.json({ error: "Session not found" }, 404);
     }
-    const content = fs.readFileSync(filePath, "utf-8");
+    const content = fs4.readFileSync(filePath, "utf-8");
     return c.json(JSON.parse(content));
   } catch {
     return c.json({ error: "Failed to read session" }, 500);
@@ -2985,14 +3251,14 @@ app.get("/api/sessions/:id", async (c) => {
 });
 app.put("/api/sessions/:id", async (c) => {
   const id = c.req.param("id");
-  const sessionsDir = path.join(getMemoriaDir(), "sessions");
+  const sessionsDir = path3.join(getMemoriaDir(), "sessions");
   try {
     const filePath = findJsonFileById(sessionsDir, id);
     if (!filePath) {
       return c.json({ error: "Session not found" }, 404);
     }
     const body = await c.req.json();
-    fs.writeFileSync(filePath, JSON.stringify(body, null, 2));
+    fs4.writeFileSync(filePath, JSON.stringify(body, null, 2));
     return c.json(body);
   } catch {
     return c.json({ error: "Failed to update session" }, 500);
@@ -3000,13 +3266,13 @@ app.put("/api/sessions/:id", async (c) => {
 });
 app.delete("/api/sessions/:id", async (c) => {
   const id = c.req.param("id");
-  const sessionsDir = path.join(getMemoriaDir(), "sessions");
+  const sessionsDir = path3.join(getMemoriaDir(), "sessions");
   try {
     const filePath = findJsonFileById(sessionsDir, id);
     if (!filePath) {
       return c.json({ error: "Session not found" }, 404);
     }
-    fs.unlinkSync(filePath);
+    fs4.unlinkSync(filePath);
     return c.json({ success: true });
   } catch {
     return c.json({ error: "Failed to delete session" }, 500);
@@ -3014,13 +3280,13 @@ app.delete("/api/sessions/:id", async (c) => {
 });
 app.post("/api/sessions/:id/comments", async (c) => {
   const id = c.req.param("id");
-  const sessionsDir = path.join(getMemoriaDir(), "sessions");
+  const sessionsDir = path3.join(getMemoriaDir(), "sessions");
   try {
     const filePath = findJsonFileById(sessionsDir, id);
     if (!filePath) {
       return c.json({ error: "Session not found" }, 404);
     }
-    const session = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    const session = JSON.parse(fs4.readFileSync(filePath, "utf-8"));
     const body = await c.req.json();
     const comment = {
       id: `comment-${Date.now()}`,
@@ -3030,56 +3296,93 @@ app.post("/api/sessions/:id/comments", async (c) => {
     };
     session.comments = session.comments || [];
     session.comments.push(comment);
-    fs.writeFileSync(filePath, JSON.stringify(session, null, 2));
+    fs4.writeFileSync(filePath, JSON.stringify(session, null, 2));
     return c.json(comment, 201);
   } catch {
     return c.json({ error: "Failed to add comment" }, 500);
   }
 });
 app.get("/api/decisions", async (c) => {
-  const decisionsDir = path.join(getMemoriaDir(), "decisions");
+  const useIndex = c.req.query("useIndex") !== "false";
+  const usePagination = c.req.query("paginate") !== "false";
+  const memoriaDir2 = getMemoriaDir();
+  const params = parsePaginationParams(c);
   try {
-    const files = listDatedJsonFiles(decisionsDir);
-    if (files.length === 0) {
-      return c.json([]);
+    let items;
+    if (useIndex) {
+      const index = getOrCreateDecisionIndex(memoriaDir2);
+      items = index.items;
+    } else {
+      const decisionsDir = path3.join(memoriaDir2, "decisions");
+      const files = listDatedJsonFiles2(decisionsDir);
+      if (files.length === 0) {
+        return usePagination ? c.json({
+          data: [],
+          pagination: {
+            page: 1,
+            limit: params.limit,
+            total: 0,
+            totalPages: 0,
+            hasNext: false,
+            hasPrev: false
+          }
+        }) : c.json([]);
+      }
+      items = files.map((filePath) => {
+        const content = fs4.readFileSync(filePath, "utf-8");
+        return JSON.parse(content);
+      });
+      items.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
     }
-    const decisions = files.map((filePath) => {
-      const content = fs.readFileSync(filePath, "utf-8");
-      return JSON.parse(content);
-    });
-    decisions.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-    return c.json(decisions);
+    let filtered = items;
+    if (params.tag) {
+      filtered = filtered.filter(
+        (d) => d.tags?.includes(params.tag)
+      );
+    }
+    if (params.search) {
+      const query = params.search.toLowerCase();
+      filtered = filtered.filter((d) => {
+        const title = (d.title || "").toLowerCase();
+        const decision = (d.decision || "").toLowerCase();
+        return title.includes(query) || decision.includes(query);
+      });
+    }
+    if (!usePagination) {
+      return c.json(filtered);
+    }
+    return c.json(paginateArray(filtered, params.page, params.limit));
   } catch {
     return c.json({ error: "Failed to read decisions" }, 500);
   }
 });
 app.get("/api/decisions/:id", async (c) => {
   const id = c.req.param("id");
-  const decisionsDir = path.join(getMemoriaDir(), "decisions");
+  const decisionsDir = path3.join(getMemoriaDir(), "decisions");
   try {
     const filePath = findJsonFileById(decisionsDir, id);
     if (!filePath) {
       return c.json({ error: "Decision not found" }, 404);
     }
-    const content = fs.readFileSync(filePath, "utf-8");
+    const content = fs4.readFileSync(filePath, "utf-8");
     return c.json(JSON.parse(content));
   } catch {
     return c.json({ error: "Failed to read decision" }, 500);
   }
 });
 app.post("/api/decisions", async (c) => {
-  const decisionsDir = path.join(getMemoriaDir(), "decisions");
+  const decisionsDir = path3.join(getMemoriaDir(), "decisions");
   try {
     const body = await c.req.json();
     const id = body.id || `decision-${Date.now()}`;
     body.id = id;
     body.createdAt = body.createdAt || (/* @__PURE__ */ new Date()).toISOString();
     const targetDir = getYearMonthDir(decisionsDir, body.createdAt);
-    fs.mkdirSync(targetDir, { recursive: true });
-    const filePath = path.join(targetDir, `${id}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(body, null, 2));
+    fs4.mkdirSync(targetDir, { recursive: true });
+    const filePath = path3.join(targetDir, `${id}.json`);
+    fs4.writeFileSync(filePath, JSON.stringify(body, null, 2));
     return c.json(body, 201);
   } catch {
     return c.json({ error: "Failed to create decision" }, 500);
@@ -3087,7 +3390,7 @@ app.post("/api/decisions", async (c) => {
 });
 app.put("/api/decisions/:id", async (c) => {
   const id = c.req.param("id");
-  const decisionsDir = path.join(getMemoriaDir(), "decisions");
+  const decisionsDir = path3.join(getMemoriaDir(), "decisions");
   try {
     const filePath = findJsonFileById(decisionsDir, id);
     if (!filePath) {
@@ -3095,7 +3398,7 @@ app.put("/api/decisions/:id", async (c) => {
     }
     const body = await c.req.json();
     body.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-    fs.writeFileSync(filePath, JSON.stringify(body, null, 2));
+    fs4.writeFileSync(filePath, JSON.stringify(body, null, 2));
     return c.json(body);
   } catch {
     return c.json({ error: "Failed to update decision" }, 500);
@@ -3103,13 +3406,13 @@ app.put("/api/decisions/:id", async (c) => {
 });
 app.delete("/api/decisions/:id", async (c) => {
   const id = c.req.param("id");
-  const decisionsDir = path.join(getMemoriaDir(), "decisions");
+  const decisionsDir = path3.join(getMemoriaDir(), "decisions");
   try {
     const filePath = findJsonFileById(decisionsDir, id);
     if (!filePath) {
       return c.json({ error: "Decision not found" }, 404);
     }
-    fs.unlinkSync(filePath);
+    fs4.unlinkSync(filePath);
     return c.json({ success: true });
   } catch {
     return c.json({ error: "Failed to delete decision" }, 500);
@@ -3117,22 +3420,22 @@ app.delete("/api/decisions/:id", async (c) => {
 });
 app.get("/api/info", async (c) => {
   const projectRoot = getProjectRoot();
-  const memoriaDir = getMemoriaDir();
+  const memoriaDir2 = getMemoriaDir();
   return c.json({
     projectRoot,
-    memoriaDir,
-    exists: fs.existsSync(memoriaDir)
+    memoriaDir: memoriaDir2,
+    exists: fs4.existsSync(memoriaDir2)
   });
 });
 app.get("/api/rules/:id", async (c) => {
   const id = c.req.param("id");
   const dir = rulesDir();
   try {
-    const filePath = path.join(dir, `${id}.json`);
-    if (!fs.existsSync(filePath)) {
+    const filePath = path3.join(dir, `${id}.json`);
+    if (!fs4.existsSync(filePath)) {
       return c.json({ error: "Rules not found" }, 404);
     }
-    const content = fs.readFileSync(filePath, "utf-8");
+    const content = fs4.readFileSync(filePath, "utf-8");
     return c.json(JSON.parse(content));
   } catch {
     return c.json({ error: "Failed to read rules" }, 500);
@@ -3142,27 +3445,27 @@ app.put("/api/rules/:id", async (c) => {
   const id = c.req.param("id");
   const dir = rulesDir();
   try {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    if (!fs4.existsSync(dir)) {
+      fs4.mkdirSync(dir, { recursive: true });
     }
-    const filePath = path.join(dir, `${id}.json`);
+    const filePath = path3.join(dir, `${id}.json`);
     const body = await c.req.json();
     body.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-    fs.writeFileSync(filePath, JSON.stringify(body, null, 2));
+    fs4.writeFileSync(filePath, JSON.stringify(body, null, 2));
     return c.json(body);
   } catch {
     return c.json({ error: "Failed to update rules" }, 500);
   }
 });
 app.get("/api/timeline", async (c) => {
-  const sessionsDir = path.join(getMemoriaDir(), "sessions");
+  const sessionsDir = path3.join(getMemoriaDir(), "sessions");
   try {
-    const files = listDatedJsonFiles(sessionsDir);
+    const files = listDatedJsonFiles2(sessionsDir);
     if (files.length === 0) {
       return c.json({ timeline: {} });
     }
     const sessions = files.map((filePath) => {
-      const content = fs.readFileSync(filePath, "utf-8");
+      const content = fs4.readFileSync(filePath, "utf-8");
       return JSON.parse(content);
     });
     const grouped = {};
@@ -3190,13 +3493,13 @@ app.get("/api/timeline", async (c) => {
   }
 });
 app.get("/api/tag-network", async (c) => {
-  const sessionsDir = path.join(getMemoriaDir(), "sessions");
+  const sessionsDir = path3.join(getMemoriaDir(), "sessions");
   try {
-    const files = listDatedJsonFiles(sessionsDir);
+    const files = listDatedJsonFiles2(sessionsDir);
     const tagCounts = /* @__PURE__ */ new Map();
     const coOccurrences = /* @__PURE__ */ new Map();
     for (const filePath of files) {
-      const content = fs.readFileSync(filePath, "utf-8");
+      const content = fs4.readFileSync(filePath, "utf-8");
       const session = JSON.parse(content);
       const tags = session.tags || [];
       for (const tag of tags) {
@@ -3224,14 +3527,14 @@ app.get("/api/tag-network", async (c) => {
 });
 app.get("/api/decisions/:id/impact", async (c) => {
   const decisionId = c.req.param("id");
-  const sessionsDir = path.join(getMemoriaDir(), "sessions");
-  const patternsDir = path.join(getMemoriaDir(), "patterns");
+  const sessionsDir = path3.join(getMemoriaDir(), "sessions");
+  const patternsDir2 = path3.join(getMemoriaDir(), "patterns");
   try {
     const impactedSessions = [];
     const impactedPatterns = [];
-    const sessionFiles = listDatedJsonFiles(sessionsDir);
+    const sessionFiles = listDatedJsonFiles2(sessionsDir);
     for (const filePath of sessionFiles) {
-      const content = fs.readFileSync(filePath, "utf-8");
+      const content = fs4.readFileSync(filePath, "utf-8");
       const session = JSON.parse(content);
       const hasReference = session.relatedSessions?.includes(decisionId) || session.interactions?.some(
         (i) => i.reasoning?.includes(decisionId) || i.choice?.includes(decisionId)
@@ -3243,15 +3546,15 @@ app.get("/api/decisions/:id/impact", async (c) => {
         });
       }
     }
-    const patternFiles = listJsonFiles(patternsDir);
+    const patternFiles = listJsonFiles(patternsDir2);
     for (const filePath of patternFiles) {
-      const content = fs.readFileSync(filePath, "utf-8");
+      const content = fs4.readFileSync(filePath, "utf-8");
       const data = JSON.parse(content);
       const patterns = data.patterns || [];
       for (const pattern of patterns) {
         if (pattern.sourceId?.includes(decisionId) || pattern.description?.includes(decisionId)) {
           impactedPatterns.push({
-            id: `${path.basename(filePath, ".json")}-${pattern.type}`,
+            id: `${path3.basename(filePath, ".json")}-${pattern.type}`,
             description: pattern.description || "No description"
           });
         }
@@ -3266,25 +3569,620 @@ app.get("/api/decisions/:id/impact", async (c) => {
     return c.json({ error: "Failed to analyze decision impact" }, 500);
   }
 });
-app.get("/api/tags", async (c) => {
-  const tagsPath = path.join(getMemoriaDir(), "tags.json");
+app.get("/api/sessions/graph", async (c) => {
+  const memoriaDir2 = getMemoriaDir();
   try {
-    if (!fs.existsSync(tagsPath)) {
+    const sessionsIndex = getOrCreateSessionIndex(memoriaDir2);
+    const nodes = sessionsIndex.items.map((session) => ({
+      id: session.id,
+      title: session.title,
+      type: session.sessionType || "unknown",
+      tags: session.tags || [],
+      createdAt: session.createdAt
+    }));
+    const edges = [];
+    for (let i = 0; i < sessionsIndex.items.length; i++) {
+      for (let j = i + 1; j < sessionsIndex.items.length; j++) {
+        const s1 = sessionsIndex.items[i];
+        const s2 = sessionsIndex.items[j];
+        const sharedTags = (s1.tags || []).filter(
+          (t) => (s2.tags || []).includes(t)
+        );
+        if (sharedTags.length > 0) {
+          edges.push({
+            source: s1.id,
+            target: s2.id,
+            weight: sharedTags.length
+          });
+        }
+      }
+    }
+    return c.json({ nodes, edges });
+  } catch {
+    return c.json({ error: "Failed to build session graph" }, 500);
+  }
+});
+var getOpenAIKey = () => {
+  const configPath = path3.join(
+    process.env.HOME || "",
+    ".claude",
+    "memoria.json"
+  );
+  try {
+    if (fs4.existsSync(configPath)) {
+      const config = JSON.parse(fs4.readFileSync(configPath, "utf-8"));
+      return config.openai_api_key || null;
+    }
+  } catch {
+  }
+  return null;
+};
+app.get("/api/summary/weekly", async (c) => {
+  const memoriaDir2 = getMemoriaDir();
+  const apiKey = getOpenAIKey();
+  try {
+    const sessionsIndex = getOrCreateSessionIndex(memoriaDir2);
+    const decisionsIndex = getOrCreateDecisionIndex(memoriaDir2);
+    const now = /* @__PURE__ */ new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1e3);
+    const recentSessions = sessionsIndex.items.filter(
+      (s) => new Date(s.createdAt) >= weekAgo
+    );
+    const recentDecisions = decisionsIndex.items.filter(
+      (d) => new Date(d.createdAt) >= weekAgo
+    );
+    const summary = {
+      period: { start: weekAgo.toISOString(), end: now.toISOString() },
+      stats: {
+        sessions: recentSessions.length,
+        decisions: recentDecisions.length,
+        interactions: recentSessions.reduce(
+          (sum, s) => sum + (s.interactionCount || 0),
+          0
+        )
+      },
+      topTags: getTopTags(recentSessions, 5),
+      sessionTypes: getSessionTypeBreakdown(recentSessions),
+      aiSummary: null
+    };
+    if (apiKey && (recentSessions.length > 0 || recentDecisions.length > 0)) {
+      try {
+        const prompt = buildSummaryPrompt(recentSessions, recentDecisions);
+        summary.aiSummary = await generateAISummary(apiKey, prompt);
+      } catch {
+      }
+    }
+    return c.json(summary);
+  } catch {
+    return c.json({ error: "Failed to generate weekly summary" }, 500);
+  }
+});
+app.post("/api/summary/generate", async (c) => {
+  const apiKey = getOpenAIKey();
+  if (!apiKey) {
+    return c.json(
+      { error: "OpenAI API key not configured in ~/.claude/memoria.json" },
+      400
+    );
+  }
+  const body = await c.req.json();
+  const { sessionIds, prompt: customPrompt } = body;
+  const memoriaDir2 = getMemoriaDir();
+  const sessionsDir = path3.join(memoriaDir2, "sessions");
+  try {
+    const sessions = [];
+    for (const id of sessionIds || []) {
+      const filePath = findJsonFileById(sessionsDir, id);
+      if (filePath) {
+        const content = fs4.readFileSync(filePath, "utf-8");
+        sessions.push(JSON.parse(content));
+      }
+    }
+    if (sessions.length === 0) {
+      return c.json({ error: "No sessions found" }, 404);
+    }
+    const prompt = customPrompt || `Summarize the following development sessions concisely:
+
+${sessions.map((s) => `- ${s.title}: ${s.goal || "No goal specified"}`).join("\n")}`;
+    const summary = await generateAISummary(apiKey, prompt);
+    return c.json({ summary });
+  } catch {
+    return c.json({ error: "Failed to generate summary" }, 500);
+  }
+});
+function getTopTags(sessions, limit) {
+  const tagCount = {};
+  for (const session of sessions) {
+    for (const tag of session.tags || []) {
+      tagCount[tag] = (tagCount[tag] || 0) + 1;
+    }
+  }
+  return Object.entries(tagCount).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, limit);
+}
+function getSessionTypeBreakdown(sessions) {
+  const breakdown = {};
+  for (const session of sessions) {
+    const type = session.sessionType || "unknown";
+    breakdown[type] = (breakdown[type] || 0) + 1;
+  }
+  return breakdown;
+}
+function buildSummaryPrompt(sessions, decisions) {
+  const sessionList = sessions.map((s) => `- ${s.title} (${s.sessionType || "unknown"})`).join("\n");
+  const decisionList = decisions.map((d) => `- ${d.title} (${d.status})`).join("\n");
+  return `Provide a brief weekly development summary (2-3 sentences) based on this activity:
+
+Sessions (${sessions.length}):
+${sessionList || "None"}
+
+Decisions (${decisions.length}):
+${decisionList || "None"}
+
+Focus on key accomplishments and patterns.`;
+}
+async function generateAISummary(apiKey, prompt) {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 200,
+      temperature: 0.7
+    })
+  });
+  if (!response.ok) {
+    throw new Error("OpenAI API request failed");
+  }
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "Unable to generate summary.";
+}
+app.get("/api/stats/overview", async (c) => {
+  const memoriaDir2 = getMemoriaDir();
+  try {
+    const sessionsIndex = getOrCreateSessionIndex(memoriaDir2);
+    const decisionsIndex = getOrCreateDecisionIndex(memoriaDir2);
+    const sessionTypeCount = {};
+    for (const session of sessionsIndex.items) {
+      const type = session.sessionType || "unknown";
+      sessionTypeCount[type] = (sessionTypeCount[type] || 0) + 1;
+    }
+    const decisionStatusCount = {};
+    for (const decision of decisionsIndex.items) {
+      const status = decision.status || "unknown";
+      decisionStatusCount[status] = (decisionStatusCount[status] || 0) + 1;
+    }
+    let totalInteractions = 0;
+    for (const session of sessionsIndex.items) {
+      totalInteractions += session.interactionCount || 0;
+    }
+    return c.json({
+      sessions: {
+        total: sessionsIndex.items.length,
+        byType: sessionTypeCount
+      },
+      decisions: {
+        total: decisionsIndex.items.length,
+        byStatus: decisionStatusCount
+      },
+      interactions: {
+        total: totalInteractions
+      }
+    });
+  } catch {
+    return c.json({ error: "Failed to get stats overview" }, 500);
+  }
+});
+app.get("/api/stats/activity", async (c) => {
+  const memoriaDir2 = getMemoriaDir();
+  const days = Number.parseInt(c.req.query("days") || "30", 10);
+  try {
+    const sessionsIndex = getOrCreateSessionIndex(memoriaDir2);
+    const decisionsIndex = getOrCreateDecisionIndex(memoriaDir2);
+    const now = /* @__PURE__ */ new Date();
+    const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1e3);
+    const activityByDate = {};
+    for (let d = new Date(startDate); d <= now; d.setDate(d.getDate() + 1)) {
+      const dateKey = d.toISOString().split("T")[0];
+      activityByDate[dateKey] = { sessions: 0, decisions: 0 };
+    }
+    for (const session of sessionsIndex.items) {
+      const dateKey = session.createdAt.split("T")[0];
+      if (activityByDate[dateKey]) {
+        activityByDate[dateKey].sessions += 1;
+      }
+    }
+    for (const decision of decisionsIndex.items) {
+      const dateKey = decision.createdAt.split("T")[0];
+      if (activityByDate[dateKey]) {
+        activityByDate[dateKey].decisions += 1;
+      }
+    }
+    const activity = Object.entries(activityByDate).map(([date, counts]) => ({ date, ...counts })).sort((a, b) => a.date.localeCompare(b.date));
+    return c.json({ activity, days });
+  } catch {
+    return c.json({ error: "Failed to get activity stats" }, 500);
+  }
+});
+app.get("/api/stats/tags", async (c) => {
+  const memoriaDir2 = getMemoriaDir();
+  try {
+    const sessionsIndex = getOrCreateSessionIndex(memoriaDir2);
+    const tagCount = {};
+    for (const session of sessionsIndex.items) {
+      for (const tag of session.tags || []) {
+        tagCount[tag] = (tagCount[tag] || 0) + 1;
+      }
+    }
+    const tags = Object.entries(tagCount).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 20);
+    return c.json({ tags });
+  } catch {
+    return c.json({ error: "Failed to get tag stats" }, 500);
+  }
+});
+var patternsDir = () => path3.join(getMemoriaDir(), "patterns");
+app.get("/api/patterns", async (c) => {
+  const dir = patternsDir();
+  try {
+    if (!fs4.existsSync(dir)) {
+      return c.json({ patterns: [] });
+    }
+    const files = listJsonFiles(dir);
+    const allPatterns = [];
+    for (const filePath of files) {
+      try {
+        const content = fs4.readFileSync(filePath, "utf-8");
+        const data = JSON.parse(content);
+        const patterns = data.patterns || [];
+        for (const pattern of patterns) {
+          allPatterns.push({
+            ...pattern,
+            sourceFile: path3.basename(filePath, ".json")
+          });
+        }
+      } catch {
+      }
+    }
+    allPatterns.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    return c.json({ patterns: allPatterns });
+  } catch {
+    return c.json({ error: "Failed to read patterns" }, 500);
+  }
+});
+app.get("/api/patterns/stats", async (c) => {
+  const dir = patternsDir();
+  try {
+    if (!fs4.existsSync(dir)) {
+      return c.json({ total: 0, byType: {}, bySource: {} });
+    }
+    const files = listJsonFiles(dir);
+    let total = 0;
+    const byType = {};
+    const bySource = {};
+    for (const filePath of files) {
+      try {
+        const content = fs4.readFileSync(filePath, "utf-8");
+        const data = JSON.parse(content);
+        const patterns = data.patterns || [];
+        const sourceName = path3.basename(filePath, ".json");
+        for (const pattern of patterns) {
+          total++;
+          const type = pattern.type || "unknown";
+          byType[type] = (byType[type] || 0) + 1;
+          bySource[sourceName] = (bySource[sourceName] || 0) + 1;
+        }
+      } catch {
+      }
+    }
+    return c.json({ total, byType, bySource });
+  } catch {
+    return c.json({ error: "Failed to get pattern stats" }, 500);
+  }
+});
+app.delete("/api/patterns/:id", async (c) => {
+  const patternId = c.req.param("id");
+  const dir = patternsDir();
+  try {
+    if (!fs4.existsSync(dir)) {
+      return c.json({ error: "Pattern not found" }, 404);
+    }
+    const files = listJsonFiles(dir);
+    for (const filePath of files) {
+      try {
+        const content = fs4.readFileSync(filePath, "utf-8");
+        const data = JSON.parse(content);
+        const patterns = data.patterns || [];
+        const index = patterns.findIndex(
+          (p) => p.id === patternId
+        );
+        if (index !== -1) {
+          patterns.splice(index, 1);
+          fs4.writeFileSync(
+            filePath,
+            JSON.stringify({ ...data, patterns }, null, 2)
+          );
+          return c.json({ success: true });
+        }
+      } catch {
+      }
+    }
+    return c.json({ error: "Pattern not found" }, 404);
+  } catch {
+    return c.json({ error: "Failed to delete pattern" }, 500);
+  }
+});
+function sessionToMarkdown(session) {
+  const lines = [];
+  lines.push(`# ${session.title || "Untitled Session"}`);
+  lines.push("");
+  lines.push(`**ID:** ${session.id}`);
+  lines.push(`**Created:** ${session.createdAt}`);
+  if (session.sessionType) {
+    lines.push(`**Type:** ${session.sessionType}`);
+  }
+  if (session.context) {
+    const ctx = session.context;
+    if (ctx.branch) lines.push(`**Branch:** ${ctx.branch}`);
+    if (ctx.user) lines.push(`**User:** ${ctx.user}`);
+  }
+  lines.push("");
+  if (session.goal) {
+    lines.push("## Goal");
+    lines.push("");
+    lines.push(session.goal);
+    lines.push("");
+  }
+  const tags = session.tags;
+  if (tags && tags.length > 0) {
+    lines.push("## Tags");
+    lines.push("");
+    lines.push(tags.map((t) => `\`${t}\``).join(", "));
+    lines.push("");
+  }
+  const interactions = session.interactions;
+  if (interactions && interactions.length > 0) {
+    lines.push("## Interactions");
+    lines.push("");
+    for (const interaction of interactions) {
+      lines.push(`### ${interaction.choice || "Interaction"}`);
+      lines.push("");
+      if (interaction.reasoning) {
+        lines.push(`**Reasoning:** ${interaction.reasoning}`);
+        lines.push("");
+      }
+      if (interaction.timestamp) {
+        lines.push(`*${interaction.timestamp}*`);
+        lines.push("");
+      }
+      lines.push("---");
+      lines.push("");
+    }
+  }
+  if (session.outcome) {
+    lines.push("## Outcome");
+    lines.push("");
+    lines.push(session.outcome);
+    lines.push("");
+  }
+  const relatedSessions = session.relatedSessions;
+  if (relatedSessions && relatedSessions.length > 0) {
+    lines.push("## Related Sessions");
+    lines.push("");
+    for (const relId of relatedSessions) {
+      lines.push(`- ${relId}`);
+    }
+    lines.push("");
+  }
+  lines.push("---");
+  lines.push("*Exported from memoria*");
+  return lines.join("\n");
+}
+function decisionToMarkdown(decision) {
+  const lines = [];
+  lines.push(`# ${decision.title || "Untitled Decision"}`);
+  lines.push("");
+  lines.push(`**ID:** ${decision.id}`);
+  lines.push(`**Status:** ${decision.status || "unknown"}`);
+  lines.push(`**Created:** ${decision.createdAt}`);
+  if (decision.updatedAt) {
+    lines.push(`**Updated:** ${decision.updatedAt}`);
+  }
+  lines.push("");
+  if (decision.decision) {
+    lines.push("## Decision");
+    lines.push("");
+    lines.push(decision.decision);
+    lines.push("");
+  }
+  if (decision.rationale) {
+    lines.push("## Rationale");
+    lines.push("");
+    lines.push(decision.rationale);
+    lines.push("");
+  }
+  const tags = decision.tags;
+  if (tags && tags.length > 0) {
+    lines.push("## Tags");
+    lines.push("");
+    lines.push(tags.map((t) => `\`${t}\``).join(", "));
+    lines.push("");
+  }
+  const alternatives = decision.alternatives;
+  if (alternatives && alternatives.length > 0) {
+    lines.push("## Alternatives Considered");
+    lines.push("");
+    for (const alt of alternatives) {
+      lines.push(`### ${alt.title || "Alternative"}`);
+      if (alt.description) {
+        lines.push("");
+        lines.push(alt.description);
+      }
+      if (alt.pros) {
+        lines.push("");
+        lines.push("**Pros:**");
+        for (const pro of alt.pros) {
+          lines.push(`- ${pro}`);
+        }
+      }
+      if (alt.cons) {
+        lines.push("");
+        lines.push("**Cons:**");
+        for (const con of alt.cons) {
+          lines.push(`- ${con}`);
+        }
+      }
+      lines.push("");
+    }
+  }
+  const relatedSessions = decision.relatedSessions;
+  if (relatedSessions && relatedSessions.length > 0) {
+    lines.push("## Related Sessions");
+    lines.push("");
+    for (const relId of relatedSessions) {
+      lines.push(`- ${relId}`);
+    }
+    lines.push("");
+  }
+  lines.push("---");
+  lines.push("*Exported from memoria*");
+  return lines.join("\n");
+}
+app.get("/api/export/sessions/:id/markdown", async (c) => {
+  const id = c.req.param("id");
+  const sessionsDir = path3.join(getMemoriaDir(), "sessions");
+  try {
+    const filePath = findJsonFileById(sessionsDir, id);
+    if (!filePath) {
+      return c.json({ error: "Session not found" }, 404);
+    }
+    const content = fs4.readFileSync(filePath, "utf-8");
+    const session = JSON.parse(content);
+    const markdown = sessionToMarkdown(session);
+    const filename = `session-${id}.md`;
+    c.header("Content-Type", "text/markdown; charset=utf-8");
+    c.header("Content-Disposition", `attachment; filename="${filename}"`);
+    return c.text(markdown);
+  } catch {
+    return c.json({ error: "Failed to export session" }, 500);
+  }
+});
+app.get("/api/export/decisions/:id/markdown", async (c) => {
+  const id = c.req.param("id");
+  const decisionsDir = path3.join(getMemoriaDir(), "decisions");
+  try {
+    const filePath = findJsonFileById(decisionsDir, id);
+    if (!filePath) {
+      return c.json({ error: "Decision not found" }, 404);
+    }
+    const content = fs4.readFileSync(filePath, "utf-8");
+    const decision = JSON.parse(content);
+    const markdown = decisionToMarkdown(decision);
+    const filename = `decision-${id}.md`;
+    c.header("Content-Type", "text/markdown; charset=utf-8");
+    c.header("Content-Disposition", `attachment; filename="${filename}"`);
+    return c.text(markdown);
+  } catch {
+    return c.json({ error: "Failed to export decision" }, 500);
+  }
+});
+app.post("/api/export/sessions/bulk", async (c) => {
+  const body = await c.req.json();
+  const { ids } = body;
+  if (!ids || ids.length === 0) {
+    return c.json({ error: "No session IDs provided" }, 400);
+  }
+  const sessionsDir = path3.join(getMemoriaDir(), "sessions");
+  const markdowns = [];
+  try {
+    for (const id of ids) {
+      const filePath = findJsonFileById(sessionsDir, id);
+      if (filePath) {
+        const content = fs4.readFileSync(filePath, "utf-8");
+        const session = JSON.parse(content);
+        markdowns.push(sessionToMarkdown(session));
+      }
+    }
+    if (markdowns.length === 0) {
+      return c.json({ error: "No sessions found" }, 404);
+    }
+    const combined = markdowns.join("\n\n---\n\n");
+    const filename = `sessions-export-${Date.now()}.md`;
+    c.header("Content-Type", "text/markdown; charset=utf-8");
+    c.header("Content-Disposition", `attachment; filename="${filename}"`);
+    return c.text(combined);
+  } catch {
+    return c.json({ error: "Failed to export sessions" }, 500);
+  }
+});
+app.get("/api/tags", async (c) => {
+  const tagsPath = path3.join(getMemoriaDir(), "tags.json");
+  try {
+    if (!fs4.existsSync(tagsPath)) {
       return c.json({ version: 1, tags: [] });
     }
-    const content = fs.readFileSync(tagsPath, "utf-8");
+    const content = fs4.readFileSync(tagsPath, "utf-8");
     return c.json(JSON.parse(content));
   } catch {
     return c.json({ error: "Failed to read tags" }, 500);
   }
 });
-var distPath = path.join(import.meta.dirname, "public");
-if (fs.existsSync(distPath)) {
+app.get("/api/indexes/status", async (c) => {
+  const memoriaDir2 = getMemoriaDir();
+  try {
+    const sessionsIndex = readSessionIndex(memoriaDir2);
+    const decisionsIndex = readDecisionIndex(memoriaDir2);
+    return c.json({
+      sessions: {
+        exists: !!sessionsIndex,
+        itemCount: sessionsIndex?.items.length ?? 0,
+        updatedAt: sessionsIndex?.updatedAt ?? null,
+        isStale: isIndexStale(sessionsIndex)
+      },
+      decisions: {
+        exists: !!decisionsIndex,
+        itemCount: decisionsIndex?.items.length ?? 0,
+        updatedAt: decisionsIndex?.updatedAt ?? null,
+        isStale: isIndexStale(decisionsIndex)
+      }
+    });
+  } catch {
+    return c.json({ error: "Failed to get index status" }, 500);
+  }
+});
+app.post("/api/indexes/rebuild", async (c) => {
+  const memoriaDir2 = getMemoriaDir();
+  try {
+    const result = rebuildAllIndexes(memoriaDir2);
+    return c.json({
+      success: true,
+      sessions: {
+        itemCount: result.sessions.items.length,
+        updatedAt: result.sessions.updatedAt
+      },
+      decisions: {
+        itemCount: result.decisions.items.length,
+        updatedAt: result.decisions.updatedAt
+      }
+    });
+  } catch (error) {
+    return c.json(
+      { error: "Failed to rebuild indexes", details: String(error) },
+      500
+    );
+  }
+});
+var distPath = path3.join(import.meta.dirname, "public");
+if (fs4.existsSync(distPath)) {
   app.use("/*", serveStatic({ root: distPath }));
   app.get("*", async (c) => {
-    const indexPath = path.join(distPath, "index.html");
-    if (fs.existsSync(indexPath)) {
-      const content = fs.readFileSync(indexPath, "utf-8");
+    const indexPath = path3.join(distPath, "index.html");
+    if (fs4.existsSync(indexPath)) {
+      const content = fs4.readFileSync(indexPath, "utf-8");
       return c.html(content);
     }
     return c.notFound();
@@ -3296,6 +4194,22 @@ memoria dashboard`);
 console.log(`Project: ${getProjectRoot()}`);
 console.log(`URL: http://localhost:${port}
 `);
+var memoriaDir = getMemoriaDir();
+if (fs4.existsSync(memoriaDir)) {
+  try {
+    const sessionsIndex = readSessionIndex(memoriaDir);
+    const decisionsIndex = readDecisionIndex(memoriaDir);
+    if (isIndexStale(sessionsIndex) || isIndexStale(decisionsIndex)) {
+      console.log("Building indexes...");
+      const result = rebuildAllIndexes(memoriaDir);
+      console.log(
+        `Indexed ${result.sessions.items.length} sessions, ${result.decisions.items.length} decisions`
+      );
+    }
+  } catch (error) {
+    console.warn("Failed to initialize indexes:", error);
+  }
+}
 serve({
   fetch: app.fetch,
   port

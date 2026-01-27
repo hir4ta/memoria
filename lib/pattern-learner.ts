@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { findJsonFiles, safeReadJson, safeWriteJson } from "./utils.js";
+import { findJsonFiles, safeReadJson } from "./utils.js";
 
 export interface Commit {
   hash: string;
@@ -115,11 +115,7 @@ export async function learnPatterns(
   } = {},
 ): Promise<LearnedPattern[]> {
   const patterns: LearnedPattern[] = [];
-  const {
-    analyzeCommits = true,
-    analyzeReviews = true,
-    analyzeCoChanges = true,
-  } = options;
+  const { analyzeReviews = true } = options;
 
   // レビュー分析
   if (analyzeReviews) {
@@ -156,7 +152,7 @@ const isMain =
 
 if (isMain && process.argv.length > 2) {
   const args = process.argv.slice(2);
-  const memoriaDir = process.cwd() + "/.memoria";
+  const memoriaDir = `${process.cwd()}/.memoria`;
 
   learnPatterns(memoriaDir, {
     analyzeCommits: args.includes("--analyze-commits"),

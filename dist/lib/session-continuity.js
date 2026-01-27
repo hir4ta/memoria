@@ -87,7 +87,7 @@ async function buildContinueContext(memoriaDir, tasksPath) {
 }
 var isMain = process.argv[1]?.endsWith("session-continuity.js") || process.argv[1]?.endsWith("session-continuity.ts");
 if (isMain && process.argv.length > 2) {
-  const memoriaDir = process.cwd() + "/.memoria";
+  const memoriaDir = `${process.cwd()}/.memoria`;
   buildContinueContext(memoriaDir).then((context) => {
     console.log(JSON.stringify({ success: true, context }));
   }).catch((error) => {

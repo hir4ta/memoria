@@ -195,7 +195,7 @@ if (isMain && process.argv.length > 2) {
   const args = process.argv.slice(2);
   const queryIndex = args.indexOf("--query");
   const query = queryIndex !== -1 ? args[queryIndex + 1] : "";
-  const memoriaDir = process.cwd() + "/.memoria";
+  const memoriaDir = `${process.cwd()}/.memoria`;
   if (!query) {
     console.error(JSON.stringify({ success: false, error: "Missing --query" }));
     process.exit(0);

@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import type { ZodSchema } from "zod";
 
 /**
  * 安全にJSONファイルを読み込む
@@ -9,6 +10,29 @@ export function safeReadJson<T>(filePath: string, fallback: T): T {
   try {
     const content = fs.readFileSync(filePath, "utf-8");
     return JSON.parse(content) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * 安全にJSONファイルを読み込み、Zodスキーマでバリデーション
+ * ファイルが存在しない、パースエラー、またはバリデーションエラーの場合はフォールバック値を返す
+ */
+export function safeReadJsonWithSchema<T>(
+  filePath: string,
+  schema: ZodSchema<T>,
+  fallback: T,
+): T {
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    const data = JSON.parse(content);
+    const result = schema.safeParse(data);
+    if (result.success) {
+      return result.data;
+    }
+    console.warn(`Validation failed for ${filePath}: ${result.error.message}`);
+    return fallback;
   } catch {
     return fallback;
   }

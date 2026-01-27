@@ -215,6 +215,190 @@ function InteractionCard({
   );
 }
 
+function ContextRestorationCard({ session }: { session: Session }) {
+  const [copied, setCopied] = useState(false);
+
+  // Collect all modified files from interactions
+  const modifiedFiles = new Set<string>();
+  for (const interaction of session.interactions || []) {
+    for (const file of interaction.filesModified || []) {
+      modifiedFiles.add(file);
+    }
+    for (const action of interaction.actions || []) {
+      modifiedFiles.add(action.path);
+    }
+  }
+
+  const projectDir = session.context?.projectDir;
+  const branch = session.context?.branch;
+
+  // Generate restoration command
+  const generateRestoreCommand = () => {
+    const commands: string[] = [];
+
+    if (projectDir) {
+      commands.push(`cd "${projectDir}"`);
+    }
+
+    if (branch) {
+      commands.push(`git checkout ${branch}`);
+    }
+
+    return commands.join(" && ");
+  };
+
+  const restoreCommand = generateRestoreCommand();
+
+  const copyCommand = () => {
+    if (restoreCommand) {
+      navigator.clipboard.writeText(restoreCommand);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  // Generate resume command for memoria
+  const resumeCommand = `/memoria:resume ${session.id}`;
+
+  const copyResumeCommand = () => {
+    navigator.clipboard.writeText(resumeCommand);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (!projectDir && !branch && modifiedFiles.size === 0) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <title>Context</title>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          Context Restoration
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Quick Resume */}
+        <div>
+          <div className="text-sm font-medium text-muted-foreground mb-2">
+            Quick Resume
+          </div>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 bg-muted p-2 rounded text-sm font-mono overflow-x-auto">
+              {resumeCommand}
+            </code>
+            <Button variant="outline" size="sm" onClick={copyResumeCommand}>
+              {copied ? "Copied!" : "Copy"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Use this command in Claude Code to resume this session
+          </p>
+        </div>
+
+        {/* Environment */}
+        {(projectDir || branch) && (
+          <div>
+            <div className="text-sm font-medium text-muted-foreground mb-2">
+              Environment
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              {projectDir && (
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Directory:</span>{" "}
+                  <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-xs">
+                    {projectDir}
+                  </code>
+                </div>
+              )}
+              {branch && (
+                <div>
+                  <span className="text-muted-foreground">Branch:</span>{" "}
+                  <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-xs">
+                    {branch}
+                  </code>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Restore Command */}
+        {restoreCommand && (
+          <div>
+            <div className="text-sm font-medium text-muted-foreground mb-2">
+              Restore Environment
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 bg-muted p-2 rounded text-sm font-mono overflow-x-auto">
+                {restoreCommand}
+              </code>
+              <Button variant="outline" size="sm" onClick={copyCommand}>
+                {copied ? "Copied!" : "Copy"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Modified Files */}
+        {modifiedFiles.size > 0 && (
+          <div>
+            <div className="text-sm font-medium text-muted-foreground mb-2">
+              Modified Files ({modifiedFiles.size})
+            </div>
+            <div className="max-h-48 overflow-y-auto">
+              <div className="flex flex-wrap gap-1">
+                {Array.from(modifiedFiles)
+                  .sort()
+                  .map((file) => (
+                    <Badge
+                      key={file}
+                      variant="secondary"
+                      className="text-xs font-mono"
+                    >
+                      {file.split("/").pop()}
+                    </Badge>
+                  ))}
+              </div>
+            </div>
+            <details className="mt-2">
+              <summary className="text-xs text-muted-foreground cursor-pointer">
+                Show full paths
+              </summary>
+              <div className="mt-2 space-y-1">
+                {Array.from(modifiedFiles)
+                  .sort()
+                  .map((file) => (
+                    <div
+                      key={file}
+                      className="text-xs font-mono text-muted-foreground truncate"
+                    >
+                      {file}
+                    </div>
+                  ))}
+              </div>
+            </details>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function SessionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -280,6 +464,11 @@ export function SessionDetailPage() {
     }
   };
 
+  const handleExport = () => {
+    if (!id) return;
+    window.open(`/api/export/sessions/${id}/markdown`, "_blank");
+  };
+
   const getTagColor = (tagId: string) => {
     const tag = tags.find((t) => t.id === tagId);
     return tag?.color || "#6B7280";
@@ -323,6 +512,9 @@ export function SessionDetailPage() {
             </>
           ) : (
             <>
+              <Button variant="outline" onClick={handleExport}>
+                Export
+              </Button>
               <Button variant="outline" onClick={() => setIsEditing(true)}>
                 Edit
               </Button>
@@ -503,6 +695,9 @@ export function SessionDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Context Restoration */}
+      <ContextRestorationCard session={session} />
 
       {interactionCount > 0 && (
         <Card>

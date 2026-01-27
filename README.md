@@ -102,15 +102,13 @@ To enable API fallback for automatic session saving, run `/memoria:init` or manu
 
 ```json
 {
-  "openai_api_key": "sk-...",
-  "model": "gpt-5-mini"
+  "openai_api_key": "sk-..."
 }
 ```
 
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `openai_api_key` | No | - | Enables auto-save at PreCompact/SessionEnd |
-| `model` | No | `gpt-5-mini` | Model to use (gpt-5-mini, gpt-5, gpt-5.2, etc.) |
+| Field | Required | Description |
+|-------|----------|-------------|
+| `openai_api_key` | No | Enables auto-save at PreCompact/SessionEnd |
 
 **Without `openai_api_key`**: Sessions are only saved when you explicitly use `/memoria:save`.
 

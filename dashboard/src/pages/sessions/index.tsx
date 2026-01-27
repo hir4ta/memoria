@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { deleteSession, getSessions, getTags } from "@/lib/api";
+import { Pagination } from "@/components/ui/pagination";
+import { SessionCardSkeletonList } from "@/components/ui/session-card-skeleton";
+import {
+  useInvalidateSessions,
+  useSessions,
+  useTags,
+} from "@/hooks/use-sessions";
+import { deleteSession } from "@/lib/api";
 import type { Session, SessionType, Tag } from "@/lib/types";
 
 const SESSION_TYPES: { value: SessionType; label: string }[] = [
@@ -45,7 +52,7 @@ function SessionCard({
   };
 
   const date = new Date(session.createdAt).toLocaleDateString("ja-JP");
-  const userName = session.context.user?.name || "unknown";
+  const userName = session.context?.user?.name || "unknown";
   const interactionCount = session.interactions?.length || 0;
 
   // Get tag color from tags.json
@@ -80,7 +87,7 @@ function SessionCard({
             <span>{userName}</span>
             <span>-</span>
             <span>{date}</span>
-            {session.context.branch && (
+            {session.context?.branch && (
               <>
                 <span>-</span>
                 <span className="font-mono text-xs">
@@ -111,7 +118,7 @@ function SessionCard({
               {session.goal}
             </p>
           )}
-          {session.tags.length > 0 && (
+          {session.tags && session.tags.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {session.tags.slice(0, 5).map((tagId) => (
                 <Badge
@@ -141,93 +148,81 @@ function SessionCard({
 }
 
 export function SessionsPage() {
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [sessionsData, tagsData] = await Promise.all([
-        getSessions(),
-        getTags(),
-      ]);
-      setSessions(sessionsData);
-      setTags(tagsData.tags || []);
-      setError(null);
-    } catch {
-      setError("Failed to load sessions");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Debounced search
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useMemo(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1); // Reset to first page on search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const { data, isLoading, error } = useSessions({
+    page,
+    limit: 20,
+    tag: tagFilter !== "all" ? tagFilter : undefined,
+    type: typeFilter !== "all" ? typeFilter : undefined,
+    search: debouncedSearch || undefined,
+  });
+
+  const { data: tagsData } = useTags();
+  const tags = tagsData?.tags || [];
+  const invalidate = useInvalidateSessions();
 
   // Get unique tags from all sessions for filter dropdown
   const availableTags = useMemo(() => {
+    if (!data?.data) return [];
     const tagSet = new Set<string>();
-    for (const session of sessions) {
-      for (const tag of session.tags) {
+    for (const session of data.data) {
+      for (const tag of session.tags || []) {
         tagSet.add(tag);
       }
     }
     return Array.from(tagSet).sort();
-  }, [sessions]);
+  }, [data?.data]);
 
-  const filteredSessions = useMemo(() => {
-    return sessions.filter((session) => {
-      // Type filter
-      if (typeFilter !== "all" && session.sessionType !== typeFilter) {
-        return false;
-      }
-      // Tag filter
-      if (tagFilter !== "all" && !session.tags.includes(tagFilter)) {
-        return false;
-      }
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const searchText = [
-          session.title,
-          session.goal || "",
-          ...session.tags,
-          ...(session.interactions?.map((i) => i.topic) || []),
-        ].join(" ");
-        const matchesSearch = searchText.toLowerCase().includes(query);
-        const matchesUser =
-          session.context.user?.name?.toLowerCase().includes(query) || false;
-        if (!matchesSearch && !matchesUser) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [sessions, searchQuery, tagFilter, typeFilter]);
-
-  if (loading) {
-    return <div className="text-center py-12">Loading...</div>;
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Sessions</h1>
+        </div>
+        <SessionCardSkeletonList count={5} />
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="text-center py-12 text-destructive">{error}</div>;
+    return (
+      <div className="text-center py-12 text-destructive">
+        Failed to load sessions
+      </div>
+    );
   }
+
+  const sessions = data?.data || [];
+  const pagination = data?.pagination;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Sessions</h1>
         <p className="text-sm text-muted-foreground">
-          {sessions.length} session{sessions.length !== 1 ? "s" : ""}
+          {pagination?.total || 0} session
+          {(pagination?.total || 0) !== 1 ? "s" : ""}
         </p>
       </div>
 
-      {sessions.length === 0 ? (
+      {(pagination?.total || 0) === 0 &&
+      !debouncedSearch &&
+      tagFilter === "all" &&
+      typeFilter === "all" ? (
         <div className="text-center py-12 text-muted-foreground">
           <p>No sessions found.</p>
           <p className="text-sm mt-2">
@@ -237,7 +232,7 @@ export function SessionsPage() {
         </div>
       ) : (
         <>
-          <div className="flex gap-4 items-center">
+          <div className="flex gap-4 items-center flex-wrap">
             <Input
               placeholder="Search sessions..."
               value={searchQuery}
@@ -246,7 +241,10 @@ export function SessionsPage() {
             />
             <select
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                setPage(1);
+              }}
               className="border border-border/70 bg-white/80 rounded-sm px-3 py-2 text-sm"
             >
               <option value="all">All Types</option>
@@ -258,7 +256,10 @@ export function SessionsPage() {
             </select>
             <select
               value={tagFilter}
-              onChange={(e) => setTagFilter(e.target.value)}
+              onChange={(e) => {
+                setTagFilter(e.target.value);
+                setPage(1);
+              }}
               className="border border-border/70 bg-white/80 rounded-sm px-3 py-2 text-sm"
             >
               <option value="all">All Tags</option>
@@ -268,28 +269,35 @@ export function SessionsPage() {
                 </option>
               ))}
             </select>
-            {(searchQuery || tagFilter !== "all" || typeFilter !== "all") && (
-              <span className="text-sm text-muted-foreground">
-                {filteredSessions.length} of {sessions.length} sessions
-              </span>
-            )}
           </div>
 
-          {filteredSessions.length === 0 ? (
+          {sessions.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <p>No sessions match your filters.</p>
             </div>
           ) : (
-            <div className="grid gap-4">
-              {filteredSessions.map((session) => (
-                <SessionCard
-                  key={session.id}
-                  session={session}
-                  tags={tags}
-                  onDelete={fetchData}
+            <>
+              <div className="grid gap-4">
+                {sessions.map((session) => (
+                  <SessionCard
+                    key={session.id}
+                    session={session}
+                    tags={tags}
+                    onDelete={invalidate}
+                  />
+                ))}
+              </div>
+
+              {pagination && (
+                <Pagination
+                  page={pagination.page}
+                  totalPages={pagination.totalPages}
+                  hasNext={pagination.hasNext}
+                  hasPrev={pagination.hasPrev}
+                  onPageChange={setPage}
                 />
-              ))}
-            </div>
+              )}
+            </>
           )}
         </>
       )}

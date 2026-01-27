@@ -1,0 +1,18 @@
+import { z } from "zod";
+
+// User schema
+export const UserSchema = z.object({
+  name: z.string(),
+  email: z.string().email().optional(),
+});
+
+export type User = z.infer<typeof UserSchema>;
+
+// Session context schema
+export const SessionContextSchema = z.object({
+  branch: z.string().nullable().optional(),
+  projectDir: z.string(),
+  user: UserSchema.optional(),
+});
+
+export type SessionContext = z.infer<typeof SessionContextSchema>;

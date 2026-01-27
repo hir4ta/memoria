@@ -2,9 +2,57 @@ import type { Decision, Session, TagsFile } from "./types";
 
 const API_BASE = "/api";
 
+// Pagination types
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: PaginationInfo;
+}
+
+export interface SessionsQueryParams {
+  page?: number;
+  limit?: number;
+  tag?: string;
+  type?: string;
+  search?: string;
+  paginate?: boolean;
+}
+
+export interface DecisionsQueryParams {
+  page?: number;
+  limit?: number;
+  tag?: string;
+  search?: string;
+  paginate?: boolean;
+}
+
 // Sessions
 export async function getSessions(): Promise<Session[]> {
-  const res = await fetch(`${API_BASE}/sessions`);
+  const res = await fetch(`${API_BASE}/sessions?paginate=false`);
+  if (!res.ok) throw new Error("Failed to fetch sessions");
+  return res.json();
+}
+
+export async function getSessionsPaginated(
+  params: SessionsQueryParams = {},
+): Promise<PaginatedResponse<Session>> {
+  const searchParams = new URLSearchParams();
+  if (params.page) searchParams.set("page", String(params.page));
+  if (params.limit) searchParams.set("limit", String(params.limit));
+  if (params.tag) searchParams.set("tag", params.tag);
+  if (params.type) searchParams.set("type", params.type);
+  if (params.search) searchParams.set("search", params.search);
+  searchParams.set("paginate", "true");
+
+  const res = await fetch(`${API_BASE}/sessions?${searchParams}`);
   if (!res.ok) throw new Error("Failed to fetch sessions");
   return res.json();
 }
@@ -35,7 +83,22 @@ export async function deleteSession(id: string): Promise<void> {
 
 // Decisions
 export async function getDecisions(): Promise<Decision[]> {
-  const res = await fetch(`${API_BASE}/decisions`);
+  const res = await fetch(`${API_BASE}/decisions?paginate=false`);
+  if (!res.ok) throw new Error("Failed to fetch decisions");
+  return res.json();
+}
+
+export async function getDecisionsPaginated(
+  params: DecisionsQueryParams = {},
+): Promise<PaginatedResponse<Decision>> {
+  const searchParams = new URLSearchParams();
+  if (params.page) searchParams.set("page", String(params.page));
+  if (params.limit) searchParams.set("limit", String(params.limit));
+  if (params.tag) searchParams.set("tag", params.tag);
+  if (params.search) searchParams.set("search", params.search);
+  searchParams.set("paginate", "true");
+
+  const res = await fetch(`${API_BASE}/decisions?${searchParams}`);
   if (!res.ok) throw new Error("Failed to fetch decisions");
   return res.json();
 }
