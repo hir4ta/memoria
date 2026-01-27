@@ -188,7 +188,7 @@ cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "<memoria>\\n**Session:** ${file_id}\\n**Path:** ${current_session_relative_path}\\n\\n**REQUIRED:** Update session JSON with Write tool.\\n- Set sessionType: decision|implementation|research|exploration|discussion|debug|review\\n- Set title, goal, tags when purpose is clear\\n- Add interactions for decisions/changes (id, topic, timestamp, request, thinking, choice, reasoning, filesModified)\\n\\n**Commands:** /memoria:resume, /memoria:save, /memoria:search, /memoria:review\\n${related_sessions:+\\nRelated sessions (same branch):\\n${related_sessions}}</memoria>"
+    "additionalContext": "<memoria>\\n**Session:** ${file_id}\\n**Path:** ${current_session_relative_path}\\n\\n**MANDATORY: Update session JSON with EVERY response.**\\n\\n1. First response: Set title, goal, sessionType, tags\\n2. Every response: Add/update interaction in interactions[]\\n   - id: int-001, int-002, ...\\n   - topic: Brief topic of this exchange\\n   - timestamp: ISO8601\\n   - request: User's request (summarized)\\n   - thinking: Your reasoning (keep concise)\\n   - choice: Decision or action taken\\n   - filesModified: Files changed (if any)\\n\\nSessionTypes: decision|implementation|research|exploration|discussion|debug|review\\n\\n**Commands:** /memoria:resume, /memoria:save, /memoria:search, /memoria:review\\n${related_sessions:+\\nRelated sessions (same branch):\\n${related_sessions}}</memoria>"
   }
 }
 EOF

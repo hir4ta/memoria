@@ -80,9 +80,7 @@ if (isMain && process.argv.length > 2) {
       });
       console.log(JSON.stringify({ success: true }));
     } catch (error) {
-      console.error(
-        JSON.stringify({ success: false, error: String(error) })
-      );
+      console.error(JSON.stringify({ success: false, error: String(error) }));
     }
     process.exit(0);
   });

@@ -1,3 +1,7 @@
+// lib/fuzzy-search.ts
+import * as fs2 from "node:fs";
+import * as path2 from "node:path";
+
 // lib/utils.ts
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -25,8 +29,6 @@ function findJsonFiles(dir) {
 }
 
 // lib/fuzzy-search.ts
-import * as fs2 from "node:fs";
-import * as path2 from "node:path";
 function levenshtein(a, b) {
   const matrix = [];
   for (let i = 0; i <= a.length; i++) {

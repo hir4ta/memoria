@@ -1,3 +1,6 @@
+// lib/pattern-learner.ts
+import * as path2 from "node:path";
+
 // lib/utils.ts
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -25,7 +28,6 @@ function findJsonFiles(dir) {
 }
 
 // lib/pattern-learner.ts
-import * as path2 from "node:path";
 function parseFixCommit(commit) {
   const message = commit.message.trim();
   if (!message.toLowerCase().startsWith("fix:")) {
@@ -86,12 +88,19 @@ function aggregateReviewFindings(reviews, minOccurrences = 3) {
 }
 async function learnPatterns(memoriaDir, options = {}) {
   const patterns = [];
-  const { analyzeCommits = true, analyzeReviews = true, analyzeCoChanges = true } = options;
+  const {
+    analyzeCommits = true,
+    analyzeReviews = true,
+    analyzeCoChanges = true
+  } = options;
   if (analyzeReviews) {
     const reviewsDir = path2.join(memoriaDir, "reviews");
     const reviewFiles = findJsonFiles(reviewsDir);
     const reviews = reviewFiles.map(
-      (f) => safeReadJson(f, { findings: [] })
+      (f) => safeReadJson(
+        f,
+        { findings: [] }
+      )
     );
     const ruleCandidates = aggregateReviewFindings(reviews, 3);
     for (const candidate of ruleCandidates) {
