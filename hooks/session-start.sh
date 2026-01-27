@@ -203,10 +203,10 @@ init_rules_file "${rules_dir}/review-guidelines.json"
 init_rules_file "${rules_dir}/dev-rules.json"
 
 # ============================================
-# Find related sessions for display (same branch, recent)
+# Find related sessions for display (only when resuming)
 # ============================================
 related_sessions=""
-if [ -d "$sessions_dir" ] && [ -n "$current_branch" ]; then
+if [ "$is_resumed" = true ] && [ -d "$sessions_dir" ] && [ -n "$current_branch" ]; then
     session_files=$(find "$sessions_dir" -name "*.json" -type f 2>/dev/null | head -10)
 
     for file in $session_files; do

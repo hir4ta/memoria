@@ -242,7 +242,7 @@ response=$(curl -s -X POST "https://api.openai.com/v1/chat/completions" \
         {role: "user", content: $prompt}
       ],
       temperature: 0.3,
-      max_tokens: 10000
+      max_completion_tokens: 10000
     }')" 2>/dev/null)
 
 # Extract content from response
