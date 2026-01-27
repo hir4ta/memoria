@@ -16,6 +16,21 @@ memoria is a long-term memory plugin for Claude Code.
 5. **Rule-based review**: `/memoria:review` for code review based on rules
 6. **Weekly reports**: `/memoria:report` to generate review summary
 7. **Web dashboard**: Visual management of sessions and decisions
+8. **Brainstorming**: `/memoria:brainstorm` for design-first workflow with Socratic questioning
+9. **Planning**: `/memoria:plan` for detailed implementation plans with 2-5 min tasks
+10. **TDD**: `/memoria:tdd` for strict RED-GREEN-REFACTOR enforcement
+11. **Debugging**: `/memoria:debug` for systematic root cause analysis
+
+## Recommended Workflow
+
+```
+brainstorm → plan → tdd → review
+```
+
+1. **brainstorm**: Design with Socratic questions + past memory lookup
+2. **plan**: Break into 2-5 minute TDD tasks
+3. **tdd**: Implement with RED → GREEN → REFACTOR
+4. **review**: Verify against plan (--full) and code quality
 
 ## Real-time Updates
 
@@ -46,8 +61,12 @@ Update session JSON when **meaningful changes occur**, not at session end.
 | `/memoria:save` | Force flush current session |
 | `/memoria:decision "title"` | Record a technical decision |
 | `/memoria:search <query>` | Search knowledge |
-| `/memoria:review [--staged\|--all\|--diff=branch]` | Rule-based review |
+| `/memoria:review [--staged\|--all\|--diff=branch\|--full]` | Rule-based review (--full for spec+code) |
 | `/memoria:report [--from YYYY-MM-DD --to YYYY-MM-DD]` | Weekly review report |
+| `/memoria:brainstorm [topic]` | Design-first Socratic questioning + memory lookup |
+| `/memoria:plan [topic]` | Create implementation plan with 2-5 min TDD tasks |
+| `/memoria:tdd` | Strict RED-GREEN-REFACTOR development cycle |
+| `/memoria:debug` | Systematic debugging with error pattern lookup |
 
 ## Dashboard
 

@@ -6,12 +6,20 @@ Claude Codeの長期記憶を実現するプラグイン
 
 ## 機能
 
+### コア機能
 - **リアルタイムセッション更新**: 意味のある変化があった時にセッションJSONを自動更新
 - **セッション再開**: `/memoria:resume` で過去のセッションを再開
 - **技術的な判断の記録**: `/memoria:decision` で判断を記録
 - **ルールベースレビュー**: `dev-rules.json` / `review-guidelines.json` に基づくレビュー
 - **週次レポート**: レビュー結果を集計したMarkdownレポートを自動生成
 - **Webダッシュボード**: セッション・判断記録の閲覧・編集
+
+### 開発ワークフロー
+- **ブレインストーミング**: ソクラティック質問 + 記憶参照で設計 (`/memoria:brainstorm`)
+- **計画作成**: 2-5分単位のTDDタスク分割 (`/memoria:plan`)
+- **TDD**: RED-GREEN-REFACTORサイクルの厳格強制 (`/memoria:tdd`)
+- **デバッグ**: 根本原因分析 + エラーパターン参照 (`/memoria:debug`)
+- **二段階レビュー**: 仕様準拠 + コード品質 (`/memoria:review --full`)
 
 ## 課題と解決（導入メリット）
 
@@ -105,8 +113,23 @@ Claude Codeを再起動
 | `/memoria:save` | 現在のセッションを強制保存 |
 | `/memoria:decision "タイトル"` | 技術的な判断を記録 |
 | `/memoria:search "クエリ"` | セッション・判断記録を検索 |
-| `/memoria:review [--staged|--all|--diff=branch]` | ルールに基づくレビュー |
+| `/memoria:review [--staged\|--all\|--diff=branch\|--full]` | ルールに基づくレビュー（--fullで二段階） |
 | `/memoria:report [--from YYYY-MM-DD --to YYYY-MM-DD]` | 週次レビューレポート |
+| `/memoria:brainstorm [トピック]` | ソクラティック質問 + 記憶参照で設計 |
+| `/memoria:plan [トピック]` | 2-5分TDDタスクに分割した計画作成 |
+| `/memoria:tdd` | RED-GREEN-REFACTOR厳格サイクル |
+| `/memoria:debug` | 根本原因分析 + エラーパターン参照 |
+
+### 推奨ワークフロー
+
+```
+brainstorm → plan → tdd → review
+```
+
+1. **brainstorm**: ソクラティック質問 + 記憶参照で設計
+2. **plan**: 2-5分TDDタスクに分割
+3. **tdd**: RED → GREEN → REFACTOR で実装
+4. **review**: 仕様準拠（--full）+ コード品質をレビュー
 
 ### ダッシュボード
 

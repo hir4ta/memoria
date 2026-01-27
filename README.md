@@ -6,12 +6,20 @@ Provides automatic session saving, technical decision recording, and web dashboa
 
 ## Features
 
+### Core Features
 - **Real-time Session Updates**: Session JSON is updated when meaningful changes occur
 - **Session Resume**: Resume past sessions with `/memoria:resume`
 - **Technical Decision Recording**: Record decisions with `/memoria:decision`
 - **Rule-based Review**: Code review based on `dev-rules.json` / `review-guidelines.json`
 - **Weekly Reports**: Auto-generate Markdown reports aggregating review results
 - **Web Dashboard**: View and edit sessions, decisions, and rules
+
+### Development Workflow (superpowers-style)
+- **Brainstorming**: Socratic questioning + past memory lookup (`/memoria:brainstorm`)
+- **Planning**: 2-5 minute task breakdown with TDD enforcement (`/memoria:plan`)
+- **TDD**: Strict RED-GREEN-REFACTOR cycle (`/memoria:tdd`)
+- **Debugging**: Systematic root cause analysis + error pattern lookup (`/memoria:debug`)
+- **Two-stage Review**: Spec compliance + code quality (`/memoria:review --full`)
 
 ## Problems Solved
 
@@ -105,8 +113,23 @@ This will auto-update on Claude Code startup.
 | `/memoria:save` | Force flush current session |
 | `/memoria:decision "title"` | Record a technical decision |
 | `/memoria:search "query"` | Search sessions and decisions |
-| `/memoria:review [--staged\|--all\|--diff=branch]` | Rule-based code review |
+| `/memoria:review [--staged\|--all\|--diff=branch\|--full]` | Rule-based code review (--full for two-stage) |
 | `/memoria:report [--from YYYY-MM-DD --to YYYY-MM-DD]` | Weekly review report |
+| `/memoria:brainstorm [topic]` | Design-first Socratic questioning + memory lookup |
+| `/memoria:plan [topic]` | Create implementation plan with 2-5 min TDD tasks |
+| `/memoria:tdd` | Strict RED-GREEN-REFACTOR development cycle |
+| `/memoria:debug` | Systematic debugging with error pattern lookup |
+
+### Recommended Workflow
+
+```
+brainstorm → plan → tdd → review
+```
+
+1. **brainstorm**: Design with Socratic questions + past memory lookup
+2. **plan**: Break into 2-5 minute TDD tasks
+3. **tdd**: Implement with RED → GREEN → REFACTOR
+4. **review**: Verify against plan (--full) and code quality
 
 ### Dashboard
 

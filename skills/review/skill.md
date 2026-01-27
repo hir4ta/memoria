@@ -10,10 +10,11 @@ Code review based on repository-specific rules (`dev-rules.json` / `review-guide
 ## Usage
 
 ```
-/memoria:review           # Default: --staged
+/memoria:review           # Default: --staged (Stage 2 only)
 /memoria:review --staged  # Review staged changes
 /memoria:review --all     # Review all changes
 /memoria:review --diff=main  # Review diff against branch
+/memoria:review --full    # Two-stage review (Stage 1: Spec + Stage 2: Code)
 ```
 
 ### Default Behavior
@@ -21,7 +22,24 @@ Code review based on repository-specific rules (`dev-rules.json` / `review-guide
 - **`--staged` is default**
 - If staged is empty, suggest `--all` / `--diff=branch`
 
+### Two-Stage Review (--full)
+
+When `--full` is specified, perform two-stage review:
+
+**Stage 1: Spec Compliance** (blocks if fails)
+- Check implementation against plan/design documents
+- Verify all planned tasks were implemented
+- Confirm architecture matches design
+- Must pass before Stage 2
+
+**Stage 2: Code Quality** (standard review)
+- Apply dev-rules.json / review-guidelines.json
+- Check language/framework best practices
+- Generate findings
+
 ## Execution Steps
+
+### Standard Review (default)
 
 1. **Get target diff**
    - `--staged`: `git diff --staged`
@@ -40,6 +58,48 @@ Code review based on repository-specific rules (`dev-rules.json` / `review-guide
    - Structure: Blocker / Warning / Suggestion
 6. **Save review result**
    - `.memoria/reviews/YYYY/MM/review-YYYY-MM-DD_HHMMSS.json`
+
+### Two-Stage Review (--full)
+
+#### Stage 1: Spec Compliance
+
+1. **Find plan/design documents**
+   ```
+   Search for recent files:
+   - docs/plans/*-tasks.md
+   - docs/plans/*-design.md
+   ```
+
+2. **Extract planned items**
+   - Parse task list from tasks.md
+   - Extract architecture/components from design.md
+
+3. **Verify implementation**
+   - Check each planned task has corresponding code
+   - Verify architecture matches design
+   - Confirm all components exist
+
+4. **Generate Stage 1 findings**
+   ```markdown
+   ## Stage 1: Spec Compliance
+
+   **Plan file:** docs/plans/2026-01-27-feature-tasks.md
+   **Design file:** docs/plans/2026-01-27-feature-design.md
+
+   ### Status: PASS / FAIL
+
+   ### Findings
+   - [MISSING] Task 3 not implemented
+   - [MISMATCH] Component X uses different architecture than planned
+   ```
+
+5. **Block if Stage 1 fails**
+   - If any MISSING or MISMATCH findings, stop review
+   - User must fix before Stage 2
+
+#### Stage 2: Code Quality
+
+(Standard review steps 2-6)
 
 ## Additional Review Perspectives (Required)
 
@@ -185,5 +245,106 @@ Save to `.memoria/reviews/YYYY/MM/review-YYYY-MM-DD_HHMMSS.json`:
     "projectDir": "/path/to/project",
     "branch": "main"
   }
+}
+```
+
+## Two-Stage Review JSON Format (--full)
+
+Extended format for `--full` reviews:
+
+```json
+{
+  "id": "review-2026-01-27_103000",
+  "createdAt": "2026-01-27T10:30:00Z",
+  "mode": "full",
+  "target": {
+    "type": "staged",
+    "branch": "feature/auth"
+  },
+
+  "specCompliance": {
+    "planFile": "docs/plans/2026-01-27-auth-tasks.md",
+    "designFile": "docs/plans/2026-01-27-auth-design.md",
+    "status": "pass",
+    "findings": [
+      {
+        "type": "missing",
+        "description": "Task 3: Add refresh token endpoint - not implemented",
+        "planReference": "### Task 3: Add refresh token endpoint"
+      },
+      {
+        "type": "mismatch",
+        "description": "JWT storage uses localStorage instead of httpOnly cookie",
+        "planReference": "## Security: Store tokens in httpOnly cookies",
+        "actualImplementation": "src/auth/storage.ts:15 - localStorage.setItem('token', ...)"
+      }
+    ]
+  },
+
+  "codeQuality": {
+    "summary": {
+      "blocker": 0,
+      "warning": 1,
+      "suggestion": 2
+    },
+    "findings": [
+      {
+        "id": "finding-001",
+        "severity": "warning",
+        "title": "Missing error handling",
+        "ruleId": "dev-error-handling-001",
+        "file": "src/auth/jwt.ts",
+        "line": 42
+      }
+    ]
+  },
+
+  "coverage": {
+    "appliedRuleIds": ["dev-error-handling-001"],
+    "skippedRuleIds": []
+  },
+  "proposals": [],
+  "staleRules": [],
+  "context": {
+    "projectDir": "/path/to/project",
+    "branch": "feature/auth"
+  }
+}
+```
+
+### specCompliance Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| planFile | string | Path to tasks.md used for verification |
+| designFile | string | Path to design.md used for verification |
+| status | `"pass"\|"fail"` | Whether spec compliance passed |
+| findings | array | List of compliance issues |
+
+### specCompliance Finding Types
+
+| Type | Description |
+|------|-------------|
+| `missing` | Planned item not implemented |
+| `mismatch` | Implementation differs from design |
+| `incomplete` | Partially implemented |
+
+## Recording Review in Session
+
+Add interaction when review is performed:
+
+```json
+{
+  "id": "int-XXX",
+  "topic": "Code review",
+  "timestamp": "[ISO8601]",
+  "phase": "review",
+  "request": "/memoria:review --full",
+  "thinking": "[Review considerations]",
+  "choice": "[Review outcome: pass/fail]",
+  "reasoning": "[Summary of findings]",
+  "actions": [
+    { "type": "create", "path": ".memoria/reviews/...", "summary": "Review result" }
+  ]
 }
 ```
