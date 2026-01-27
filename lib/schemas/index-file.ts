@@ -5,6 +5,7 @@ import { SessionTypeSchema } from "./session.js";
 export const SessionIndexItemSchema = z.object({
   id: z.string(),
   title: z.string(),
+  goal: z.string().optional(),
   createdAt: z.string(),
   tags: z.array(z.string()),
   sessionType: SessionTypeSchema.nullable().optional(),

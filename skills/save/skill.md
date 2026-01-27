@@ -5,15 +5,15 @@ description: Force flush current session state to JSON.
 
 # /memoria:save
 
-Explicitly save session and extract development rules from conversation.
+Create session summary and extract development rules from conversation.
 
 ## When to Use
 
-Sessions are auto-saved **only before Auto-Compact**. Use this command when you want to:
+**Interactions are auto-saved** by SessionEnd hook. Use this command when you want to:
 
-1. **Save progress** - Capture current session state before ending
+1. **Create summary** - Write title, goal, outcome, description for the session
 2. **Extract rules** - Save development rules/guidelines mentioned in conversation
-3. **Important checkpoint** - Ensure a significant milestone is recorded
+3. **Generate MD file** - Create detailed markdown context for future resume
 
 ## Usage
 
@@ -25,10 +25,12 @@ Sessions are auto-saved **only before Auto-Compact**. Use this command when you 
 
 | Target | Content |
 |--------|---------|
-| Session JSON | summary, metrics, files, decisions, errors, interactions, tags |
+| Session JSON | summary, metrics, sessionType, tags |
 | Session MD | Detailed context for AI (plans, discussions, code examples, handoff notes) |
 | dev-rules.json | Development rules mentioned in conversation |
 | review-guidelines.json | Review guidelines mentioned in conversation |
+
+**Note:** `interactions`, `files`, `toolUsage` are auto-saved by SessionEnd hook.
 
 ## Session JSON Structure
 
@@ -41,19 +43,13 @@ Sessions are auto-saved **only before Auto-Compact**. Use this command when you 
     "outcome": "success",
     "description": "JWTを使った認証機能を実装。RS256署名エラーを解決"
   },
-  "interactions": [
-    {
-      "timestamp": "2026-01-27T10:00:00Z",
-      "user": "JWT認証を実装して",
-      "assistant": "JWT認証の実装を開始。RS256署名方式を採用",
-      "toolsUsed": ["Read", "Edit", "Write"]
-    }
-  ],
+  "interactions": [...],  // Auto-saved by SessionEnd
   "metrics": { ... },
-  "files": [...],
+  "files": [...],         // Auto-saved by SessionEnd
   "decisions": [...],
   "errors": [...],
   "tags": [...],
+  "sessionType": "implementation",
   "status": "complete"
 }
 ```
@@ -64,18 +60,13 @@ Sessions are auto-saved **only before Auto-Compact**. Use this command when you 
 
 1. Get session path from additionalContext (shown at session start)
 2. Read current session file
-3. **Check for duplicates**:
-   - Look at last interaction's timestamp (if any)
-   - Only add interactions AFTER that timestamp
-   - Skip content that appears already saved
-4. Update/add:
+3. Update/add:
    - **summary**: title, goal, outcome, description
-   - **interactions**: Add only NEW conversation turns (avoid duplicates!)
-   - **metrics**: Count files, decisions, errors
-   - **files**: All file changes with action and summary
-   - **decisions**: Technical decisions with reasoning (only new ones)
-   - **errors**: Errors encountered and solutions (only new ones)
-   - **tags**: Relevant keywords
+   - **metrics**: Update counts if needed
+   - **decisions**: Technical decisions with reasoning (if any new ones)
+   - **errors**: Errors encountered and solutions (if any new ones)
+   - **tags**: Relevant keywords from .memoria/tags.json
+   - **sessionType**: decision, implementation, research, exploration, discussion, debug, review
 
 ### 2. Extract and Save Rules
 
@@ -239,11 +230,10 @@ Files:
   JSON: .memoria/sessions/2026/01/abc12345.json
   MD:   .memoria/sessions/2026/01/abc12345.md
 
-Metrics:
-  Files: +2 created, ~1 modified
-  Decisions: 2
-  Errors: 1 encountered, 1 resolved
-  Interactions: 5
+Summary:
+  Title: JWT authentication implementation
+  Goal: Implement JWT-based auth with refresh token support
+  Outcome: success
 
 Rules updated:
   dev-rules.json:
@@ -257,9 +247,8 @@ Rules updated:
 ## Notes
 
 - Session path is shown in additionalContext at session start
-- Auto-save runs only before Auto-Compact (context 95% full)
-- Use this command for manual saves and rule extraction
+- **Interactions are auto-saved by SessionEnd hook** - no need to manually save them
+- Use this command for summary creation and rule extraction
 - Rules are appended (not overwritten) - duplicates are skipped
-- Interactions are checked for duplicates before adding
-- **MD file is generated alongside JSON for detailed context**
+- MD file is generated alongside JSON for detailed context
 - MD file contains plans, discussions, code examples - everything needed to resume

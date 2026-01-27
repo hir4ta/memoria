@@ -9,17 +9,18 @@ memoria is a long-term memory plugin for Claude Code.
 
 ## Features
 
-1. **Auto-save on Auto-Compact**: Sessions saved automatically before context compaction
-2. **Manual save**: `/memoria:save` or ask "save session" anytime
-3. **Session resume**: `/memoria:resume` to restore past sessions
-4. **Knowledge search**: `/memoria:search` to find saved information
-5. **Rule-based review**: `/memoria:review` for code review based on rules
-6. **Weekly reports**: `/memoria:report` to generate review summary
-7. **Web dashboard**: Visual management of sessions and decisions
-8. **Brainstorming**: `/memoria:brainstorm` for design-first workflow
-9. **Planning**: `/memoria:plan` for detailed implementation plans
-10. **TDD**: `/memoria:tdd` for RED-GREEN-REFACTOR workflow (recommended)
-11. **Debugging**: `/memoria:debug` for systematic root cause analysis
+1. **Auto-save interactions**: Conversations auto-saved at session end (jq-based, no Claude needed)
+2. **Summary on PreCompact**: Summary created before Auto-Compact (context 95% full)
+3. **Manual save**: `/memoria:save` for summary creation and rule extraction
+4. **Session resume**: `/memoria:resume` to restore past sessions
+5. **Knowledge search**: `/memoria:search` to find saved information
+6. **Rule-based review**: `/memoria:review` for code review based on rules
+7. **Weekly reports**: `/memoria:report` to generate review summary
+8. **Web dashboard**: Visual management of sessions and decisions
+9. **Brainstorming**: `/memoria:brainstorm` for design-first workflow
+10. **Planning**: `/memoria:plan` for detailed implementation plans
+11. **TDD**: `/memoria:tdd` for RED-GREEN-REFACTOR workflow (recommended)
+12. **Debugging**: `/memoria:debug` for systematic root cause analysis
 
 ## Recommended Workflow
 
@@ -34,39 +35,50 @@ brainstorm → plan → tdd → review
 
 ## Session Saving
 
-### Auto-Save (on Auto-Compact)
+### Auto-Save (at Session End)
 
-Sessions are saved **automatically before Auto-Compact** via PreCompact hook.
+**Interactions are auto-saved** by SessionEnd hook using jq:
 
 ```
-[Context 95% full] → [PreCompact hook] → [Claude saves session] → [Compact proceeds]
+[Session ends] → [SessionEnd hook] → [jq extracts from transcript] → [JSON updated]
 ```
 
-This ensures your thinking process and decisions are preserved before context is compressed.
+Automatically saved:
+- User messages
+- Assistant responses (including thinking blocks)
+- Tool usage
+- File changes
 
-### Manual Save
+### Summary Creation
 
-Save anytime by:
-- Running `/memoria:save`
-- Asking "save the session" or "セッションを保存して"
+Summary is created in these scenarios:
 
-Use manual save to:
-- Save important progress before ending session
-- Extract development rules to `dev-rules.json`
-- Extract review guidelines to `review-guidelines.json`
+| Trigger | When | What |
+|---------|------|------|
+| **PreCompact** | Context 95% full | Claude creates summary before compact |
+| **Manual** | `/memoria:save` | User requests summary + rules extraction |
+| **Resume prompt** | Session resumed with no summary | Suggested in additionalContext |
+
+### Manual Save (`/memoria:save`)
+
+Use for:
+- Creating/updating session summary
+- Extracting development rules to `dev-rules.json`
+- Extracting review guidelines to `review-guidelines.json`
+- Generating detailed MD file for AI resume
 
 ### What Gets Saved
 
 **Session JSON** (structured data for search/dashboard):
-| Field | Description |
-|-------|-------------|
-| summary | title, goal, outcome, description |
-| interactions | Chat-style conversation log |
-| metrics | File counts, decision counts, error counts |
-| files | File changes with action and summary |
-| decisions | Technical decisions with reasoning |
-| errors | Errors encountered and solutions |
-| tags | Related keywords |
+| Field | Auto-saved | Manual |
+|-------|------------|--------|
+| interactions | SessionEnd | - |
+| files | SessionEnd | - |
+| toolUsage | SessionEnd | - |
+| summary | PreCompact | /memoria:save |
+| decisions | - | /memoria:save |
+| errors | - | /memoria:save |
+| tags | - | /memoria:save |
 
 **Session MD** (detailed context for AI resume):
 | Section | Description |
@@ -83,7 +95,7 @@ Use manual save to:
 | Command | Description |
 |---------|-------------|
 | `/memoria:resume [id]` | Resume session (omit ID for list) |
-| `/memoria:save` | Extract rules + manual update |
+| `/memoria:save` | Create summary + extract rules |
 | `/memoria:search <query>` | Search knowledge |
 | `/memoria:review [--staged\|--all\|--diff=branch\|--full]` | Rule-based review |
 | `/memoria:report [--from YYYY-MM-DD --to YYYY-MM-DD]` | Weekly review report |
@@ -138,17 +150,18 @@ npx @hir4ta/memoria --dashboard
       "timestamp": "2026-01-26T10:15:00Z",
       "user": "Implement authentication",
       "assistant": "Implemented JWT auth with RS256 signing",
-      "toolsUsed": ["Read", "Edit", "Write"]
+      "thinking": "Key insights from thinking process"
     }
   ],
   "metrics": {
-    "filesCreated": 2,
-    "filesModified": 1,
-    "decisionsCount": 1,
-    "errorsEncountered": 1,
-    "errorsResolved": 1
+    "userMessages": 5,
+    "assistantResponses": 5,
+    "thinkingBlocks": 5,
+    "toolUsage": [{"name": "Edit", "count": 3}]
   },
-  "files": [...],
+  "files": [
+    {"path": "src/auth.ts", "action": "create"}
+  ],
   "decisions": [...],
   "errors": [...],
   "tags": ["auth", "jwt"],

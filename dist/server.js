@@ -16709,9 +16709,11 @@ function buildSessionIndex(memoriaDir2) {
       const interactions = session.interactions || [];
       const context = session.context || {};
       const user = context.user;
+      const summary = session.summary || {};
       items.push({
         id: session.id,
-        title: session.title || "Untitled",
+        title: summary.title || session.title || "Untitled",
+        goal: summary.goal || session.goal || void 0,
         createdAt: session.createdAt,
         tags: session.tags || [],
         sessionType: session.sessionType || null,

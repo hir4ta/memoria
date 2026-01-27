@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 #
-# pre-compact.sh - Auto-save before Auto-Compact using Claude Code LLM
+# pre-compact.sh - Create summary before Auto-Compact
 #
-# This is the LAST CHANCE to save information before Auto-Compact.
-# Blocks compaction and instructs Claude Code LLM to save the session with full context.
+# Blocks compaction and instructs Claude to create a session summary.
+# Interactions are auto-saved by session-end.sh via jq, so this hook
+# focuses only on summary creation which requires Claude's intelligence.
 #
 # Input (stdin): JSON with session_id, transcript_path, cwd, trigger
 # Output: JSON with decision to block and reason (instruction for Claude)
@@ -15,7 +16,6 @@ input_json=$(cat)
 
 # Extract fields
 session_id=$(echo "$input_json" | jq -r '.session_id // empty')
-transcript_path=$(echo "$input_json" | jq -r '.transcript_path // empty')
 cwd=$(echo "$input_json" | jq -r '.cwd // empty')
 
 # If no cwd, use PWD
@@ -40,68 +40,36 @@ if [ -z "$session_file" ] || [ ! -f "$session_file" ]; then
     exit 0
 fi
 
-# Check transcript exists
-if [ -z "$transcript_path" ] || [ ! -f "$transcript_path" ]; then
-    echo "[memoria] No transcript found at PreCompact" >&2
-    echo '{"continue": true}'
-    exit 0
-fi
-
 # Get relative path for cleaner output
 session_relative="${session_file#$cwd/}"
 
-echo "[memoria] PreCompact: Triggering Claude Code LLM to save session before Auto-Compact..." >&2
+echo "[memoria] PreCompact: Creating session summary before Auto-Compact..." >&2
 
-# Build the instruction for Claude to save the session
-instruction="[MEMORIA AUTO-SAVE] Auto-Compact detected. Save session NOW before context is lost.
+# Build the instruction for Claude to create summary
+instruction="[MEMORIA PRE-COMPACT] Auto-Compact detected (context 95% full). Create session summary NOW.
 
-**Transcript file (read this to extract thinking):** ${transcript_path}
-**Session file to update:** ${session_relative}
+**Session file:** ${session_relative}
 
-## CRITICAL: Avoid Duplicates
+## What to Do
 
-1. **First, read the existing session file** to check:
-   - Last interaction's timestamp (if any)
-   - Already saved content
+Read the session file and update **summary** field with:
 
-2. **Only add NEW interactions** since the last saved timestamp
-   - If interactions array is empty, save everything
-   - If interactions exist, only add content AFTER the last timestamp
-   - Skip any content that appears to already be saved
+\`\`\`json
+{
+  \"summary\": {
+    \"title\": \"Brief descriptive title (e.g., 'JWT authentication implementation')\",
+    \"goal\": \"What was the main objective\",
+    \"outcome\": \"success\" | \"partial\" | \"blocked\" | \"abandoned\",
+    \"description\": \"2-3 sentence summary of what was accomplished\"
+  }
+}
+\`\`\`
 
-## Instructions
+Also update if needed:
+- **sessionType**: decision, implementation, research, exploration, discussion, debug, review
+- **tags**: Relevant keywords from .memoria/tags.json
 
-1. **Read the transcript file** (JSONL format) to find:
-   - Your thinking blocks (type: \"thinking\")
-   - User messages (type: \"user\")
-   - Your responses (type: \"assistant\")
-   - Tool usage
-
-2. **Add to 'interactions' array** (only new ones!) with this structure:
-   \`\`\`json
-   {
-     \"id\": \"int-NNN\",
-     \"timestamp\": \"ISO8601\",
-     \"topic\": \"What this interaction was about (for search)\",
-     \"request\": \"User's original request/question\",
-     \"thinking\": \"Key insights from your thinking process\",
-     \"response\": \"Summary of your response\",
-     \"choice\": \"What was decided/chosen (if any)\",
-     \"reasoning\": \"Why this approach was taken\",
-     \"toolsUsed\": [{\"name\": \"...\", \"target\": \"...\"}],
-     \"filesModified\": [\"...\"]
-   }
-   \`\`\`
-
-3. **Update 'summary'**: title, goal, outcome, description
-
-4. **Update 'metrics'**: filesCreated, filesModified, decisionsCount, etc.
-
-5. **Update 'decisions' array** if any NEW technical decisions were made
-
-6. **Update 'errors' array** if any NEW errors were encountered/resolved
-
-7. **Update 'tags'** and 'sessionType' if needed
+**Note:** Interactions are auto-saved by SessionEnd hook. Focus on summary only.
 
 After updating, just continue. No confirmation needed."
 

@@ -61,10 +61,13 @@ export function buildSessionIndex(memoriaDir: string): SessionIndex {
       const interactions = (session.interactions as unknown[]) || [];
       const context = (session.context as Record<string, unknown>) || {};
       const user = context.user as { name?: string } | undefined;
+      const summary = (session.summary as Record<string, unknown>) || {};
 
       items.push({
         id: session.id as string,
-        title: (session.title as string) || "Untitled",
+        title:
+          (summary.title as string) || (session.title as string) || "Untitled",
+        goal: (summary.goal as string) || (session.goal as string) || undefined,
         createdAt: session.createdAt as string,
         tags: (session.tags as string[]) || [],
         sessionType:

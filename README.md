@@ -7,7 +7,9 @@ Provides automatic session saving, technical decision recording, and web dashboa
 ## Features
 
 ### Core Features
-- **Auto-save**: Sessions saved automatically on every Claude response (no configuration needed)
+- **Auto-save interactions**: Conversations auto-saved at session end (jq-based, reliable)
+- **Summary on PreCompact**: Summary created before Auto-Compact (context 95% full)
+- **Manual save**: Create summary and extract rules with `/memoria:save`
 - **Session Resume**: Resume past sessions with `/memoria:resume`
 - **Technical Decision Recording**: Record decisions with `/memoria:decision`
 - **Rule-based Review**: Code review based on `dev-rules.json` / `review-guidelines.json`
@@ -99,19 +101,23 @@ This will auto-update on Claude Code startup.
 
 ### Session Auto-Save
 
-Sessions are saved **automatically on every Claude response**. No configuration needed.
+**Interactions are auto-saved** at session end using jq (no Claude dependency). No configuration needed.
 
-On each response, Claude updates:
-- `interactions`: Chat-style conversation log
-- `summary`: Title, goal, outcome, description
-- `metrics`: File counts, decision counts, error counts
+**Summary is created** in these scenarios:
+- **PreCompact**: Before Auto-Compact (context 95% full)
+- **Manual**: Run `/memoria:save` to create summary and extract rules
+
+What gets saved:
+- `interactions`: Auto-saved at session end (user messages, assistant responses, thinking blocks)
+- `summary`: Created by PreCompact or `/memoria:save`
+- `metrics`: Tool usage, file changes (auto-saved)
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
 | `/memoria:resume [id]` | Resume session (show list if ID omitted) |
-| `/memoria:save` | Extract rules from conversation + manual update |
+| `/memoria:save` | Create summary + extract rules |
 | `/memoria:decision "title"` | Record a technical decision |
 | `/memoria:search "query"` | Search sessions and decisions |
 | `/memoria:review [--staged\|--all\|--diff=branch\|--full]` | Rule-based code review (--full for two-stage) |
@@ -158,47 +164,53 @@ npx @hir4ta/memoria --dashboard --port 8080
 
 ```mermaid
 flowchart TB
-    subgraph autosave [Auto-Save]
-        A[Claude Response] --> B[Stop Hook]
-        B --> C[Update Session JSON]
-        C --> D[interactions + summary + metrics]
+    subgraph autosave [Auto-Save Interactions]
+        A[Session End] --> B[SessionEnd Hook]
+        B --> C[jq extracts from transcript]
+        C --> D[interactions + files + metrics]
+    end
+
+    subgraph summary [Summary Creation]
+        E[Context 95% Full] --> F[PreCompact Hook]
+        F --> G[Claude creates summary]
     end
 
     subgraph manual [Manual Actions]
-        E["memoria:save"] --> F[Extract rules + force update]
-        G["memoria:decision"] --> H[Record decision explicitly]
+        H["memoria:save"] --> I[Create summary + extract rules]
+        J["memoria:decision"] --> K[Record decision explicitly]
     end
 
     subgraph resume [Session Resume]
-        I["memoria:resume"] --> J[Select from list]
-        J --> K[Restore past context]
+        L["memoria:resume"] --> M[Select from list]
+        M --> N[Restore past context]
     end
 
     subgraph search [Search]
-        L["memoria:search"] --> M[Search sessions and decisions]
+        O["memoria:search"] --> P[Search sessions and decisions]
     end
 
     subgraph review [Review]
-        N["memoria:review"] --> O[Rule-based findings]
-        O --> P[Save review results]
+        Q["memoria:review"] --> R[Rule-based findings]
+        R --> S[Save review results]
     end
 
     subgraph report [Weekly Report]
-        Q["memoria:report"] --> R[Review summary report]
+        T["memoria:report"] --> U[Review summary report]
     end
 
     subgraph dashboard [Dashboard]
-        S["npx @hir4ta/memoria -d"] --> T[Open in browser]
-        T --> U[View, edit, delete]
+        V["npx @hir4ta/memoria -d"] --> W[Open in browser]
+        W --> X[View, edit, delete]
     end
 
-    D --> I
-    F --> I
-    H --> L
-    D --> P
-    P --> R
+    D --> L
+    G --> L
+    I --> L
+    K --> O
     D --> S
-    H --> S
+    S --> U
+    D --> V
+    K --> V
 ```
 
 ## Data Storage
@@ -240,16 +252,15 @@ Git-manageable. Add to `.gitignore` based on your project needs.
     {
       "timestamp": "2026-01-27T10:15:00Z",
       "user": "Implement authentication",
-      "assistant": "Implemented JWT auth with RS256 signing",
-      "toolsUsed": ["Read", "Edit", "Write"]
+      "thinking": "Key insights from thinking process",
+      "assistant": "Implemented JWT auth with RS256 signing"
     }
   ],
   "metrics": {
-    "filesCreated": 2,
-    "filesModified": 1,
-    "decisionsCount": 2,
-    "errorsEncountered": 1,
-    "errorsResolved": 1
+    "userMessages": 5,
+    "assistantResponses": 5,
+    "thinkingBlocks": 5,
+    "toolUsage": [{"name": "Edit", "count": 3}, {"name": "Write", "count": 2}]
   },
   "files": [
     { "path": "src/auth/jwt.ts", "action": "create", "summary": "JWT module" }

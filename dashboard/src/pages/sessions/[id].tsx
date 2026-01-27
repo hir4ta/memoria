@@ -250,7 +250,7 @@ function ContextRestorationCard({ session }: { session: Session }) {
 
   const restoreCommand = generateRestoreCommand();
 
-  const copyCommand = () => {
+  const _copyCommand = () => {
     if (restoreCommand) {
       navigator.clipboard.writeText(restoreCommand);
       setCopied(true);
@@ -334,23 +334,6 @@ function ContextRestorationCard({ session }: { session: Session }) {
                   </code>
                 </div>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* Restore Command */}
-        {restoreCommand && (
-          <div>
-            <div className="text-sm font-medium text-muted-foreground mb-2">
-              Restore Environment
-            </div>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 bg-muted p-2 rounded text-sm font-mono overflow-x-auto">
-                {restoreCommand}
-              </code>
-              <Button variant="outline" size="sm" onClick={copyCommand}>
-                {copied ? "Copied!" : "Copy"}
-              </Button>
             </div>
           </div>
         )}

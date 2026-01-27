@@ -267,8 +267,14 @@ escape_for_json() {
 using_memoria_escaped=$(escape_for_json "$using_memoria_content")
 
 resume_note=""
+needs_summary=false
 if [ "$is_resumed" = true ]; then
     resume_note=" (Resumed)"
+    # Check if summary.title is empty
+    summary_title=$(jq -r '.summary.title // ""' "$session_path" 2>/dev/null || echo "")
+    if [ -z "$summary_title" ]; then
+        needs_summary=true
+    fi
 fi
 
 # Build the session info (no auto-save instruction)
@@ -278,6 +284,18 @@ session_info="**Session:** ${file_id}${resume_note}
 Sessions are saved:
 - **Automatically** before Auto-Compact (context 95% full)
 - **Manually** via \`/memoria:save\` or asking \"save the session\""
+
+# Add summary creation prompt if needed
+if [ "$needs_summary" = true ]; then
+    session_info="${session_info}
+
+---
+**Note:** This session was resumed but has no summary yet.
+When you have enough context, consider creating a summary with \`/memoria:save\` to capture:
+- What was accomplished in the previous session
+- Key decisions made
+- Any ongoing work or next steps"
+fi
 
 session_info_escaped=$(escape_for_json "$session_info")
 
