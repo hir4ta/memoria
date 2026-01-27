@@ -151,6 +151,11 @@ This allows tracing "in what context was this decision made".
 4. Add new tag to tags.json if not found
 5. **Limit: 3-5 tags max for decisions, ordered by relevance (most relevant first)**
 
+## Writing Guidelines
+
+- **Text formatting**: Write each sentence on a single line. Do not break sentences mid-way for line length. Use line breaks only between sentences (after periods).
+- Keep decision and reasoning concise but complete.
+
 ## Output Format
 
 ```

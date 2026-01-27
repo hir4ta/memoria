@@ -143,6 +143,7 @@ Extract from the conversation:
 - Include specific code snippets when relevant
 - Document decisions and their reasoning
 - Be concise but comprehensive
+- **Text formatting**: Write each sentence on a single line. Do not break sentences mid-way for line length. Use line breaks only between sentences (after periods).
 
 ### 3. Extract and Save Rules
 

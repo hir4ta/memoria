@@ -48,8 +48,14 @@ fi
 if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
     # Extract interactions using jq
     interactions_json=$(cat "$transcript_path" | jq -s '
-        # User messages (text only, exclude tool results)
-        [.[] | select(.type == "user" and .message.role == "user" and (.message.content | type) == "string") | {
+        # User messages (text only, exclude tool results and local command outputs)
+        [.[] | select(
+            .type == "user" and
+            .message.role == "user" and
+            (.message.content | type) == "string" and
+            (.message.content | startswith("<local-command-stdout>") | not) and
+            (.message.content | startswith("<local-command-caveat>") | not)
+        ) | {
             timestamp: .timestamp,
             content: .message.content
         }] as $user_messages |
@@ -115,8 +121,8 @@ if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
        --arg status "complete" \
        --arg endedAt "$now" \
        --arg updatedAt "$now" '
-        # Merge extracted interactions (append to existing)
-        .interactions = ((.interactions // []) + ($extracted.interactions // [])) |
+        # Replace interactions with extracted data (filtered)
+        .interactions = ($extracted.interactions // []) |
         # Update files
         .files = ((.files // []) + ($extracted.files // []) | unique_by(.path)) |
         # Update metrics

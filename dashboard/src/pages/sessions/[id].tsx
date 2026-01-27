@@ -16,75 +16,71 @@ function InteractionCard({
   index: number;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showThinking, setShowThinking] = useState(false);
 
   const timestamp = new Date(interaction.timestamp).toLocaleString("ja-JP");
   const hasThinking =
     interaction.thinking && interaction.thinking.trim() !== "";
 
   return (
-    <div className="border rounded-lg p-4 space-y-3">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs">
-            #{index + 1}
-          </Badge>
-          <span className="text-xs text-muted-foreground">{timestamp}</span>
+    <div className="space-y-3">
+      {/* Timestamp header */}
+      <div className="flex justify-center">
+        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+          #{index + 1} · {timestamp}
+        </span>
+      </div>
+
+      {/* User message - right aligned */}
+      <div className="flex justify-end">
+        <div className="max-w-[85%] bg-gradient-to-br from-slate-700 to-slate-800 dark:from-slate-600 dark:to-slate-700 text-white rounded-2xl rounded-br-sm px-4 py-2 shadow-sm">
+          <div className="text-sm whitespace-pre-wrap">{interaction.user}</div>
         </div>
       </div>
 
-      {/* User message */}
-      <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded p-3">
-        <div className="text-xs text-blue-600 dark:text-blue-400 mb-1 flex items-center gap-1">
-          <span>👤</span> User
-        </div>
-        <div className="text-sm whitespace-pre-wrap">{interaction.user}</div>
-      </div>
-
-      {/* Assistant response */}
+      {/* Assistant response - left aligned */}
       {interaction.assistant && (
-        <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded p-3">
-          <div className="text-xs text-green-600 dark:text-green-400 mb-1 flex items-center gap-1">
-            <span>🤖</span> Assistant
+        <div className="flex justify-start">
+          <div className="max-w-[85%] bg-muted rounded-2xl rounded-bl-sm px-4 py-2 shadow-sm">
+            <div className="text-sm whitespace-pre-wrap">
+              {interaction.assistant.length > 500 && !isExpanded
+                ? `${interaction.assistant.substring(0, 500)}...`
+                : interaction.assistant}
+            </div>
+            {interaction.assistant.length > 500 && !isExpanded && (
+              <button
+                type="button"
+                onClick={() => setIsExpanded(true)}
+                className="text-xs text-primary hover:underline mt-2"
+              >
+                Show more
+              </button>
+            )}
           </div>
-          <div className="text-sm whitespace-pre-wrap">
-            {interaction.assistant.length > 500 && !isExpanded
-              ? `${interaction.assistant.substring(0, 500)}...`
-              : interaction.assistant}
-          </div>
-          {interaction.assistant.length > 500 && !isExpanded && (
-            <button
-              type="button"
-              onClick={() => setIsExpanded(true)}
-              className="text-xs text-primary hover:underline mt-2"
-            >
-              Show more
-            </button>
-          )}
         </div>
       )}
 
-      {/* Thinking (expandable) */}
+      {/* Thinking (expandable) - left aligned, subtle */}
       {hasThinking && (
-        <div>
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-xs text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-1"
-          >
-            <span>🧠</span>
-            {isExpanded ? "▼ Hide thinking" : "▶ Show thinking"}
-          </button>
+        <div className="flex justify-start">
+          <div className="max-w-[85%]">
+            <button
+              type="button"
+              onClick={() => setShowThinking(!showThinking)}
+              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-1 mb-1"
+            >
+              <span className="text-amber-500">💭</span>
+              {showThinking ? "Hide thinking" : "Show thinking"}
+            </button>
 
-          {isExpanded && (
-            <div className="mt-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded p-3">
-              <div className="text-xs text-amber-600 dark:text-amber-400 mb-1">
-                Thinking
+            {showThinking && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-2">
+                <pre className="text-xs whitespace-pre-wrap overflow-x-auto text-amber-800 dark:text-amber-200">
+                  {interaction.thinking}
+                </pre>
               </div>
-              <pre className="text-xs whitespace-pre-wrap overflow-x-auto">
-                {interaction.thinking}
-              </pre>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -595,18 +591,19 @@ export function SessionDetailPage() {
       {/* Context Restoration */}
       <ContextRestorationCard session={session} />
 
-      {/* Session Context (from MD file) */}
+      {/* Session Context (from YAML file) */}
       <SessionContextCard sessionId={session.id} />
 
-      {interactionCount > 0 && (
+      {/* Interactions */}
+      {interactionCount > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">
               Interactions ({interactionCount})
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+          <CardContent className="max-h-[600px] overflow-y-auto">
+            <div className="space-y-6">
               {session.interactions.map((interaction, index) => (
                 <InteractionCard
                   key={interaction.id}
@@ -617,9 +614,7 @@ export function SessionDetailPage() {
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {interactionCount === 0 && (
+      ) : (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             No interactions recorded in this session.
