@@ -1,58 +1,37 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
-import { SessionCardSkeletonList } from "@/components/ui/session-card-skeleton";
 import {
-  useInvalidateSessions,
-  useSessions,
-  useTags,
-} from "@/hooks/use-sessions";
-import { deleteSession } from "@/lib/api";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { SessionCardSkeletonList } from "@/components/ui/session-card-skeleton";
+import { useSessions, useTags } from "@/hooks/use-sessions";
 import type { Session, SessionType, Tag } from "@/lib/types";
 
-const SESSION_TYPES: { value: SessionType; label: string }[] = [
-  { value: "decision", label: "Decision" },
-  { value: "implementation", label: "Implementation" },
-  { value: "research", label: "Research" },
-  { value: "exploration", label: "Exploration" },
-  { value: "discussion", label: "Discussion" },
-  { value: "debug", label: "Debug" },
-  { value: "review", label: "Review" },
+const SESSION_TYPES: SessionType[] = [
+  "decision",
+  "implementation",
+  "research",
+  "exploration",
+  "discussion",
+  "debug",
+  "review",
 ];
 
-function SessionCard({
-  session,
-  tags,
-  onDelete,
-}: {
-  session: Session;
-  tags: Tag[];
-  onDelete: () => void;
-}) {
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!confirm("Delete this session?")) return;
-
-    setIsDeleting(true);
-    try {
-      await deleteSession(session.id);
-      onDelete();
-    } catch {
-      alert("Failed to delete session");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const date = new Date(session.createdAt).toLocaleDateString("ja-JP");
-  const userName = session.context?.user?.name || "unknown";
+function SessionCard({ session, tags }: { session: Session; tags: Tag[] }) {
+  const { t, i18n } = useTranslation("sessions");
+  const date = new Date(session.createdAt).toLocaleDateString(
+    i18n.language === "ja" ? "ja-JP" : "en-US",
+  );
+  const userName = session.context?.user?.name;
   const interactionCount = session.interactions?.length || 0;
 
   // Get tag color from tags.json
@@ -65,27 +44,20 @@ function SessionCard({
     <Link to={`/sessions/${session.id}`}>
       <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
         <CardHeader className="pb-2">
-          <div className="flex items-start justify-between">
-            <CardTitle className="text-base font-medium flex items-center gap-2">
-              <span className="line-clamp-1">
-                {session.title || "Untitled session"}
-              </span>
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="text-muted-foreground hover:text-destructive"
-            >
-              {isDeleting ? "..." : "x"}
-            </Button>
-          </div>
+          <CardTitle className="text-base font-medium flex items-center gap-2">
+            <span className="line-clamp-1">
+              {session.title || t("untitled")}
+            </span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <span>{userName}</span>
-            <span>-</span>
+            {userName && (
+              <>
+                <span>{userName}</span>
+                <span>-</span>
+              </>
+            )}
             <span>{date}</span>
             {session.context?.branch && (
               <>
@@ -99,7 +71,7 @@ function SessionCard({
               <>
                 <span>-</span>
                 <Badge variant="outline" className="text-xs font-normal">
-                  {session.sessionType}
+                  {t(`types.${session.sessionType}`)}
                 </Badge>
               </>
             )}
@@ -107,8 +79,7 @@ function SessionCard({
               <>
                 <span>-</span>
                 <span className="text-xs">
-                  {interactionCount} interaction
-                  {interactionCount !== 1 ? "s" : ""}
+                  {t("interactionCount", { count: interactionCount })}
                 </span>
               </>
             )}
@@ -148,6 +119,8 @@ function SessionCard({
 }
 
 export function SessionsPage() {
+  const { t } = useTranslation("sessions");
+  const { t: tc } = useTranslation("common");
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string>("all");
@@ -173,7 +146,6 @@ export function SessionsPage() {
 
   const { data: tagsData } = useTags();
   const tags = tagsData?.tags || [];
-  const invalidate = useInvalidateSessions();
 
   // Get unique tags from all sessions for filter dropdown
   const availableTags = useMemo(() => {
@@ -191,7 +163,7 @@ export function SessionsPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Sessions</h1>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
         </div>
         <SessionCardSkeletonList count={5} />
       </div>
@@ -201,7 +173,7 @@ export function SessionsPage() {
   if (error) {
     return (
       <div className="text-center py-12 text-destructive">
-        Failed to load sessions
+        {t("errors:failedToLoad.sessions")}
       </div>
     );
   }
@@ -212,10 +184,12 @@ export function SessionsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Sessions</h1>
+        <div>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        </div>
         <p className="text-sm text-muted-foreground">
-          {pagination?.total || 0} session
-          {(pagination?.total || 0) !== 1 ? "s" : ""}
+          {t("sessionCount", { count: pagination?.total || 0 })}
         </p>
       </div>
 
@@ -224,67 +198,67 @@ export function SessionsPage() {
       tagFilter === "all" &&
       typeFilter === "all" ? (
         <div className="text-center py-12 text-muted-foreground">
-          <p>No sessions found.</p>
-          <p className="text-sm mt-2">
-            Sessions will appear here after using Claude Code with the memoria
-            plugin.
-          </p>
+          <p>{t("noSessionsFound")}</p>
+          <p className="text-sm mt-2">{t("noSessionsDescription")}</p>
         </div>
       ) : (
         <>
           <div className="flex gap-4 items-center flex-wrap">
             <Input
-              placeholder="Search sessions..."
+              placeholder={t("searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="max-w-xs"
             />
-            <select
+            <Select
               value={typeFilter}
-              onChange={(e) => {
-                setTypeFilter(e.target.value);
+              onValueChange={(value) => {
+                setTypeFilter(value);
                 setPage(1);
               }}
-              className="border border-border/70 bg-white/80 rounded-sm px-3 py-2 text-sm"
             >
-              <option value="all">All Types</option>
-              {SESSION_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-            <select
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder={tc("allTypes")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{tc("allTypes")}</SelectItem>
+                {SESSION_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {t(`types.${type}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
               value={tagFilter}
-              onChange={(e) => {
-                setTagFilter(e.target.value);
+              onValueChange={(value) => {
+                setTagFilter(value);
                 setPage(1);
               }}
-              className="border border-border/70 bg-white/80 rounded-sm px-3 py-2 text-sm"
             >
-              <option value="all">All Tags</option>
-              {availableTags.map((tag) => (
-                <option key={tag} value={tag}>
-                  {tag}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder={tc("allTags")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{tc("allTags")}</SelectItem>
+                {availableTags.map((tag) => (
+                  <SelectItem key={tag} value={tag}>
+                    {tag}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {sessions.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <p>No sessions match your filters.</p>
+              <p>{t("noMatchingFilters")}</p>
             </div>
           ) : (
             <>
               <div className="grid gap-4">
                 {sessions.map((session) => (
-                  <SessionCard
-                    key={session.id}
-                    session={session}
-                    tags={tags}
-                    onDelete={invalidate}
-                  />
+                  <SessionCard key={session.id} session={session} tags={tags} />
                 ))}
               </div>
 

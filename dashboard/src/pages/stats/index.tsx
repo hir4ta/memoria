@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Bar,
   BarChart,
@@ -86,6 +87,8 @@ function SkeletonCard() {
 }
 
 export function StatsPage() {
+  const { t } = useTranslation("stats");
+
   const {
     data: overview,
     isLoading: overviewLoading,
@@ -116,7 +119,7 @@ export function StatsPage() {
   if (overviewError || activityError || tagsError) {
     return (
       <div className="text-center py-12 text-destructive">
-        Failed to load statistics
+        {t("errors:failedToLoad.statistics")}
       </div>
     );
   }
@@ -139,7 +142,10 @@ export function StatsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Statistics</h1>
+      <div>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+      </div>
 
       {/* Overview Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -153,19 +159,19 @@ export function StatsPage() {
         ) : (
           <>
             <StatCard
-              title="Total Sessions"
+              title={t("totalSessions")}
               value={overview?.sessions.total || 0}
             />
             <StatCard
-              title="Total Decisions"
+              title={t("totalDecisions")}
               value={overview?.decisions.total || 0}
             />
             <StatCard
-              title="Total Interactions"
+              title={t("totalInteractions")}
               value={overview?.interactions.total || 0}
             />
             <StatCard
-              title="Avg Interactions/Session"
+              title={t("avgInteractionsPerSession")}
               value={
                 overview && overview.sessions.total > 0
                   ? (
@@ -181,7 +187,7 @@ export function StatsPage() {
       {/* Activity Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Activity (Last 30 Days)</CardTitle>
+          <CardTitle>{t("activityChart")}</CardTitle>
         </CardHeader>
         <CardContent>
           {activityLoading ? (
@@ -221,7 +227,7 @@ export function StatsPage() {
         {/* Session Type Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Sessions by Type</CardTitle>
+            <CardTitle>{t("sessionsByType")}</CardTitle>
           </CardHeader>
           <CardContent>
             {overviewLoading ? (
@@ -242,7 +248,9 @@ export function StatsPage() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-muted-foreground py-8">No data</p>
+              <p className="text-center text-muted-foreground py-8">
+                {t("noData")}
+              </p>
             )}
           </CardContent>
         </Card>
@@ -250,7 +258,7 @@ export function StatsPage() {
         {/* Top Tags Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Top Tags</CardTitle>
+            <CardTitle>{t("topTags")}</CardTitle>
           </CardHeader>
           <CardContent>
             {tagsLoading ? (
@@ -271,7 +279,9 @@ export function StatsPage() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-muted-foreground py-8">No tags</p>
+              <p className="text-center text-muted-foreground py-8">
+                {t("noTags")}
+              </p>
             )}
           </CardContent>
         </Card>
@@ -281,7 +291,7 @@ export function StatsPage() {
       {decisionStatusData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Decisions by Status</CardTitle>
+            <CardTitle>{t("decisionsByStatus")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex gap-4 flex-wrap">

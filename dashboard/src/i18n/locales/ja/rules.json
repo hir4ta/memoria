@@ -1,0 +1,34 @@
+{
+  "title": "開発ルール",
+  "subtitle": "/memoria:reviewで使用されるレビュー基準。セッションから自動抽出されるか、手動で追加されます。",
+  "count": "{{filtered}} / {{total}}",
+  "searchPlaceholder": "ルールを検索...",
+  "allPriority": "すべての優先度",
+  "allCategories": "すべてのカテゴリ",
+  "allScopes": "すべてのスコープ",
+  "noRules": "ルールがまだありません。",
+  "noMatchingFilters": "フィルターに一致するルールがありません。",
+  "explanation": {
+    "title": "ルールとは？",
+    "devRules": "コーディング標準とアーキテクチャルール（例：N+1クエリを避ける）",
+    "reviewGuidelines": "コードレビューチェックリスト項目（例：トランザクションを確認）",
+    "description": "セッション中に発見されたルールは自動的に追加されます。<code>/memoria:review</code>を使用してこれらのルールに対してコードをチェックします。"
+  },
+  "fields": {
+    "text": "テキスト",
+    "status": "ステータス",
+    "priority": "優先度",
+    "category": "カテゴリ",
+    "scope": "スコープ",
+    "tags": "タグ（カンマ区切り）",
+    "rationale": "根拠",
+    "appliesTo": "適用対象（カンマ区切り）",
+    "exceptions": "例外（カンマ区切り）",
+    "lastSeen": "最終確認",
+    "occurrences": "発生回数"
+  },
+  "status": {
+    "active": "有効",
+    "deprecated": "非推奨"
+  }
+}

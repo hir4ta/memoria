@@ -299,6 +299,51 @@ app.get("/api/sessions", async (c) => {
   }
 });
 
+// Session Graph API - must be before /api/sessions/:id
+app.get("/api/sessions/graph", async (c) => {
+  const memoriaDir = getMemoriaDir();
+  try {
+    const sessionsIndex = getOrCreateSessionIndex(memoriaDir);
+
+    // Build nodes from sessions
+    const nodes = sessionsIndex.items.map((session) => ({
+      id: session.id,
+      title: session.title,
+      type: session.sessionType || "unknown",
+      tags: session.tags || [],
+      createdAt: session.createdAt,
+    }));
+
+    // Build edges based on shared tags
+    const edges: { source: string; target: string; weight: number }[] = [];
+
+    for (let i = 0; i < sessionsIndex.items.length; i++) {
+      for (let j = i + 1; j < sessionsIndex.items.length; j++) {
+        const s1 = sessionsIndex.items[i];
+        const s2 = sessionsIndex.items[j];
+
+        // Count shared tags
+        const sharedTags = (s1.tags || []).filter((t) =>
+          (s2.tags || []).includes(t),
+        );
+
+        if (sharedTags.length > 0) {
+          edges.push({
+            source: s1.id,
+            target: s2.id,
+            weight: sharedTags.length,
+          });
+        }
+      }
+    }
+
+    return c.json({ nodes, edges });
+  } catch (error) {
+    console.error("Failed to build session graph:", error);
+    return c.json({ error: "Failed to build session graph" }, 500);
+  }
+});
+
 app.get("/api/sessions/:id", async (c) => {
   const id = sanitizeId(c.req.param("id"));
   const sessionsDir = path.join(getMemoriaDir(), "sessions");
@@ -389,13 +434,21 @@ app.put("/api/sessions/:id", async (c) => {
 
 app.delete("/api/sessions/:id", async (c) => {
   const id = sanitizeId(c.req.param("id"));
-  const sessionsDir = path.join(getMemoriaDir(), "sessions");
+  const memoriaDir = getMemoriaDir();
+  const sessionsDir = path.join(memoriaDir, "sessions");
   try {
     const filePath = findJsonFileById(sessionsDir, id);
     if (!filePath) {
       return c.json({ error: "Session not found" }, 404);
     }
     fs.unlinkSync(filePath);
+    // Also delete YAML file if exists
+    const yamlPath = filePath.replace(/\.json$/, ".yaml");
+    if (fs.existsSync(yamlPath)) {
+      fs.unlinkSync(yamlPath);
+    }
+    // Rebuild index after deletion
+    rebuildAllIndexes(memoriaDir);
     return c.json({ success: true });
   } catch (error) {
     console.error("Failed to delete session:", error);
@@ -795,51 +848,6 @@ app.get("/api/decisions/:id/impact", async (c) => {
   } catch (error) {
     console.error("Failed to analyze decision impact:", error);
     return c.json({ error: "Failed to analyze decision impact" }, 500);
-  }
-});
-
-// Session Graph API
-app.get("/api/sessions/graph", async (c) => {
-  const memoriaDir = getMemoriaDir();
-  try {
-    const sessionsIndex = getOrCreateSessionIndex(memoriaDir);
-
-    // Build nodes from sessions
-    const nodes = sessionsIndex.items.map((session) => ({
-      id: session.id,
-      title: session.title,
-      type: session.sessionType || "unknown",
-      tags: session.tags || [],
-      createdAt: session.createdAt,
-    }));
-
-    // Build edges based on shared tags
-    const edges: { source: string; target: string; weight: number }[] = [];
-
-    for (let i = 0; i < sessionsIndex.items.length; i++) {
-      for (let j = i + 1; j < sessionsIndex.items.length; j++) {
-        const s1 = sessionsIndex.items[i];
-        const s2 = sessionsIndex.items[j];
-
-        // Count shared tags
-        const sharedTags = (s1.tags || []).filter((t) =>
-          (s2.tags || []).includes(t),
-        );
-
-        if (sharedTags.length > 0) {
-          edges.push({
-            source: s1.id,
-            target: s2.id,
-            weight: sharedTags.length,
-          });
-        }
-      }
-    }
-
-    return c.json({ nodes, edges });
-  } catch (error) {
-    console.error("Failed to build session graph:", error);
-    return c.json({ error: "Failed to build session graph" }, 500);
   }
 });
 

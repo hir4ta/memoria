@@ -1,11 +1,30 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DecisionCardSkeletonList } from "@/components/ui/decision-card-skeleton";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useDecisions, useInvalidateDecisions } from "@/hooks/use-decisions";
 import { deleteDecision } from "@/lib/api";
 import type { Decision } from "@/lib/types";
@@ -17,25 +36,27 @@ function DecisionCard({
   decision: Decision;
   onDelete: () => void;
 }) {
+  const { t, i18n } = useTranslation("decisions");
+  const { t: tc } = useTranslation("common");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!confirm("Delete this decision?")) return;
-
+  const handleDelete = async () => {
     setIsDeleting(true);
     try {
       await deleteDecision(decision.id);
       onDelete();
+      setDialogOpen(false);
     } catch {
-      alert("Failed to delete decision");
+      // Silently fail - could add toast here
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const date = new Date(decision.createdAt).toLocaleDateString("ja-JP");
+  const date = new Date(decision.createdAt).toLocaleDateString(
+    i18n.language === "ja" ? "ja-JP" : "en-US",
+  );
 
   const statusColors = {
     draft: "outline",
@@ -59,17 +80,45 @@ function DecisionCard({
                 </Badge>
               )}
               <Badge variant={statusColors[decision.status]}>
-                {decision.status}
+                {t(`status.${decision.status}`)}
               </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="text-muted-foreground hover:text-destructive"
-              >
-                {isDeleting ? "..." : "x"}
-              </Button>
+              <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDialogOpen(true);
+                    }}
+                    disabled={isDeleting}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    {isDeleting ? "..." : "×"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {tc("deleteDialog.description")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isDeleting}>
+                      {tc("cancel")}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      variant="destructive"
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? tc("deleting") : tc("delete")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </CardHeader>
@@ -78,8 +127,12 @@ function DecisionCard({
             {decision.decision}
           </p>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{decision.user?.name || "unknown"}</span>
-            <span>-</span>
+            {decision.user?.name && (
+              <>
+                <span>{decision.user.name}</span>
+                <span>-</span>
+              </>
+            )}
             <span>{date}</span>
           </div>
           {decision.tags && decision.tags.length > 0 && (
@@ -98,6 +151,8 @@ function DecisionCard({
 }
 
 export function DecisionsPage() {
+  const { t } = useTranslation("decisions");
+  const { t: tc } = useTranslation("common");
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string>("all");
@@ -137,7 +192,7 @@ export function DecisionsPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Decisions</h1>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
         </div>
         <DecisionCardSkeletonList count={5} />
       </div>
@@ -147,7 +202,7 @@ export function DecisionsPage() {
   if (error) {
     return (
       <div className="text-center py-12 text-destructive">
-        Failed to load decisions
+        {t("errors:failedToLoad.decisions")}
       </div>
     );
   }
@@ -158,10 +213,12 @@ export function DecisionsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Decisions</h1>
+        <div>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        </div>
         <p className="text-sm text-muted-foreground">
-          {pagination?.total || 0} decision
-          {(pagination?.total || 0) !== 1 ? "s" : ""}
+          {t("decisionCount", { count: pagination?.total || 0 })}
         </p>
       </div>
 
@@ -169,40 +226,42 @@ export function DecisionsPage() {
       !debouncedSearch &&
       tagFilter === "all" ? (
         <div className="text-center py-12 text-muted-foreground">
-          <p>No decisions found.</p>
-          <p className="text-sm mt-2">
-            Use /memoria:decision to record design decisions.
-          </p>
+          <p>{t("noDecisionsFound")}</p>
+          <p className="text-sm mt-2">{t("noDecisionsDescription")}</p>
         </div>
       ) : (
         <>
           <div className="flex gap-4 items-center flex-wrap">
             <Input
-              placeholder="Search decisions..."
+              placeholder={t("searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="max-w-xs"
             />
-            <select
+            <Select
               value={tagFilter}
-              onChange={(e) => {
-                setTagFilter(e.target.value);
+              onValueChange={(value) => {
+                setTagFilter(value);
                 setPage(1);
               }}
-              className="border border-border/70 bg-white/80 rounded-sm px-3 py-2 text-sm"
             >
-              <option value="all">All Tags</option>
-              {availableTags.map((tag) => (
-                <option key={tag} value={tag}>
-                  {tag}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder={tc("allTags")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{tc("allTags")}</SelectItem>
+                {availableTags.map((tag) => (
+                  <SelectItem key={tag} value={tag}>
+                    {tag}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {decisions.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <p>No decisions match your filters.</p>
+              <p>{t("noMatchingFilters")}</p>
             </div>
           ) : (
             <>

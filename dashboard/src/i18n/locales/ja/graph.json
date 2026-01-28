@@ -1,0 +1,29 @@
+{
+  "title": "セッショングラフ",
+  "subtitle": "共有タグで接続されたセッション",
+  "noSessions": "表示するセッションがありません",
+  "howToRead": {
+    "title": "読み方",
+    "nodes": "セッション（タイプ別に色分け）",
+    "lines": "セッション間の共有タグ（太い = より多く共有）",
+    "clickHint": "ノードをクリックしてセッション詳細を表示。ホバーすると下のパネルに情報が表示されます。"
+  },
+  "sessionTypes": "セッションタイプ",
+  "selectedSession": "選択されたセッション",
+  "clickToViewDetails": "クリックして詳細を表示",
+  "graphStats": {
+    "title": "グラフ統計",
+    "nodes": "ノード",
+    "connections": "接続"
+  },
+  "types": {
+    "decision": "意思決定",
+    "implementation": "実装",
+    "research": "調査",
+    "exploration": "探索",
+    "discussion": "議論",
+    "debug": "デバッグ",
+    "review": "レビュー",
+    "unknown": "不明"
+  }
+}

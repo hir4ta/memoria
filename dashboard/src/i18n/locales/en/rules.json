@@ -1,0 +1,34 @@
+{
+  "title": "Development Rules",
+  "subtitle": "Review criteria used by /memoria:review. Auto-extracted from sessions or added manually.",
+  "count": "{{filtered}} / {{total}}",
+  "searchPlaceholder": "Search rules...",
+  "allPriority": "All Priority",
+  "allCategories": "All Categories",
+  "allScopes": "All Scopes",
+  "noRules": "No rules yet.",
+  "noMatchingFilters": "No rules match your filters.",
+  "explanation": {
+    "title": "What are Rules?",
+    "devRules": "Coding standards and architecture rules (e.g., avoid N+1 queries)",
+    "reviewGuidelines": "Code review checklist items (e.g., verify transactions)",
+    "description": "Rules discovered during sessions are automatically added. Use <code>/memoria:review</code> to check code against these rules."
+  },
+  "fields": {
+    "text": "Text",
+    "status": "Status",
+    "priority": "Priority",
+    "category": "Category",
+    "scope": "Scope",
+    "tags": "Tags (comma separated)",
+    "rationale": "Rationale",
+    "appliesTo": "Applies To (comma separated)",
+    "exceptions": "Exceptions (comma separated)",
+    "lastSeen": "Last Seen",
+    "occurrences": "Occurrences"
+  },
+  "status": {
+    "active": "active",
+    "deprecated": "deprecated"
+  }
+}

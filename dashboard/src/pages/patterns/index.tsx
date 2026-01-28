@@ -1,9 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface Pattern {
@@ -62,12 +70,6 @@ const typeColors: Record<string, { bg: string; text: string; border: string }> =
     },
   };
 
-const typeLabels: Record<string, string> = {
-  good: "Good Pattern",
-  bad: "Anti-Pattern",
-  "error-solution": "Error Solution",
-};
-
 function PatternCard({
   pattern,
   onDelete,
@@ -75,9 +77,18 @@ function PatternCard({
   pattern: Pattern;
   onDelete: (id: string) => void;
 }) {
+  const { t, i18n } = useTranslation("patterns");
   const [isExpanded, setIsExpanded] = useState(false);
   const colors = typeColors[pattern.type] || typeColors.good;
-  const date = new Date(pattern.createdAt).toLocaleDateString("ja-JP");
+  const date = new Date(pattern.createdAt).toLocaleDateString(
+    i18n.language === "ja" ? "ja-JP" : "en-US",
+  );
+
+  const typeLabels: Record<string, string> = {
+    good: t("types.good"),
+    bad: t("types.bad"),
+    "error-solution": t("types.errorSolution"),
+  };
 
   return (
     <Card className={`${colors.border} border`}>
@@ -98,18 +109,10 @@ function PatternCard({
               {pattern.description}
             </CardTitle>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-destructive"
-            onClick={() => {
-              if (confirm("Delete this pattern?")) {
-                onDelete(pattern.id);
-              }
-            }}
-          >
-            ×
-          </Button>
+          <DeleteConfirmDialog
+            title={t("deleteTitle")}
+            onConfirm={() => onDelete(pattern.id)}
+          />
         </div>
       </CardHeader>
       <CardContent className="pt-0">
@@ -120,7 +123,7 @@ function PatternCard({
             {pattern.errorPattern && (
               <div>
                 <div className="text-xs font-medium text-muted-foreground mb-1">
-                  Error Pattern
+                  {t("fields.errorPattern")}
                 </div>
                 <pre className="text-xs bg-red-50 p-2 rounded overflow-x-auto whitespace-pre-wrap">
                   {pattern.errorPattern}
@@ -130,7 +133,7 @@ function PatternCard({
             {pattern.solution && (
               <div>
                 <div className="text-xs font-medium text-muted-foreground mb-1">
-                  Solution
+                  {t("fields.solution")}
                 </div>
                 <pre className="text-xs bg-green-50 p-2 rounded overflow-x-auto whitespace-pre-wrap">
                   {pattern.solution}
@@ -146,7 +149,9 @@ function PatternCard({
             onClick={() => setIsExpanded(!isExpanded)}
             className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
           >
-            {isExpanded ? "▼ Hide context" : "▶ Show context"}
+            {isExpanded
+              ? `▼ ${t("fields.hideContext")}`
+              : `▶ ${t("fields.showContext")}`}
           </button>
         )}
 
@@ -194,6 +199,7 @@ function StatCard({
 }
 
 export function PatternsPage() {
+  const { t } = useTranslation("patterns");
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
@@ -226,7 +232,7 @@ export function PatternsPage() {
   if (patternsError || statsError) {
     return (
       <div className="text-center py-12 text-destructive">
-        Failed to load patterns
+        {t("errors:failedToLoad.patterns")}
       </div>
     );
   }
@@ -248,11 +254,46 @@ export function PatternsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Learned Patterns</h1>
-        <p className="text-sm text-muted-foreground">
-          Patterns extracted from development sessions
-        </p>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
+
+      {/* Explanation */}
+      {patterns.length === 0 && !patternsLoading && (
+        <Card className="border-dashed">
+          <CardContent className="py-6">
+            <h3 className="font-medium mb-2">{t("explanation.title")}</h3>
+            <div className="text-sm text-muted-foreground space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="inline-block w-3 h-3 rounded-full bg-green-500 mt-1 shrink-0" />
+                <div>
+                  <strong>{t("types.good")}</strong>:{" "}
+                  {t("explanation.goodPattern")}
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="inline-block w-3 h-3 rounded-full bg-red-500 mt-1 shrink-0" />
+                <div>
+                  <strong>{t("types.bad")}</strong>:{" "}
+                  {t("explanation.antiPattern")}
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="inline-block w-3 h-3 rounded-full bg-amber-500 mt-1 shrink-0" />
+                <div>
+                  <strong>{t("types.errorSolution")}</strong>:{" "}
+                  {t("explanation.errorSolution")}
+                </div>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mt-3">
+              {t("explanation.description").replace(/<code>.*?<\/code>/g, "")}{" "}
+              <code className="bg-muted px-1 rounded">/memoria:debug</code>{" "}
+              <code className="bg-muted px-1 rounded">/memoria:tdd</code>
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -267,19 +308,22 @@ export function PatternsPage() {
           ))
         ) : (
           <>
-            <StatCard title="Total Patterns" value={statsData?.total || 0} />
             <StatCard
-              title="Good Patterns"
+              title={t("stats.totalPatterns")}
+              value={statsData?.total || 0}
+            />
+            <StatCard
+              title={t("stats.goodPatterns")}
               value={statsData?.byType?.good || 0}
               color="#16a34a"
             />
             <StatCard
-              title="Anti-Patterns"
+              title={t("stats.antiPatterns")}
               value={statsData?.byType?.bad || 0}
               color="#dc2626"
             />
             <StatCard
-              title="Error Solutions"
+              title={t("stats.errorSolutions")}
               value={statsData?.byType?.["error-solution"] || 0}
               color="#d97706"
             />
@@ -290,21 +334,24 @@ export function PatternsPage() {
       {/* Filters */}
       <div className="flex gap-4 items-center">
         <Input
-          placeholder="Search patterns..."
+          placeholder={t("searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="max-w-sm"
         />
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="border border-border/70 bg-white/80 rounded-md px-3 py-2 text-sm"
-        >
-          <option value="all">All Types</option>
-          <option value="good">Good Patterns</option>
-          <option value="bad">Anti-Patterns</option>
-          <option value="error-solution">Error Solutions</option>
-        </select>
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder={t("types.allTypes")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("types.allTypes")}</SelectItem>
+            <SelectItem value="good">{t("types.goodPatterns")}</SelectItem>
+            <SelectItem value="bad">{t("types.antiPatterns")}</SelectItem>
+            <SelectItem value="error-solution">
+              {t("types.errorSolutions")}
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Patterns List */}
@@ -325,9 +372,7 @@ export function PatternsPage() {
       ) : filteredPatterns.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            {patterns.length === 0
-              ? "No patterns learned yet. Patterns are extracted from development sessions."
-              : "No patterns match your filters."}
+            {patterns.length === 0 ? t("noPatterns") : t("noMatchingFilters")}
           </CardContent>
         </Card>
       ) : (

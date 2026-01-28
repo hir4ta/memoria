@@ -1,0 +1,25 @@
+{
+  "notFound": {
+    "title": "404",
+    "message": "Page not found",
+    "backToHome": "Back to home"
+  },
+  "failedToLoad": {
+    "sessions": "Failed to load sessions",
+    "decisions": "Failed to load decisions",
+    "patterns": "Failed to load patterns",
+    "statistics": "Failed to load statistics",
+    "graph": "Failed to load graph",
+    "session": "Failed to load session",
+    "decision": "Failed to load decision"
+  },
+  "sessionNotFound": "Session not found",
+  "decisionNotFound": "Decision not found",
+  "backToSessions": "Back to sessions",
+  "backToDecisions": "Back to decisions",
+  "failedToSave": "Failed to save",
+  "failedToUpdate": "Failed to update rule. Please try again.",
+  "missingRuleType": "Missing rule type for update.",
+  "rulesDocumentNotFound": "Rules document not found.",
+  "ruleTextEmpty": "Rule text cannot be empty."
+}

@@ -1,13 +1,35 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { deleteDecision, getDecision, updateDecision } from "@/lib/api";
 import type { Decision } from "@/lib/types";
 
 export function DecisionDetailPage() {
+  const { t, i18n } = useTranslation("decisions");
+  const { t: tc } = useTranslation("common");
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -19,6 +41,9 @@ export function DecisionDetailPage() {
   const [editReasoning, setEditReasoning] = useState("");
   const [editTags, setEditTags] = useState("");
   const [editStatus, setEditStatus] = useState<Decision["status"]>("active");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -38,6 +63,7 @@ export function DecisionDetailPage() {
 
   const handleSave = async () => {
     if (!decision || !id) return;
+    setSaveError(null);
     try {
       const updated = await updateDecision(id, {
         ...decision,
@@ -53,17 +79,21 @@ export function DecisionDetailPage() {
       setDecision(updated);
       setIsEditing(false);
     } catch {
-      alert("Failed to save");
+      setSaveError("Failed to save");
     }
   };
 
   const handleDelete = async () => {
-    if (!id || !confirm("Delete this decision?")) return;
+    if (!id) return;
+    setIsDeleting(true);
     try {
       await deleteDecision(id);
+      setDeleteDialogOpen(false);
       navigate("/decisions");
     } catch {
-      alert("Failed to delete");
+      // Keep dialog open on error
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -73,21 +103,25 @@ export function DecisionDetailPage() {
   };
 
   if (loading) {
-    return <div className="text-center py-12">Loading...</div>;
+    return <div className="text-center py-12">{tc("loading")}</div>;
   }
 
   if (error || !decision) {
     return (
       <div className="text-center py-12">
-        <p className="text-destructive">{error || "Decision not found"}</p>
+        <p className="text-destructive">
+          {error || t("errors:decisionNotFound")}
+        </p>
         <Link to="/decisions" className="text-primary underline mt-4 block">
-          Back to decisions
+          {t("errors:backToDecisions")}
         </Link>
       </div>
     );
   }
 
-  const date = new Date(decision.createdAt).toLocaleString("ja-JP");
+  const date = new Date(decision.createdAt).toLocaleString(
+    i18n.language === "ja" ? "ja-JP" : "en-US",
+  );
 
   const statusColors = {
     draft: "outline",
@@ -104,29 +138,57 @@ export function DecisionDetailPage() {
             to="/decisions"
             className="text-muted-foreground hover:text-foreground"
           >
-            &larr; Back
+            &larr; {tc("back")}
           </Link>
-          <h1 className="text-2xl font-bold">Decision Detail</h1>
+          <h1 className="text-2xl font-bold">{t("detail.title")}</h1>
         </div>
         <div className="flex gap-2">
           {isEditing ? (
             <>
               <Button variant="outline" onClick={() => setIsEditing(false)}>
-                Cancel
+                {tc("cancel")}
               </Button>
-              <Button onClick={handleSave}>Save</Button>
+              <Button onClick={handleSave}>{tc("save")}</Button>
+              {saveError && (
+                <span className="text-destructive text-sm">{saveError}</span>
+              )}
             </>
           ) : (
             <>
               <Button variant="outline" onClick={handleExport}>
-                Export
+                {tc("export")}
               </Button>
               <Button variant="outline" onClick={() => setIsEditing(true)}>
-                Edit
+                {tc("edit")}
               </Button>
-              <Button variant="destructive" onClick={handleDelete}>
-                Delete
-              </Button>
+              <AlertDialog
+                open={deleteDialogOpen}
+                onOpenChange={setDeleteDialogOpen}
+              >
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">{tc("delete")}</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {tc("deleteDialog.description")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isDeleting}>
+                      {tc("cancel")}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      variant="destructive"
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? tc("deleting") : tc("delete")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </>
           )}
         </div>
@@ -149,38 +211,51 @@ export function DecisionDetailPage() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-muted-foreground">User:</span>{" "}
+              <span className="text-muted-foreground">{tc("user")}:</span>{" "}
               {decision.user.name}
             </div>
             <div>
-              <span className="text-muted-foreground">Date:</span> {date}
+              <span className="text-muted-foreground">{tc("date")}:</span>{" "}
+              {date}
             </div>
-            <div>
-              <span className="text-muted-foreground">Status:</span>{" "}
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">{tc("status")}:</span>
               {isEditing ? (
-                <select
+                <Select
                   value={editStatus}
-                  onChange={(e) =>
-                    setEditStatus(e.target.value as Decision["status"])
+                  onValueChange={(value) =>
+                    setEditStatus(value as Decision["status"])
                   }
-                  className="border border-border/70 bg-white/80 rounded-sm px-3 py-1 text-sm"
                 >
-                  <option value="draft">Draft</option>
-                  <option value="active">Active</option>
-                  <option value="superseded">Superseded</option>
-                  <option value="deprecated">Deprecated</option>
-                </select>
+                  <SelectTrigger className="w-[130px] h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">{t("status.draft")}</SelectItem>
+                    <SelectItem value="active">{t("status.active")}</SelectItem>
+                    <SelectItem value="superseded">
+                      {t("status.superseded")}
+                    </SelectItem>
+                    <SelectItem value="deprecated">
+                      {t("status.deprecated")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               ) : (
                 <Badge variant={statusColors[decision.status]}>
-                  {decision.status}
+                  {t(`status.${decision.status}`)}
                 </Badge>
               )}
             </div>
             {decision.source && (
               <div>
-                <span className="text-muted-foreground">Source:</span>{" "}
+                <span className="text-muted-foreground">
+                  {t("detail.source")}:
+                </span>{" "}
                 <Badge variant="outline">
-                  {decision.source === "auto" ? "Auto-detected" : "Manual"}
+                  {decision.source === "auto"
+                    ? t("detail.autoDetected")
+                    : t("detail.manual")}
                 </Badge>
               </div>
             )}
@@ -188,13 +263,13 @@ export function DecisionDetailPage() {
 
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-1">
-              Decision
+              {t("detail.decision")}
             </h3>
             {isEditing ? (
-              <textarea
+              <Textarea
                 value={editDecision}
                 onChange={(e) => setEditDecision(e.target.value)}
-                className="w-full border rounded px-3 py-2 text-sm min-h-[100px]"
+                className="min-h-[100px]"
               />
             ) : (
               <p className="whitespace-pre-wrap">{decision.decision}</p>
@@ -203,13 +278,13 @@ export function DecisionDetailPage() {
 
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-1">
-              Reasoning
+              {t("detail.reasoning")}
             </h3>
             {isEditing ? (
-              <textarea
+              <Textarea
                 value={editReasoning}
                 onChange={(e) => setEditReasoning(e.target.value)}
-                className="w-full border rounded px-3 py-2 text-sm min-h-[100px]"
+                className="min-h-[100px]"
               />
             ) : (
               <p className="whitespace-pre-wrap">{decision.reasoning}</p>
@@ -219,7 +294,7 @@ export function DecisionDetailPage() {
           {decision.alternatives.length > 0 && (
             <div>
               <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                Alternatives Considered
+                {t("detail.alternatives")}
               </h3>
               <ul className="space-y-2">
                 {decision.alternatives.map((alt) => (
@@ -236,7 +311,7 @@ export function DecisionDetailPage() {
           )}
 
           <div>
-            <span className="text-muted-foreground text-sm">Tags:</span>
+            <span className="text-muted-foreground text-sm">{tc("tags")}:</span>
             {isEditing ? (
               <Input
                 value={editTags}
@@ -253,7 +328,9 @@ export function DecisionDetailPage() {
                     </Badge>
                   ))
                 ) : (
-                  <span className="text-muted-foreground text-sm">No tags</span>
+                  <span className="text-muted-foreground text-sm">
+                    {tc("noTags")}
+                  </span>
                 )}
               </div>
             )}

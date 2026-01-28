@@ -1,0 +1,14 @@
+{
+  "title": "統計",
+  "subtitle": "アクティビティチャートと使用統計を表示します。",
+  "totalSessions": "合計セッション",
+  "totalDecisions": "合計意思決定",
+  "totalInteractions": "合計やり取り",
+  "avgInteractionsPerSession": "平均やり取り/セッション",
+  "activityChart": "アクティビティ（過去30日間）",
+  "sessionsByType": "タイプ別セッション",
+  "topTags": "トップタグ",
+  "decisionsByStatus": "ステータス別意思決定",
+  "noData": "データなし",
+  "noTags": "タグなし"
+}

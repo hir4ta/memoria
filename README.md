@@ -116,9 +116,9 @@ At session start, recent 3 sessions are shown:
 
 ```
 **Recent sessions:**
-  1. [abc123] JWT認証の実装 (2026-01-27, main)
-  2. [def456] ダッシュボードUI (2026-01-26, main)
-  3. [ghi789] バグ修正 (2026-01-25, main)
+  1. [abc123] JWT authentication implementation (2026-01-27, main)
+  2. [def456] Dashboard UI improvements (2026-01-26, main)
+  3. [ghi789] Bug fixes (2026-01-25, main)
 
 Continue from a previous session? Use `/memoria:resume <id>`
 ```
@@ -182,6 +182,13 @@ npx @hir4ta/memoria --dashboard --port 8080
 - **Sessions**: List, view, edit, delete sessions
 - **Decisions**: List, create, edit, delete technical decisions
 - **Rules**: View and edit dev rules and review guidelines
+- **Patterns**: View learned patterns (good patterns, anti-patterns, error solutions)
+- **Statistics**: View activity charts and session statistics
+- **Graph**: Visualize session connections by shared tags
+
+#### Language Switching
+
+The dashboard supports English and Japanese. Click the language toggle (EN/JA) in the header to switch. The preference is saved to localStorage.
 
 ## How It Works
 

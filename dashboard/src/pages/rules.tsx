@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import type { RuleDocument, RuleItem } from "@/types/rules";
 
 const RULE_TYPES = ["dev-rules", "review-guidelines"] as const;
@@ -14,11 +23,11 @@ type RuleDraft = Omit<RuleItem, "tags" | "appliesTo" | "exceptions"> & {
   exceptionsText: string;
 };
 
-const formatDate = (value?: string) => {
+const formatDate = (value: string | undefined, locale: string) => {
   if (!value) return "N/A";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("ja-JP");
+  return date.toLocaleString(locale === "ja" ? "ja-JP" : "en-US");
 };
 
 const statusColors: Record<string, "default" | "secondary" | "destructive"> = {
@@ -43,6 +52,8 @@ const uniqueSorted = (values: string[]) =>
   Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
 
 export function RulesPage() {
+  const { t, i18n } = useTranslation("rules");
+  const { t: tc } = useTranslation("common");
   const [documents, setDocuments] = useState<RuleDocument[]>([]);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<RuleType | "all">("all");
@@ -281,101 +292,140 @@ export function RulesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Rules</h1>
-          <p className="text-sm text-muted-foreground">
-            Review guidelines and development rules generated from sessions and
-            decisions.
-          </p>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
         <p className="text-sm text-muted-foreground">
-          {filtered.length} of {items.length} rules
+          {t("count", { filtered: filtered.length, total: items.length })}
         </p>
       </div>
+
+      {/* Explanation Card */}
+      {items.length === 0 && (
+        <Card className="border-dashed">
+          <CardContent className="py-6">
+            <h3 className="font-medium mb-2">{t("explanation.title")}</h3>
+            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+              <li>
+                <strong>dev-rules</strong>: {t("explanation.devRules")}
+              </li>
+              <li>
+                <strong>review-guidelines</strong>:{" "}
+                {t("explanation.reviewGuidelines")}
+              </li>
+            </ul>
+            <p className="text-sm text-muted-foreground mt-3">
+              {t("explanation.description").replace(
+                "<code>/memoria:review</code>",
+                "",
+              )}
+              <code className="bg-muted px-1 rounded">/memoria:review</code>
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-3">
         <div className="flex flex-wrap gap-3 items-center">
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search rules..."
+            placeholder={t("searchPlaceholder")}
             className="w-64"
           />
-          <select
+          <Select
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as RuleType | "all")}
-            className="border border-border/70 bg-white/80 rounded-sm px-3 py-2 text-sm"
+            onValueChange={(value) => setTypeFilter(value as RuleType | "all")}
           >
-            <option value="all">All Types</option>
-            {RULE_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-          <select
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder={tc("allTypes")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{tc("allTypes")}</SelectItem>
+              {RULE_TYPES.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {type}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
             value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter(e.target.value as RuleItem["status"] | "all")
+            onValueChange={(value) =>
+              setStatusFilter(value as RuleItem["status"] | "all")
             }
-            className="border border-border/70 bg-white/80 rounded-sm px-3 py-2 text-sm"
           >
-            <option value="all">All Status</option>
-            <option value="active">active</option>
-            <option value="deprecated">deprecated</option>
-          </select>
-          <select
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder={tc("allStatus")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{tc("allStatus")}</SelectItem>
+              <SelectItem value="active">{t("status.active")}</SelectItem>
+              <SelectItem value="deprecated">
+                {t("status.deprecated")}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
             value={priorityFilter}
-            onChange={(e) =>
+            onValueChange={(value) =>
               setPriorityFilter(
-                e.target.value as NonNullable<RuleItem["priority"]> | "all",
+                value as NonNullable<RuleItem["priority"]> | "all",
               )
             }
-            className="border border-border/70 bg-white/80 rounded-sm px-3 py-2 text-sm"
           >
-            <option value="all">All Priority</option>
-            <option value="p0">p0</option>
-            <option value="p1">p1</option>
-            <option value="p2">p2</option>
-          </select>
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="border border-border/70 bg-white/80 rounded-sm px-3 py-2 text-sm"
-          >
-            <option value="all">All Categories</option>
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-          <select
-            value={scopeFilter}
-            onChange={(e) => setScopeFilter(e.target.value)}
-            className="border border-border/70 bg-white/80 rounded-sm px-3 py-2 text-sm"
-          >
-            <option value="all">All Scopes</option>
-            {scopes.map((scope) => (
-              <option key={scope} value={scope}>
-                {scope}
-              </option>
-            ))}
-          </select>
-          <select
-            value={tagFilter}
-            onChange={(e) => setTagFilter(e.target.value)}
-            className="border border-border/70 bg-white/80 rounded-sm px-3 py-2 text-sm"
-          >
-            <option value="all">All Tags</option>
-            {tags.map((tag) => (
-              <option key={tag} value={tag}>
-                {tag}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder={t("allPriority")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("allPriority")}</SelectItem>
+              <SelectItem value="p0">p0</SelectItem>
+              <SelectItem value="p1">p1</SelectItem>
+              <SelectItem value="p2">p2</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder={t("allCategories")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("allCategories")}</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={scopeFilter} onValueChange={setScopeFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder={t("allScopes")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("allScopes")}</SelectItem>
+              {scopes.map((scope) => (
+                <SelectItem key={scope} value={scope}>
+                  {scope}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={tagFilter} onValueChange={setTagFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder={tc("allTags")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{tc("allTags")}</SelectItem>
+              {tags.map((tag) => (
+                <SelectItem key={tag} value={tag}>
+                  {tag}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {hasFilters && (
             <Button variant="outline" size="sm" onClick={clearFilters}>
-              Reset
+              {tc("reset")}
             </Button>
           )}
         </div>
@@ -385,9 +435,7 @@ export function RulesPage() {
       {filtered.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            {items.length === 0
-              ? "No rules yet."
-              : "No rules match your filters."}
+            {items.length === 0 ? t("noRules") : t("noMatchingFilters")}
           </CardContent>
         </Card>
       ) : (
@@ -428,7 +476,7 @@ export function RulesPage() {
                             onClick={saveEdit}
                             disabled={isSaving}
                           >
-                            {isSaving ? "Saving..." : "Save"}
+                            {isSaving ? tc("saving") : tc("save")}
                           </Button>
                           <Button
                             size="sm"
@@ -436,7 +484,7 @@ export function RulesPage() {
                             onClick={cancelEdit}
                             disabled={isSaving}
                           >
-                            Cancel
+                            {tc("cancel")}
                           </Button>
                         </>
                       ) : (
@@ -446,7 +494,7 @@ export function RulesPage() {
                           onClick={() => startEdit(item)}
                           disabled={isLocked}
                         >
-                          Edit
+                          {tc("edit")}
                         </Button>
                       )}
                     </div>
@@ -460,11 +508,11 @@ export function RulesPage() {
                           htmlFor={`${fieldIdBase}-text`}
                           className="text-xs text-muted-foreground"
                         >
-                          Text
+                          {t("fields.text")}
                         </label>
-                        <textarea
+                        <Textarea
                           id={`${fieldIdBase}-text`}
-                          className="mt-1 w-full min-h-[80px] rounded-lg border border-border/70 bg-white/80 px-3 py-2 text-sm"
+                          className="mt-1 min-h-[80px]"
                           value={currentDraft.text}
                           onChange={(e) => updateDraft("text", e.target.value)}
                         />
@@ -474,54 +522,59 @@ export function RulesPage() {
                           htmlFor={`${fieldIdBase}-status`}
                           className="text-xs text-muted-foreground"
                         >
-                          Status
+                          {t("fields.status")}
                         </label>
-                        <select
-                          id={`${fieldIdBase}-status`}
+                        <Select
                           value={currentDraft.status}
-                          onChange={(e) =>
-                            updateDraft(
-                              "status",
-                              e.target.value as RuleItem["status"],
-                            )
+                          onValueChange={(value) =>
+                            updateDraft("status", value as RuleItem["status"])
                           }
-                          className="mt-1 w-full border border-border/70 bg-white/80 rounded-sm px-3 py-2 text-sm"
                         >
-                          <option value="active">active</option>
-                          <option value="deprecated">deprecated</option>
-                        </select>
+                          <SelectTrigger className="mt-1 w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">
+                              {t("status.active")}
+                            </SelectItem>
+                            <SelectItem value="deprecated">
+                              {t("status.deprecated")}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <label
                           htmlFor={`${fieldIdBase}-priority`}
                           className="text-xs text-muted-foreground"
                         >
-                          Priority
+                          {t("fields.priority")}
                         </label>
-                        <select
-                          id={`${fieldIdBase}-priority`}
+                        <Select
                           value={currentDraft.priority ?? "p2"}
-                          onChange={(e) =>
+                          onValueChange={(value) =>
                             updateDraft(
                               "priority",
-                              e.target.value as NonNullable<
-                                RuleItem["priority"]
-                              >,
+                              value as NonNullable<RuleItem["priority"]>,
                             )
                           }
-                          className="mt-1 w-full border border-border/70 bg-white/80 rounded-sm px-3 py-2 text-sm"
                         >
-                          <option value="p0">p0</option>
-                          <option value="p1">p1</option>
-                          <option value="p2">p2</option>
-                        </select>
+                          <SelectTrigger className="mt-1 w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="p0">p0</SelectItem>
+                            <SelectItem value="p1">p1</SelectItem>
+                            <SelectItem value="p2">p2</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <label
                           htmlFor={`${fieldIdBase}-category`}
                           className="text-xs text-muted-foreground"
                         >
-                          Category
+                          {t("fields.category")}
                         </label>
                         <Input
                           id={`${fieldIdBase}-category`}
@@ -538,7 +591,7 @@ export function RulesPage() {
                           htmlFor={`${fieldIdBase}-scope`}
                           className="text-xs text-muted-foreground"
                         >
-                          Scope
+                          {t("fields.scope")}
                         </label>
                         <Input
                           id={`${fieldIdBase}-scope`}
@@ -553,7 +606,7 @@ export function RulesPage() {
                           htmlFor={`${fieldIdBase}-tags`}
                           className="text-xs text-muted-foreground"
                         >
-                          Tags (comma separated)
+                          {t("fields.tags")}
                         </label>
                         <Input
                           id={`${fieldIdBase}-tags`}
@@ -569,11 +622,11 @@ export function RulesPage() {
                           htmlFor={`${fieldIdBase}-rationale`}
                           className="text-xs text-muted-foreground"
                         >
-                          Rationale
+                          {t("fields.rationale")}
                         </label>
-                        <textarea
+                        <Textarea
                           id={`${fieldIdBase}-rationale`}
-                          className="mt-1 w-full min-h-[60px] rounded-lg border border-border/70 bg-white/80 px-3 py-2 text-sm"
+                          className="mt-1 min-h-[60px]"
                           value={currentDraft.rationale ?? ""}
                           onChange={(e) =>
                             updateDraft("rationale", e.target.value)
@@ -585,7 +638,7 @@ export function RulesPage() {
                           htmlFor={`${fieldIdBase}-applies-to`}
                           className="text-xs text-muted-foreground"
                         >
-                          Applies To (comma separated)
+                          {t("fields.appliesTo")}
                         </label>
                         <Input
                           id={`${fieldIdBase}-applies-to`}
@@ -601,7 +654,7 @@ export function RulesPage() {
                           htmlFor={`${fieldIdBase}-exceptions`}
                           className="text-xs text-muted-foreground"
                         >
-                          Exceptions (comma separated)
+                          {t("fields.exceptions")}
                         </label>
                         <Input
                           id={`${fieldIdBase}-exceptions`}
@@ -618,35 +671,39 @@ export function RulesPage() {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <span className="text-muted-foreground">
-                            Category:
+                            {t("fields.category")}:
                           </span>{" "}
                           {categoryValue}
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Scope:</span>{" "}
+                          <span className="text-muted-foreground">
+                            {t("fields.scope")}:
+                          </span>{" "}
                           {scopeValue}
                         </div>
                         <div>
                           <span className="text-muted-foreground">
-                            Last Seen:
+                            {t("fields.lastSeen")}:
                           </span>{" "}
-                          {formatDate(item.lastSeenAt)}
+                          {formatDate(item.lastSeenAt, i18n.language)}
                         </div>
                         <div>
                           <span className="text-muted-foreground">
-                            Occurrences:
+                            {t("fields.occurrences")}:
                           </span>{" "}
                           {item.occurrences ?? 1}
                         </div>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Tags:</span>{" "}
+                        <span className="text-muted-foreground">
+                          {tc("tags")}:
+                        </span>{" "}
                         {renderChips(item.tags)}
                       </div>
                       {item.rationale && (
                         <div>
                           <span className="text-muted-foreground">
-                            Rationale:
+                            {t("fields.rationale")}:
                           </span>{" "}
                           {item.rationale}
                         </div>
@@ -654,7 +711,7 @@ export function RulesPage() {
                       {item.appliesTo && item.appliesTo.length > 0 && (
                         <div>
                           <span className="text-muted-foreground">
-                            Applies To:
+                            {t("fields.appliesTo").split(" (")[0]}:
                           </span>{" "}
                           {renderChips(item.appliesTo)}
                         </div>
@@ -662,7 +719,7 @@ export function RulesPage() {
                       {item.exceptions && item.exceptions.length > 0 && (
                         <div>
                           <span className="text-muted-foreground">
-                            Exceptions:
+                            {t("fields.exceptions").split(" (")[0]}:
                           </span>{" "}
                           {renderChips(item.exceptions)}
                         </div>

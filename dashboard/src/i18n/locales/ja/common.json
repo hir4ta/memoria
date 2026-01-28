@@ -1,0 +1,36 @@
+{
+  "save": "保存",
+  "cancel": "キャンセル",
+  "delete": "削除",
+  "edit": "編集",
+  "export": "エクスポート",
+  "copy": "コピー",
+  "copied": "コピーしました",
+  "reset": "リセット",
+  "back": "戻る",
+  "loading": "読み込み中...",
+  "deleting": "削除中...",
+  "saving": "保存中...",
+  "search": "検索",
+  "allTypes": "すべてのタイプ",
+  "allTags": "すべてのタグ",
+  "allStatus": "すべてのステータス",
+  "noTags": "タグなし",
+  "user": "ユーザー",
+  "date": "日付",
+  "branch": "ブランチ",
+  "type": "タイプ",
+  "status": "ステータス",
+  "tags": "タグ",
+  "na": "N/A",
+  "unknown": "不明",
+  "pagination": {
+    "previous": "前へ",
+    "next": "次へ",
+    "pageOf": "{{page}} / {{totalPages}} ページ"
+  },
+  "deleteDialog": {
+    "title": "本当に削除しますか？",
+    "description": "この操作は取り消せません。"
+  }
+}

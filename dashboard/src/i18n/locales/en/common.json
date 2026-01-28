@@ -1,0 +1,36 @@
+{
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "edit": "Edit",
+  "export": "Export",
+  "copy": "Copy",
+  "copied": "Copied!",
+  "reset": "Reset",
+  "back": "Back",
+  "loading": "Loading...",
+  "deleting": "Deleting...",
+  "saving": "Saving...",
+  "search": "Search",
+  "allTypes": "All Types",
+  "allTags": "All Tags",
+  "allStatus": "All Status",
+  "noTags": "No tags",
+  "user": "User",
+  "date": "Date",
+  "branch": "Branch",
+  "type": "Type",
+  "status": "Status",
+  "tags": "Tags",
+  "na": "N/A",
+  "unknown": "unknown",
+  "pagination": {
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {{page}} of {{totalPages}}"
+  },
+  "deleteDialog": {
+    "title": "Are you sure?",
+    "description": "This action cannot be undone."
+  }
+}

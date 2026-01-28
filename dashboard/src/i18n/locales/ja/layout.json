@@ -1,0 +1,12 @@
+{
+  "nav": {
+    "platform": "プラットフォーム",
+    "settings": "設定",
+    "sessions": "セッション",
+    "decisions": "意思決定",
+    "patterns": "パターン",
+    "statistics": "統計",
+    "graph": "グラフ",
+    "rules": "ルール"
+  }
+}

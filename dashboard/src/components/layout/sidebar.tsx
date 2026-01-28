@@ -1,20 +1,32 @@
+import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router";
 import { cn } from "@/lib/utils";
 
-const navGroups = [
+type NavItem = {
+  href: string;
+  labelKey: string;
+  icon: string;
+};
+
+type NavGroup = {
+  labelKey: string;
+  items: NavItem[];
+};
+
+const navGroups: NavGroup[] = [
   {
-    label: "Platform",
+    labelKey: "nav.platform",
     items: [
-      { href: "/", label: "Sessions", icon: "folder" },
-      { href: "/decisions", label: "Decisions", icon: "lightbulb" },
-      { href: "/patterns", label: "Patterns", icon: "pattern" },
-      { href: "/stats", label: "Statistics", icon: "chart" },
-      { href: "/graph", label: "Graph", icon: "graph" },
+      { href: "/", labelKey: "nav.sessions", icon: "folder" },
+      { href: "/decisions", labelKey: "nav.decisions", icon: "lightbulb" },
+      { href: "/patterns", labelKey: "nav.patterns", icon: "pattern" },
+      { href: "/stats", labelKey: "nav.statistics", icon: "chart" },
+      { href: "/graph", labelKey: "nav.graph", icon: "graph" },
     ],
   },
   {
-    label: "Settings",
-    items: [{ href: "/rules", label: "Rules", icon: "check" }],
+    labelKey: "nav.settings",
+    items: [{ href: "/rules", labelKey: "nav.rules", icon: "check" }],
   },
 ];
 
@@ -118,21 +130,24 @@ const icons: Record<string, React.ReactNode> = {
 };
 
 export function Sidebar() {
+  const { t } = useTranslation("layout");
   const location = useLocation();
 
   return (
     <aside className="w-60 shrink-0 rounded-xl border border-border/70 bg-white/60 px-4 py-6 backdrop-blur-md">
       <nav className="flex flex-col gap-6">
         {navGroups.map((group) => (
-          <div key={group.label} className="space-y-2">
+          <div key={group.labelKey} className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              {group.label}
+              {t(group.labelKey)}
             </p>
             <div className="flex flex-col gap-1">
               {group.items.map((item) => {
+                // Sessions (/) should also be active for /sessions/* paths
                 const isActive =
                   item.href === "/"
-                    ? location.pathname === "/"
+                    ? location.pathname === "/" ||
+                      location.pathname.startsWith("/sessions")
                     : location.pathname.startsWith(item.href);
 
                 return (
@@ -150,7 +165,7 @@ export function Sidebar() {
                       <span className="absolute left-3 h-2 w-2 rounded-full bg-orange-400" />
                     )}
                     {icons[item.icon]}
-                    {item.label}
+                    {t(item.labelKey)}
                   </Link>
                 );
               })}

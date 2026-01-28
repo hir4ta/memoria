@@ -38,5 +38,9 @@ export function useTags() {
 
 export function useInvalidateSessions() {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: ["sessions"] });
+  return () =>
+    queryClient.invalidateQueries({
+      queryKey: ["sessions"],
+      refetchType: "active",
+    });
 }

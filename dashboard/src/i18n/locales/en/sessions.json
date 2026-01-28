@@ -1,0 +1,86 @@
+{
+  "title": "Sessions",
+  "subtitle": "Browse and manage your Claude Code conversation history.",
+  "sessionCount": "{{count}} session",
+  "sessionCount_other": "{{count}} sessions",
+  "searchPlaceholder": "Search sessions...",
+  "untitled": "Untitled session",
+  "noSessionsFound": "No sessions found.",
+  "noSessionsDescription": "Sessions will appear here after using Claude Code with the memoria plugin.",
+  "noMatchingFilters": "No sessions match your filters.",
+  "interactionCount": "{{count}} interaction",
+  "interactionCount_other": "{{count}} interactions",
+  "detail": {
+    "title": "Session Detail",
+    "interactions": "Interactions",
+    "goal": "Goal",
+    "relatedSessions": "Related Sessions",
+    "deleteTitle": "Delete this session?",
+    "sessionContext": "Session Context",
+    "noInteractions": "No interactions recorded in this session."
+  },
+  "contextRestoration": {
+    "title": "Context Restoration",
+    "quickResume": "Quick Resume",
+    "quickResumeDescription": "Use this command in Claude Code to resume this session",
+    "environment": "Environment",
+    "directory": "Directory",
+    "modifiedFiles": "Modified Files ({{count}})",
+    "showFullPaths": "Show full paths"
+  },
+  "interaction": {
+    "user": "User",
+    "assistant": "Assistant",
+    "showMore": "Show more",
+    "showThinking": "Show thinking",
+    "hideThinking": "Hide thinking",
+    "contextCompacted": "Context Compacted",
+    "summaryFromPreviousContext": "Summary from previous context"
+  },
+  "types": {
+    "decision": "Decision",
+    "implementation": "Implementation",
+    "research": "Research",
+    "exploration": "Exploration",
+    "discussion": "Discussion",
+    "debug": "Debug",
+    "review": "Review"
+  },
+  "tags": {
+    "availableTags": "Available tags ({{count}})",
+    "clickToAdd": "Click below to add"
+  },
+  "context": {
+    "title": "Session Context",
+    "sections": "{{count}} sections",
+    "yaml": "YAML",
+    "sectionLabels": {
+      "summary": "Summary",
+      "plan": "Plan & Tasks",
+      "discussions": "Discussions",
+      "code_examples": "Code Examples",
+      "references": "References",
+      "handoff": "Handoff",
+      "errors": "Errors & Solutions"
+    },
+    "fields": {
+      "goal": "Goal",
+      "outcome": "Outcome",
+      "description": "Description",
+      "type": "Type",
+      "goals": "Goals",
+      "tasks": "Tasks",
+      "remaining": "Remaining",
+      "decision": "Decision",
+      "alternatives": "Alternatives",
+      "before": "Before",
+      "after": "After",
+      "context": "Context",
+      "cause": "Cause",
+      "solution": "Solution",
+      "stoppedReason": "Stopped reason",
+      "notes": "Notes",
+      "nextSteps": "Next Steps"
+    }
+  }
+}

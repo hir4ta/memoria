@@ -49,6 +49,7 @@ if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
     # Extract interactions using jq
     interactions_json=$(cat "$transcript_path" | jq -s '
         # User messages (text only, exclude tool results and local command outputs)
+        # Include isCompactSummary flag for auto-compact summaries
         [.[] | select(
             .type == "user" and
             .message.role == "user" and
@@ -57,7 +58,8 @@ if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
             (.message.content | startswith("<local-command-caveat>") | not)
         ) | {
             timestamp: .timestamp,
-            content: .message.content
+            content: .message.content,
+            isCompactSummary: (.isCompactSummary // false)
         }] as $user_messages |
 
         # Get user message timestamps for grouping
@@ -84,13 +86,15 @@ if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
             (if $i + 1 < ($user_messages | length) then $user_messages[$i + 1].timestamp else "9999-12-31T23:59:59Z" end) as $next_user_ts |
             # Collect all assistant responses between this user message and next
             [$all_assistant[] | select(.timestamp > $user.timestamp and .timestamp < $next_user_ts)] as $turn_responses |
-            if ($turn_responses | length) > 0 then {
-                id: ("int-" + (($i + 1) | tostring | if length < 3 then "00"[0:(3-length)] + . else . end)),
-                timestamp: $user.timestamp,
-                user: $user.content,
-                thinking: ([$turn_responses[].thinking | select(. != "")] | join("\n")),
-                assistant: ([$turn_responses[].text | select(. != "")] | join("\n"))
-            } else empty end
+            if ($turn_responses | length) > 0 then (
+                {
+                    id: ("int-" + (($i + 1) | tostring | if length < 3 then "00"[0:(3-length)] + . else . end)),
+                    timestamp: $user.timestamp,
+                    user: $user.content,
+                    thinking: ([$turn_responses[].thinking | select(. != "")] | join("\n")),
+                    assistant: ([$turn_responses[].text | select(. != "")] | join("\n"))
+                } + (if $user.isCompactSummary then {isCompactSummary: true} else {} end)
+            ) else empty end
         ] as $interactions |
 
         # File changes from tool usage

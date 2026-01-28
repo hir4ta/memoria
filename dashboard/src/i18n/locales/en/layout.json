@@ -1,0 +1,12 @@
+{
+  "nav": {
+    "platform": "Platform",
+    "settings": "Settings",
+    "sessions": "Sessions",
+    "decisions": "Decisions",
+    "patterns": "Patterns",
+    "statistics": "Statistics",
+    "graph": "Graph",
+    "rules": "Rules"
+  }
+}

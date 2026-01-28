@@ -1,0 +1,29 @@
+{
+  "title": "Session Graph",
+  "subtitle": "Sessions connected by shared tags",
+  "noSessions": "No sessions to display",
+  "howToRead": {
+    "title": "How to Read",
+    "nodes": "Sessions (colored by type)",
+    "lines": "Shared tags between sessions (thicker = more shared)",
+    "clickHint": "Click a node to view session details. Hover to see info in the panel below."
+  },
+  "sessionTypes": "Session Types",
+  "selectedSession": "Selected Session",
+  "clickToViewDetails": "Click to view details",
+  "graphStats": {
+    "title": "Graph Stats",
+    "nodes": "Nodes",
+    "connections": "Connections"
+  },
+  "types": {
+    "decision": "decision",
+    "implementation": "implementation",
+    "research": "research",
+    "exploration": "exploration",
+    "discussion": "discussion",
+    "debug": "debug",
+    "review": "review",
+    "unknown": "unknown"
+  }
+}

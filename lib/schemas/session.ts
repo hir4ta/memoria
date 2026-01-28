@@ -38,6 +38,7 @@ export const InteractionSchema = z.object({
   user: z.string(), // User message
   thinking: z.string().optional(), // Claude thinking
   assistant: z.string().optional(), // Claude response
+  isCompactSummary: z.boolean().optional(), // True if this is an auto-compact summary
 });
 
 export type Interaction = z.infer<typeof InteractionSchema>;

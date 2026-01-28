@@ -1,0 +1,25 @@
+{
+  "notFound": {
+    "title": "404",
+    "message": "ページが見つかりません",
+    "backToHome": "ホームに戻る"
+  },
+  "failedToLoad": {
+    "sessions": "セッションの読み込みに失敗しました",
+    "decisions": "意思決定の読み込みに失敗しました",
+    "patterns": "パターンの読み込みに失敗しました",
+    "statistics": "統計の読み込みに失敗しました",
+    "graph": "グラフの読み込みに失敗しました",
+    "session": "セッションの読み込みに失敗しました",
+    "decision": "意思決定の読み込みに失敗しました"
+  },
+  "sessionNotFound": "セッションが見つかりません",
+  "decisionNotFound": "意思決定が見つかりません",
+  "backToSessions": "セッション一覧に戻る",
+  "backToDecisions": "意思決定一覧に戻る",
+  "failedToSave": "保存に失敗しました",
+  "failedToUpdate": "ルールの更新に失敗しました。もう一度お試しください。",
+  "missingRuleType": "更新のルールタイプがありません。",
+  "rulesDocumentNotFound": "ルールドキュメントが見つかりません。",
+  "ruleTextEmpty": "ルールテキストは空にできません。"
+}

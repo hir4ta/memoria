@@ -1,0 +1,84 @@
+{
+  "title": "セッション",
+  "subtitle": "Claude Codeとの会話履歴を閲覧・管理します。",
+  "sessionCount": "{{count}}件のセッション",
+  "searchPlaceholder": "セッションを検索...",
+  "untitled": "無題のセッション",
+  "noSessionsFound": "セッションが見つかりません。",
+  "noSessionsDescription": "memoriaプラグインでClaude Codeを使用すると、ここにセッションが表示されます。",
+  "noMatchingFilters": "フィルターに一致するセッションがありません。",
+  "interactionCount": "{{count}}件のやり取り",
+  "detail": {
+    "title": "セッション詳細",
+    "interactions": "やり取り",
+    "goal": "目標",
+    "relatedSessions": "関連セッション",
+    "deleteTitle": "このセッションを削除しますか？",
+    "sessionContext": "セッションコンテキスト",
+    "noInteractions": "このセッションにはやり取りが記録されていません。"
+  },
+  "contextRestoration": {
+    "title": "コンテキスト復元",
+    "quickResume": "クイック再開",
+    "quickResumeDescription": "Claude Codeでこのコマンドを使用してセッションを再開します",
+    "environment": "環境",
+    "directory": "ディレクトリ",
+    "modifiedFiles": "変更されたファイル ({{count}})",
+    "showFullPaths": "フルパスを表示"
+  },
+  "interaction": {
+    "user": "ユーザー",
+    "assistant": "アシスタント",
+    "showMore": "もっと見る",
+    "showThinking": "思考を表示",
+    "hideThinking": "思考を非表示",
+    "contextCompacted": "コンテキスト圧縮",
+    "summaryFromPreviousContext": "前のコンテキストからの要約"
+  },
+  "types": {
+    "decision": "意思決定",
+    "implementation": "実装",
+    "research": "調査",
+    "exploration": "探索",
+    "discussion": "議論",
+    "debug": "デバッグ",
+    "review": "レビュー"
+  },
+  "tags": {
+    "availableTags": "利用可能なタグ ({{count}})",
+    "clickToAdd": "下をクリックして追加"
+  },
+  "context": {
+    "title": "セッションコンテキスト",
+    "sections": "{{count}}セクション",
+    "yaml": "YAML",
+    "sectionLabels": {
+      "summary": "概要",
+      "plan": "計画・タスク",
+      "discussions": "議論",
+      "code_examples": "コード例",
+      "references": "参考資料",
+      "handoff": "引き継ぎ",
+      "errors": "エラーと解決策"
+    },
+    "fields": {
+      "goal": "目標",
+      "outcome": "結果",
+      "description": "説明",
+      "type": "タイプ",
+      "goals": "目標",
+      "tasks": "タスク",
+      "remaining": "残作業",
+      "decision": "決定",
+      "alternatives": "代替案",
+      "before": "変更前",
+      "after": "変更後",
+      "context": "コンテキスト",
+      "cause": "原因",
+      "solution": "解決策",
+      "stoppedReason": "中断理由",
+      "notes": "メモ",
+      "nextSteps": "次のステップ"
+    }
+  }
+}
