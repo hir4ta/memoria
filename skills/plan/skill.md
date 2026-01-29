@@ -1,370 +1,274 @@
 ---
 name: plan
 description: |
-  Creates detailed implementation plan with 2-5 minute tasks.
-  References past similar implementations for informed planning.
-  Use after brainstorm approval or when starting implementation.
-context: fork
+  Memory-informed design and implementation planning.
+  Searches past sessions/decisions/patterns, asks clarifying questions,
+  then creates detailed task breakdown.
 ---
 
 # /memoria:plan
 
-Creates detailed implementation plans with 2-5 minute tasks, complete code samples, and TDD enforcement.
+Memory-informed design and implementation planning.
 
 ## Invocation
 
 ```
-/memoria:plan                    # Create plan for current feature
-/memoria:plan "feature"         # Create plan for specific feature
-/memoria:plan --from-design     # Create plan from recent design document
+/memoria:plan                  # Plan for current task
+/memoria:plan "feature"        # Plan for specific feature
 ```
 
 ## Workflow Overview
 
 ```
-Phase 1: Memory Search     → Find past similar implementations
-Phase 2: Task Breakdown    → Split into 2-5 minute tasks (TDD first)
-Phase 3: Plan Output       → Save to docs/plans/ + interactions
+Phase 1: Memory Search      → Find relevant past knowledge
+Phase 2: Socratic Questions → Clarify requirements (1 question at a time)
+Phase 3: Design Decision    → Present approaches with tradeoffs
+Phase 4: Task Breakdown     → Create actionable task list
 ```
 
 ---
 
-## Phase 1: Memory Search
+## Phase 1: Memory Search (MANDATORY)
 
-**Search memoria for relevant past implementations to inform planning.**
+**Before any design work, search memoria for relevant context.**
 
 ### Search Procedure
 
-1. **Search sessions** for similar feature implementations:
-   ```
-   Glob: .memoria/sessions/**/*.json   # Search title, tags, plan, discussions
-   Grep: keywords from feature (component type, API type, etc.)
-   Focus: JSON files with plan.tasks containing similar features
-   ```
-
-2. **Search for related test patterns and errors**:
+1. **Search sessions** for similar implementations:
    ```
    Glob: .memoria/sessions/**/*.json
-   Look for: errors section with solutions, discussions about testing
+   Look for: title, tags, summary, discussions, errors
+   Match: keywords from user request
    ```
 
-3. **Check recent design documents**:
+2. **Search decisions** for related architectural choices:
    ```
-   Glob: docs/plans/*-design.md
-   Read: most recent relevant design
+   Glob: .memoria/decisions/**/*.json
+   Look for: title, decision, reasoning, tags
+   ```
+
+3. **Search patterns** for relevant good/bad/error patterns:
+   ```
+   Glob: .memoria/patterns/*.json
+   Look for: type, errorPattern, solution
+   ```
+
+4. **Check rules** for constraints:
+   ```
+   Read: .memoria/rules/dev-rules.json
+   Read: .memoria/rules/review-guidelines.json
+   Look for: rules that apply to this feature
    ```
 
 ### Presentation Format
 
-If relevant memories found:
+**Always present findings before asking questions:**
 
 ```markdown
-## Past Implementation Reference
+## Past Context Found
 
-**Similar feature (2026-01-15):**
-> Implemented [feature X] with this plan:
-> - Task 1: [test file] (5 min)
-> - Task 2: [impl file] (3 min)
-> - Total tasks: 8, Completion time: ~30 min
+**Similar implementation (2026-01-15):**
+> Previously implemented [feature X] using [approach Y].
+> Key decision: [decision made]
+> Outcome: [what happened]
 
-**Test patterns used:**
-- [Pattern name]: [brief description]
+**Related decisions:**
+- [decision-id] [title]: [summary] (status: active)
 
-**Issues encountered:**
-- [Issue]: [how it was resolved]
+**Relevant patterns:**
+- Good: [pattern description]
+- Error-solution: [error] → [solution]
+
+**Applicable rules:**
+- [rule content]
+
+---
+
+Based on this context, let me ask some questions...
+```
+
+**If no relevant memories found:**
+```
+No directly relevant past sessions found. Starting fresh design.
 ```
 
 ---
 
-## Phase 2: Task Breakdown
+## Phase 2: Socratic Questions
 
-**CRITICAL: Every task must be 2-5 minutes. TDD is mandatory - tests come first.**
+**CRITICAL: Ask ONE question per message. Wait for response before next.**
 
-### Task Requirements
+### Core Questions (adapt as needed)
 
-Each task MUST include:
+1. **Use case clarification**
+   ```
+   What specific scenario should this feature support?
 
-1. **Task title** - What is being accomplished
-2. **Files** - Complete file paths (create/modify/test)
-3. **Steps** - Step-by-step instructions
-4. **Code** - Complete code samples (copy-paste ready)
-5. **Command** - Verification command
-6. **Expected** - Expected output
-7. **Commit** - Conventional Commits message
+   Options:
+   a) [Scenario A based on memory]
+   b) [Scenario B]
+   c) [Scenario C]
+   d) Other: [describe]
+   ```
 
-### TDD Enforcement
+2. **Success criteria**
+   ```
+   How will we know this is successful?
 
-**MANDATORY: Test tasks come before implementation tasks.**
+   Consider:
+   - Functional requirements (must work)
+   - Quality requirements (tests, performance)
+   ```
 
-```
-Wrong order:
-1. Implement feature
-2. Write tests
+3. **Constraints**
+   ```
+   Any constraints to consider?
 
-Correct order:
-1. Write failing test (RED)
-2. Implement minimal code (GREEN)
-3. Refactor (REFACTOR)
-4. Repeat for next behavior
-```
+   From past decisions:
+   - [relevant constraint from decisions/rules]
 
-### Task Size Guidelines
+   Other possible constraints:
+   a) Technology: [must use X]
+   b) Compatibility: [must work with Y]
+   c) Other: [specify]
+   ```
 
-| Task Type | Target Duration | Signs of Too Large |
-|-----------|-----------------|-------------------|
-| Test creation | 2-5 min | Multiple behaviors tested |
-| Minimal impl | 2-5 min | Adding extra features |
-| Refactor | 2-3 min | Changing external behavior |
-| Config/setup | 1-3 min | Multiple files touched |
+4. **Integration points**
+   ```
+   How does this integrate with existing code?
 
-### Dependency Rules
+   - Which files need modification?
+   - What interfaces must be maintained?
+   ```
 
-- Mark dependencies between tasks explicitly
-- If Task B depends on Task A, note it
-- Group related tasks with clear boundaries
+### Question Rules
+
+- **ONE question per message**
+- **Offer multiple choice** when possible
+- **Reference past decisions** - "Based on the previous JWT decision..."
+- **Skip obvious questions** - Don't ask what's already clear
+- **3-5 questions max** - Don't over-question
 
 ---
 
-## Plan Template
+## Phase 3: Design Decision
 
-Use this exact structure for the output:
+**Present 2-3 approaches with clear tradeoffs.**
 
 ```markdown
-# [Feature Name] Implementation Plan
+## Approaches
+
+### Approach A: [Name] (Recommended)
+
+**Summary**: [1-2 sentences]
+
+**Pros**:
+- [Advantage]
+
+**Cons**:
+- [Disadvantage]
+
+**Consistency**: [How this aligns with past decisions]
+
+---
+
+### Approach B: [Name]
+
+**Summary**: [1-2 sentences]
+
+**Pros/Cons**: [brief]
+
+---
+
+Which approach? (A/B/modify)
+```
+
+### Decision Rules
+
+- **Recommend one** - Put recommended first
+- **Check consistency** - Align with existing decisions
+- **Keep simple** - Prefer simpler approaches (YAGNI)
+
+---
+
+## Phase 4: Task Breakdown
+
+**After approach is selected, create actionable tasks.**
+
+### Task Format
+
+```markdown
+# [Feature] Implementation Plan
 
 ## Goal
 
-[One sentence describing what will be achieved]
-
-## Architecture
-
-[2-3 sentences describing the high-level architecture]
-
-## Tech Stack
-
-- [Technology 1]: [purpose]
-- [Technology 2]: [purpose]
-
-## Prerequisites
-
-- [ ] [Any setup required before starting]
+[One sentence]
 
 ## Tasks
 
-### Task 1: Create failing test for [behavior]
+### Task 1: [What to do]
 
-**Phase**: RED
-**Files**: `tests/path/to/feature.test.ts`
-**Duration**: ~3 min
+**Files**: `path/to/file.ts`
 
 **Steps**:
-1. Create test file
-2. Write test for [specific behavior]
-3. Run test to confirm it fails
+1. [Step 1]
+2. [Step 2]
 
-**Code**:
-```typescript
-// tests/path/to/feature.test.ts
-import { describe, it, expect } from 'vitest'
-import { featureFunction } from '../src/path/to/feature'
-
-describe('featureFunction', () => {
-  it('should [expected behavior]', () => {
-    const result = featureFunction(input)
-    expect(result).toBe(expectedOutput)
-  })
-})
-```
-
-**Command**: `npm test tests/path/to/feature.test.ts`
-**Expected**: FAIL - `featureFunction is not defined` or similar
-
-**Commit**: `test: add failing test for [behavior]`
+**Verification**: [How to verify it works]
 
 ---
 
-### Task 2: Implement minimal [feature]
+### Task 2: [What to do]
 
-**Phase**: GREEN
-**Files**: `src/path/to/feature.ts`
-**Duration**: ~4 min
 **Depends on**: Task 1
 
-**Steps**:
-1. Create implementation file
-2. Write minimal code to pass the test
-3. Run test to confirm it passes
-4. Run all tests to ensure no regression
-
-**Code**:
-```typescript
-// src/path/to/feature.ts
-export function featureFunction(input: InputType): OutputType {
-  // Minimal implementation to pass the test
-  return expectedOutput
-}
+[...]
 ```
 
-**Command**: `npm test tests/path/to/feature.test.ts`
-**Expected**: PASS
+### Task Guidelines
 
-**Command**: `npm test`
-**Expected**: All tests pass
-
-**Commit**: `feat: implement [feature]`
+- **Keep tasks small** - Each should be completable independently
+- **Include verification** - How to know it's done
+- **Note dependencies** - If Task B needs Task A first
+- **Be specific** - File paths, function names, etc.
 
 ---
 
-### Task 3: Refactor [what to improve]
+## Output Locations
 
-**Phase**: REFACTOR
-**Files**: `src/path/to/feature.ts`
-**Duration**: ~2 min
-**Depends on**: Task 2
-
-**Steps**:
-1. Identify improvement (naming, duplication, etc.)
-2. Make change while keeping tests green
-3. Run tests to confirm still passing
-
-**Code**:
-```typescript
-// Improved version
-export function featureFunction(input: InputType): OutputType {
-  // Refactored implementation
-  const intermediateResult = helperFunction(input)
-  return transform(intermediateResult)
-}
-
-function helperFunction(input: InputType): IntermediateType {
-  // Extracted helper
-}
-```
-
-**Command**: `npm test`
-**Expected**: All tests pass
-
-**Commit**: `refactor: extract helper for [purpose]`
+| Output | Location |
+|--------|----------|
+| Plan document | `docs/plans/YYYY-MM-DD-[topic]-plan.md` |
+| Session reference | Updated via `/memoria:save` |
 
 ---
 
-[Continue with more tasks as needed...]
+## Quick Example
+
 ```
+User: /memoria:plan "add dark mode"
 
-## Summary
+Claude:
+## Past Context Found
 
-| Phase | Tasks | Estimated Duration |
-|-------|-------|-------------------|
-| RED | X | ~Y min |
-| GREEN | X | ~Y min |
-| REFACTOR | X | ~Y min |
-| **Total** | **X** | **~Y min** |
+**Similar implementation (2026-01-10):**
+> Added theme system using CSS variables and Tailwind.
+> Key decision: CSS variables over Tailwind's dark: prefix
+> Outcome: Easy to extend, good performance
 
-## Next Steps
-
-After plan approval:
-1. Start with Task 1 using `/memoria:tdd`
-2. Complete each task in order
-3. Commit after each task
-4. Review with `/memoria:review --full` when complete
-```
+**Applicable rules:**
+- [code-style] Use Tailwind for all styling
 
 ---
 
-## Phase 3: Plan Output
+Let me ask one question:
 
-### Save to docs/plans/
+How should the theme be persisted?
 
+a) localStorage (simple, client-only)
+b) User preferences API (synced across devices)
+c) System preference only (no persistence)
 ```
-File: docs/plans/YYYY-MM-DD-[topic]-tasks.md
-Content: [Full plan from template above]
-```
-
-### Record to Session
-
-**Note:** Session interactions are auto-saved by SessionEnd hook. Plan details should be saved to JSON via `/memoria:save`.
-
-When plan is approved, prompt user to run `/memoria:save` to capture:
-
-**JSON plan field:**
-```json
-"plan": {
-  "goals": ["[Feature name] implementation"],
-  "tasks": [
-    "[ ] Task 1: [description] (RED)",
-    "[ ] Task 2: [description] (GREEN)",
-    "[ ] Task 3: [description] (REFACTOR)"
-  ],
-  "remaining": ["All tasks pending"]
-}
-```
-
-**JSON references field:**
-```json
-"references": [
-  {
-    "type": "plan",
-    "path": "docs/plans/YYYY-MM-DD-[topic]-tasks.md",
-    "description": "Implementation plan document"
-  }
-]
-```
-
-### Commit Plan
-
-```bash
-git add docs/plans/YYYY-MM-DD-[topic]-tasks.md
-git commit -m "docs: add [topic] implementation plan
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
-```
-
----
-
-## Task Tracking
-
-As tasks are completed during implementation:
-
-### Update plan file
-
-In the plan file, update task status:
-
-```markdown
-### Task 1: Create failing test for [behavior] ✅
-
-[... task details ...]
-
-**Status**: Complete (2026-01-27 10:15)
-```
-
-### Update JSON (via /memoria:save)
-
-When saving session, update plan.tasks to reflect progress:
-
-```json
-"plan": {
-  "tasks": [
-    "[x] Task 1: Create failing test (RED)",
-    "[x] Task 2: Implement minimal code (GREEN)",
-    "[ ] Task 3: Refactor (REFACTOR)"
-  ],
-  "remaining": ["Task 3: Refactor"]
-}
-```
-
----
-
-## Quality Checklist
-
-Before finalizing plan, verify:
-
-- [ ] Every implementation task has a preceding test task
-- [ ] Each task is 2-5 minutes
-- [ ] Code samples are complete and copy-paste ready
-- [ ] File paths are accurate
-- [ ] Commands are correct for the project
-- [ ] Dependencies between tasks are clear
-- [ ] Commit messages follow Conventional Commits
 
 ---
 
@@ -375,19 +279,12 @@ After plan approval:
 ```markdown
 ## Plan Ready
 
-Implementation plan saved to: `docs/plans/YYYY-MM-DD-[topic]-tasks.md`
+Saved to: `docs/plans/2026-01-27-dark-mode-plan.md`
 
-**Summary:**
-- Total tasks: X
-- RED (test) tasks: Y
-- GREEN (impl) tasks: Y
-- REFACTOR tasks: Z
-- Estimated duration: ~N min
+**Tasks**: 5
+**Key decision**: CSS variables approach
 
-**Start implementation:**
-1. Run `/memoria:tdd` to begin Task 1
-2. Follow RED → GREEN → REFACTOR cycle
-3. Commit after each task
+Ready to start implementation?
 
-Ready to start?
+When done, run `/memoria:save` to capture decisions and patterns.
 ```

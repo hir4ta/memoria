@@ -1,6 +1,6 @@
 {
   "name": "@hir4ta/memoria",
-  "version": "0.12.11",
+  "version": "0.12.12",
   "description": "Long-term memory plugin for Claude Code - automated session saving, recording technical decisions, and web dashboard",
   "keywords": [
     "claude",
@@ -35,18 +35,12 @@
   "devDependencies": {
     "@biomejs/biome": "2.3.12",
     "@hono/node-server": "^1.13.7",
-    "@radix-ui/react-alert-dialog": "^1.1.15",
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-dropdown-menu": "^2.1.16",
-    "@radix-ui/react-scroll-area": "^1.2.10",
     "@radix-ui/react-select": "^2.2.6",
-    "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/vite": "^4.0.7",
     "@tanstack/react-query": "^5.90.20",
-    "@tanstack/react-virtual": "^3.13.18",
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",

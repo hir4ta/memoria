@@ -1,27 +1,14 @@
 import { Link2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { SessionContextCard } from "@/components/session-context-card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useInvalidateSessions } from "@/hooks/use-sessions";
-import { deleteSession, getSession, getTags, updateSession } from "@/lib/api";
+import { getSession, getTags } from "@/lib/api";
 import type { Interaction, Session, Tag } from "@/lib/types";
 
 // Format date as YYYY/M/D HH:MM:SS with leading zeros for time
@@ -343,19 +330,10 @@ export function SessionDetailPage() {
   const { t, i18n } = useTranslation("sessions");
   const { t: tc } = useTranslation("common");
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const invalidateSessions = useInvalidateSessions();
   const [session, setSession] = useState<Session | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState("");
-  const [editGoal, setEditGoal] = useState("");
-  const [editTags, setEditTags] = useState("");
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -366,9 +344,6 @@ export function SessionDetailPage() {
       ]);
       setSession(sessionData);
       setTags(tagsData.tags || []);
-      setEditTitle(sessionData.title || "");
-      setEditGoal(sessionData.goal || "");
-      setEditTags(sessionData.tags.join(", "));
       setError(null);
     } catch {
       setError("Failed to load session");
@@ -380,46 +355,6 @@ export function SessionDetailPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  const handleSave = async () => {
-    if (!session || !id) return;
-    setSaveError(null);
-    try {
-      const updated = await updateSession(id, {
-        ...session,
-        title: editTitle,
-        goal: editGoal,
-        tags: editTags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
-      });
-      setSession(updated);
-      setIsEditing(false);
-    } catch {
-      setSaveError("Failed to save");
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!id) return;
-    setIsDeleting(true);
-    try {
-      await deleteSession(id);
-      invalidateSessions();
-      setDeleteDialogOpen(false);
-      navigate("/");
-    } catch {
-      // Keep dialog open on error
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleExport = () => {
-    if (!id) return;
-    window.open(`/api/export/sessions/${id}/markdown`, "_blank");
-  };
 
   const getTagColor = (tagId: string) => {
     const tag = tags.find((t) => t.id === tagId);
@@ -452,70 +387,11 @@ export function SessionDetailPage() {
   return (
     <div className="h-[calc(100%+64px)] flex flex-col overflow-hidden -my-8 -mx-8 px-6 py-4">
       {/* Header - fixed */}
-      <div className="flex items-center justify-between pb-4 flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <Link to="/" className="text-muted-foreground hover:text-foreground">
-            &larr; {tc("back")}
-          </Link>
-          <h1 className="text-2xl font-bold">{t("detail.title")}</h1>
-        </div>
-        <div className="flex gap-2">
-          {isEditing ? (
-            <>
-              <Button variant="outline" onClick={() => setIsEditing(false)}>
-                {tc("cancel")}
-              </Button>
-              <Button onClick={handleSave}>{tc("save")}</Button>
-              {saveError && (
-                <span className="text-destructive text-sm">{saveError}</span>
-              )}
-            </>
-          ) : (
-            <>
-              <Button variant="outline" onClick={handleExport}>
-                {tc("export")}
-              </Button>
-              <Button variant="outline" onClick={() => setIsEditing(true)}>
-                {tc("edit")}
-              </Button>
-              <AlertDialog
-                open={deleteDialogOpen}
-                onOpenChange={setDeleteDialogOpen}
-              >
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  >
-                    {tc("delete")}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {t("detail.deleteTitle")}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {tc("deleteDialog.description")}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isDeleting}>
-                      {tc("cancel")}
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      variant="destructive"
-                      onClick={handleDelete}
-                      disabled={isDeleting}
-                    >
-                      {isDeleting ? tc("deleting") : tc("delete")}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
-          )}
-        </div>
+      <div className="flex items-center gap-4 pb-4 flex-shrink-0">
+        <Link to="/" className="text-muted-foreground hover:text-foreground">
+          &larr; {tc("back")}
+        </Link>
+        <h1 className="text-2xl font-bold">{t("detail.title")}</h1>
       </div>
 
       {/* Two-column layout: Overview (30%) | Main Content (70%) */}
@@ -526,43 +402,10 @@ export function SessionDetailPage() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">
-                {isEditing ? (
-                  <Input
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    placeholder={t("untitled")}
-                    className="text-lg font-bold"
-                  />
-                ) : (
-                  session.title || t("untitled")
-                )}
+                {session.title || t("untitled")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              {isEditing ? (
-                <div>
-                  <label
-                    htmlFor="edit-goal"
-                    className="text-xs text-muted-foreground"
-                  >
-                    {t("detail.goal")}
-                  </label>
-                  <Input
-                    id="edit-goal"
-                    value={editGoal}
-                    onChange={(e) => setEditGoal(e.target.value)}
-                    placeholder={t("detail.goal")}
-                    className="mt-1"
-                  />
-                </div>
-              ) : (
-                session.goal && (
-                  <p className="text-muted-foreground text-xs">
-                    {session.goal}
-                  </p>
-                )
-              )}
-
               <div className="space-y-1.5">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{tc("user")}</span>
@@ -652,116 +495,28 @@ export function SessionDetailPage() {
                 <span className="text-muted-foreground text-xs">
                   {tc("tags")}
                 </span>
-                {isEditing ? (
-                  <div className="mt-1 space-y-2">
-                    <div className="flex flex-wrap gap-1">
-                      {editTags
-                        .split(",")
-                        .map((tg) => tg.trim())
-                        .filter(Boolean)
-                        .map((tagId) => (
-                          <Badge
-                            key={tagId}
-                            variant="secondary"
-                            className="text-xs cursor-pointer"
-                            style={{
-                              backgroundColor: `${getTagColor(tagId)}20`,
-                              color: getTagColor(tagId),
-                              borderColor: getTagColor(tagId),
-                            }}
-                            onClick={() => {
-                              const currentTags = editTags
-                                .split(",")
-                                .map((tg) => tg.trim())
-                                .filter(Boolean);
-                              setEditTags(
-                                currentTags
-                                  .filter((tg) => tg !== tagId)
-                                  .join(", "),
-                              );
-                            }}
-                          >
-                            {tagId} ×
-                          </Badge>
-                        ))}
-                      {editTags.trim() === "" && (
-                        <span className="text-muted-foreground text-xs">
-                          {t("tags.clickToAdd")}
-                        </span>
-                      )}
-                    </div>
-                    <details className="text-xs">
-                      <summary className="text-muted-foreground cursor-pointer">
-                        {t("tags.availableTags", { count: tags.length })}
-                      </summary>
-                      <div className="flex flex-wrap gap-1 mt-2 max-h-32 overflow-y-auto p-2 border rounded">
-                        {tags.map((tag) => {
-                          const isSelected = editTags
-                            .split(",")
-                            .map((tg) => tg.trim())
-                            .includes(tag.id);
-                          return (
-                            <Badge
-                              key={tag.id}
-                              variant={isSelected ? "default" : "outline"}
-                              className="text-xs cursor-pointer"
-                              style={
-                                isSelected
-                                  ? {
-                                      backgroundColor: tag.color,
-                                      color: "#fff",
-                                    }
-                                  : { borderColor: tag.color, color: tag.color }
-                              }
-                              onClick={() => {
-                                const currentTags = editTags
-                                  .split(",")
-                                  .map((tg) => tg.trim())
-                                  .filter(Boolean);
-                                if (isSelected) {
-                                  setEditTags(
-                                    currentTags
-                                      .filter((tg) => tg !== tag.id)
-                                      .join(", "),
-                                  );
-                                } else {
-                                  setEditTags(
-                                    [...currentTags, tag.id].join(", "),
-                                  );
-                                }
-                              }}
-                            >
-                              {tag.id}
-                            </Badge>
-                          );
-                        })}
-                      </div>
-                    </details>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {session.tags.length > 0 ? (
-                      session.tags.map((tagId) => (
-                        <Badge
-                          key={tagId}
-                          variant="secondary"
-                          className="text-xs"
-                          style={{
-                            backgroundColor: `${getTagColor(tagId)}20`,
-                            color: getTagColor(tagId),
-                            borderColor: getTagColor(tagId),
-                          }}
-                        >
-                          {tagId}
-                        </Badge>
-                      ))
-                    ) : (
-                      <span className="text-muted-foreground text-xs">
-                        {tc("noTags")}
-                      </span>
-                    )}
-                  </div>
-                )}
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {session.tags.length > 0 ? (
+                    session.tags.map((tagId) => (
+                      <Badge
+                        key={tagId}
+                        variant="secondary"
+                        className="text-xs"
+                        style={{
+                          backgroundColor: `${getTagColor(tagId)}20`,
+                          color: getTagColor(tagId),
+                          borderColor: getTagColor(tagId),
+                        }}
+                      >
+                        {tagId}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-muted-foreground text-xs">
+                      {tc("noTags")}
+                    </span>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -1,5 +1,0 @@
-{
-  "name": "interactive",
-  "description": "Interactive menu for memoria commands",
-  "triggers": ["/memoria:interactive", "/memoria:i"]
-}

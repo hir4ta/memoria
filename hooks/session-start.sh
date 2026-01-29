@@ -76,7 +76,8 @@ if git -C "$cwd" rev-parse --git-dir &> /dev/null 2>&1; then
         # Extract user/repo from SSH or HTTPS URL
         # git@github.com:user/repo.git → user/repo
         # https://github.com/user/repo.git → user/repo
-        repository=$(echo "$git_remote_url" | sed -E 's|.*[:/]([^/]+/[^/]+?)(\.git)?$|\1|')
+        # Extract user/repo from SSH or HTTPS URL (BSD sed compatible)
+        repository=$(echo "$git_remote_url" | sed -E 's|.*[:/]([^/]+/[^/]+)(\.git)?$|\1|' | sed 's/\.git$//')
     fi
 fi
 

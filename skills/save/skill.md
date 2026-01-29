@@ -1,19 +1,20 @@
 ---
 name: save
-description: Force flush current session state to JSON.
+description: Extract all data from session - summary, decisions, patterns, rules.
 ---
 
 # /memoria:save
 
-Create session summary and extract development rules from conversation.
+Extract and save all meaningful data from the current session.
 
 ## When to Use
 
-**Interactions are auto-saved** by SessionEnd hook. Use this command when you want to:
+**Run at the end of meaningful sessions** to extract:
 
-1. **Create summary** - Write title, goal, outcome, description for the session
-2. **Extract rules** - Save development rules/guidelines mentioned in conversation
-3. **Save structured data** - Add plan, discussions, errors, handoff, references to JSON
+- Summary (title, goal, outcome)
+- Technical decisions → `.memoria/decisions/`
+- Error patterns → `.memoria/patterns/`
+- Development rules → `.memoria/rules/`
 
 ## Usage
 
@@ -23,166 +24,190 @@ Create session summary and extract development rules from conversation.
 
 ## What Gets Saved
 
-| Target | Content |
-|--------|---------|
-| Session JSON | All session data including structured fields |
-| dev-rules.json | Development rules mentioned in conversation |
-| review-guidelines.json | Review guidelines mentioned in conversation |
-
-**Note:** `interactions`, `files`, `metrics` are auto-saved by SessionEnd hook.
-
-## JSON File Structure
-
-All session data is stored in a single JSON file:
-
-```json
-{
-  "id": "abc12345",
-  "sessionId": "abc12345-...",
-  "createdAt": "2026-01-27T10:00:00Z",
-  "title": "JWT authentication implementation",
-  "tags": ["auth", "jwt"],
-  "context": { ... },
-  "interactions": [...],
-  "metrics": { ... },
-  "files": [...],
-  "preCompactBackups": [...],
-  "resumedFrom": "def456",
-  "status": "complete",
-
-  "summary": {
-    "title": "JWT authentication implementation",
-    "goal": "Implement JWT-based auth with refresh token support",
-    "outcome": "success",
-    "description": "Implemented RS256 JWT auth with middleware",
-    "sessionType": "implementation"
-  },
-
-  "plan": {
-    "tasks": [
-      "[x] JWT signing method selection",
-      "[x] Middleware implementation",
-      "[ ] Add tests"
-    ],
-    "remaining": ["Add tests"]
-  },
-
-  "discussions": [
-    {
-      "topic": "Signing algorithm",
-      "decision": "RS256",
-      "reasoning": "Security considerations for production",
-      "alternatives": ["HS256 (simpler but requires shared secret)"]
-    }
-  ],
-
-  "codeExamples": [
-    {
-      "file": "src/auth/jwt.ts",
-      "description": "JWT generation function",
-      "after": "export function generateToken(payload: JWTPayload): string {\n  return jwt.sign(payload, privateKey, { algorithm: 'RS256' });\n}"
-    }
-  ],
-
-  "errors": [
-    {
-      "error": "secretOrPrivateKey must be asymmetric",
-      "cause": "Used HS256 secret key with RS256",
-      "solution": "Generate RS256 key pair"
-    }
-  ],
-
-  "handoff": {
-    "stoppedReason": "Test creation postponed to next session",
-    "notes": ["vitest configured", "Mock key pair in test/fixtures/"],
-    "nextSteps": ["Create jwt.test.ts", "Add E2E tests"]
-  },
-
-  "references": [
-    { "url": "https://jwt.io/introduction", "title": "JWT Introduction" },
-    { "path": "docs/auth-spec.md", "title": "Auth specification" }
-  ]
-}
-```
+| Data | Source | Destination |
+|------|--------|-------------|
+| Summary | Conversation | sessions/{id}.json |
+| Discussions | Conversation | sessions/{id}.json + **decisions/{id}.json** |
+| Errors | Conversation | sessions/{id}.json + **patterns/{user}.json** |
+| Dev rules | User instructions | rules/dev-rules.json |
+| Review guidelines | User instructions | rules/review-guidelines.json |
 
 ## Execution Steps
 
-### 1. Update Session JSON
+### Phase 1: Extract Session Data
 
-1. Get session path from additionalContext (shown at session start)
+1. Get session path from additionalContext
 2. Read current session file
-3. Update all fields:
-   - **title**: Brief descriptive title
-   - **tags**: Relevant keywords from `.memoria/tags.json`
-   - **summary**: title, goal, outcome, description, sessionType
-   - **plan**: tasks, remaining
-   - **discussions**: decisions with reasoning and alternatives
-   - **codeExamples**: significant code changes with before/after
-   - **errors**: problems encountered and solutions
-   - **handoff**: stoppedReason, notes, nextSteps
-   - **references**: URLs and files referenced
+3. **Scan entire conversation** (including long sessions) to extract:
 
-**Guidelines**:
-- Extract information from the conversation
-- Focus on what the next Claude session needs to know
-- Include specific code snippets when relevant
-- Document decisions and their reasoning
-- Be concise but comprehensive
-- **Text formatting**: Write each sentence on a single line. Do not break sentences mid-way for line length.
+#### Summary
+```json
+{
+  "title": "Brief descriptive title",
+  "goal": "What was trying to be achieved",
+  "outcome": "success | partial | failed | ongoing",
+  "description": "What was accomplished",
+  "sessionType": "implementation | decision | research | debug | review"
+}
+```
 
-### 2. Extract and Save Rules
+#### Discussions (→ also saved to decisions/)
+```json
+{
+  "topic": "What was discussed",
+  "decision": "What was decided",
+  "reasoning": "Why this decision",
+  "alternatives": ["Other options considered"]
+}
+```
 
-Scan the conversation for user instructions that should become persistent rules.
+#### Errors (→ also saved to patterns/)
+```json
+{
+  "error": "Error message (first line)",
+  "context": "What was being done",
+  "cause": "Root cause identified",
+  "solution": "How it was fixed",
+  "files": ["Related files"]
+}
+```
 
-#### Identify Dev Rules
+#### Other Fields
+- **plan**: tasks[], remaining[]
+- **handoff**: stoppedReason, notes, nextSteps
+- **references**: URLs and files referenced
 
-Look for user statements like:
+### Phase 2: Save to decisions/
+
+**For each discussion with a clear decision:**
+
+1. Generate ID from topic: `slugify(topic)-001`
+2. Check for duplicates in `.memoria/decisions/`
+3. Save to `.memoria/decisions/YYYY/MM/{id}.json`:
+
+```json
+{
+  "id": "jwt-auth-001",
+  "title": "Authentication method selection",
+  "decision": "Use JWT with RS256",
+  "reasoning": "Stateless, scalable, secure for microservices",
+  "alternatives": [
+    {"name": "Session Cookie", "reason": "Requires server-side state"}
+  ],
+  "tags": ["auth", "architecture"],
+  "createdAt": "2026-01-27T10:00:00Z",
+  "user": {"name": "git user.name"},
+  "context": {
+    "branch": "feature/auth",
+    "projectDir": "/path/to/project"
+  },
+  "relatedSessions": ["abc12345"],
+  "source": "save",
+  "status": "active"
+}
+```
+
+**Skip saving if:**
+- No clear decision was made (just discussion)
+- Similar decision already exists (check by title/topic)
+
+### Phase 3: Save to patterns/
+
+**For each error that was solved:**
+
+1. Read or create `.memoria/patterns/{git-user-name}.json`
+2. Check if similar pattern exists (by errorPattern)
+3. Add or update pattern:
+
+```json
+{
+  "id": "pattern-user-001",
+  "user": {"name": "git user.name"},
+  "patterns": [
+    {
+      "type": "error-solution",
+      "errorPattern": "secretOrPrivateKey must be asymmetric",
+      "errorRegex": "secretOrPrivateKey.*asymmetric",
+      "solution": "Generate RS256 key pair instead of using symmetric secret",
+      "reasoning": "RS256 requires asymmetric keys",
+      "relatedFiles": ["src/auth/jwt.ts"],
+      "tags": ["jwt", "auth"],
+      "detectedAt": "2026-01-27T10:00:00Z",
+      "source": "save",
+      "sourceId": "abc12345",
+      "occurrences": 1,
+      "lastSeenAt": "2026-01-27T10:00:00Z"
+    }
+  ],
+  "updatedAt": "2026-01-27T10:00:00Z"
+}
+```
+
+**If pattern already exists:**
+- Increment `occurrences`
+- Update `lastSeenAt`
+- Optionally improve `solution` if better
+
+**Skip saving if:**
+- Error was trivial (typo, syntax error)
+- No root cause was identified
+- Error was environment-specific
+
+### Phase 4: Extract Rules
+
+Scan conversation for user instructions:
+
+#### Dev Rules
+Look for:
 - "〜を使って" / "Use X"
 - "〜は禁止" / "Don't use X"
 - "〜パターンで書いて" / "Write with X pattern"
 - "必ず〜して" / "Always do X"
 
-#### Identify Review Guidelines
+Categories: `code-style`, `architecture`, `error-handling`, `performance`, `security`, `testing`, `other`
 
-Look for user statements like:
+#### Review Guidelines
+Look for:
 - "レビューで〜を確認して" / "Check X in reviews"
 - "〜は指摘して" / "Point out X"
-- "〜があったら警告して" / "Warn if X"
+
+Categories: `must-check`, `warning`, `suggestion`, `other`
 
 #### Duplicate Check
-
-Before adding a new rule:
-1. Read existing items in the target file
-2. Compare semantically with each existing item
-3. **Skip if similar rule already exists**
-4. Only add if genuinely new
-
-#### Rule Format
-
-```json
-{
-  "id": "rule-{timestamp}",
-  "content": "Use early return pattern",
-  "category": "code-style",
-  "source": "session:{session_id}",
-  "addedAt": "2026-01-27T10:00:00Z"
-}
-```
-
-Categories for dev-rules: `code-style`, `architecture`, `error-handling`, `performance`, `security`, `testing`, `other`
-
-Categories for review-guidelines: `must-check`, `warning`, `suggestion`, `other`
+Before adding:
+1. Read existing items
+2. Compare semantically
+3. Skip if similar exists
 
 ### File Operations
 
 ```bash
-# Session JSON (update all fields)
+# Session JSON
 Read + Edit: .memoria/sessions/YYYY/MM/{id}.json
 
-# Rules (read for duplicate check, edit to append)
+# Decisions (create if new)
+Read: .memoria/decisions/YYYY/MM/*.json (for duplicate check)
+Write: .memoria/decisions/YYYY/MM/{decision-id}.json
+
+# Patterns (merge into user file)
+Read + Edit: .memoria/patterns/{git-user-name}.json
+
+# Rules (append)
 Read + Edit: .memoria/rules/dev-rules.json
 Read + Edit: .memoria/rules/review-guidelines.json
 ```
+
+## Handling Long Sessions
+
+**For sessions with many interactions:**
+
+1. **Scan chronologically** - Process from start to end
+2. **Group related items** - Combine related discussions/errors
+3. **Prioritize significant items**:
+   - Decisions that changed direction
+   - Errors that took time to solve
+   - Rules explicitly stated by user
+4. **Don't truncate** - Extract all meaningful data
 
 ## Output Format
 
@@ -190,20 +215,25 @@ Read + Edit: .memoria/rules/review-guidelines.json
 Session saved.
 
 Session ID: abc12345
-
-Files:
-  JSON: .memoria/sessions/2026/01/abc12345.json (updated)
+Path: .memoria/sessions/2026/01/abc12345.json
 
 Summary:
   Title: JWT authentication implementation
-  Goal: Implement JWT-based auth with refresh token support
+  Goal: Implement JWT-based auth
   Outcome: success
   Type: implementation
+
+Decisions saved (2):
+  + [jwt-auth-001] Authentication method selection → decisions/2026/01/jwt-auth-001.json
+  + [token-expiry-001] Token expiry strategy → decisions/2026/01/token-expiry-001.json
+
+Patterns saved (1):
+  + [error-solution] secretOrPrivateKey must be asymmetric → patterns/user.json
 
 Rules updated:
   dev-rules.json:
     + [code-style] Use early return pattern
-    ~ [code-style] Avoid using any (skipped: similar rule exists)
+    ~ [architecture] Avoid circular dependencies (skipped: similar exists)
 
   review-guidelines.json:
     (no changes)
@@ -212,6 +242,6 @@ Rules updated:
 ## Notes
 
 - Session path is shown in additionalContext at session start
-- **Interactions are auto-saved by SessionEnd hook** - no need to manually save them
-- All structured data is now stored in JSON (YAML files are no longer generated)
-- Rules are appended (not overwritten) - duplicates are skipped
+- Interactions are auto-saved by SessionEnd hook
+- Decisions and patterns are also kept in session JSON for context
+- Duplicate checking prevents bloat in decisions/ and patterns/

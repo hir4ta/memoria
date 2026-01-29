@@ -4,7 +4,6 @@ import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { z } from "zod";
 import {
   getOrCreateDecisionIndex,
   getOrCreateSessionIndex,
@@ -15,48 +14,9 @@ import {
 } from "../../lib/index/manager.js";
 
 // =============================================================================
-// Validation Schemas
+// Note: Dashboard is read-only. Validation schemas for write operations removed.
+// Data modifications should be done via /memoria:* commands.
 // =============================================================================
-
-const sessionUpdateSchema = z
-  .object({
-    id: z.string().optional(),
-    title: z.string().optional(),
-    goal: z.string().optional(),
-    outcome: z.string().nullable().optional(),
-    description: z.string().optional(),
-    sessionType: z.string().nullable().optional(),
-    tags: z.array(z.string()).optional(),
-    status: z.string().nullable().optional(),
-  })
-  .passthrough();
-
-const commentSchema = z.object({
-  content: z.string().min(1, "Comment content is required"),
-  user: z.string().optional(),
-});
-
-const decisionCreateSchema = z
-  .object({
-    id: z.string().optional(),
-    title: z.string().min(1, "Decision title is required"),
-    decision: z.string().optional(),
-    rationale: z.string().optional(),
-    status: z.enum(["draft", "active", "superseded", "deprecated"]).optional(),
-    tags: z.array(z.string()).optional(),
-    createdAt: z.string().optional(),
-  })
-  .passthrough();
-
-const decisionUpdateSchema = z
-  .object({
-    title: z.string().optional(),
-    decision: z.string().optional(),
-    rationale: z.string().optional(),
-    status: z.enum(["draft", "active", "superseded", "deprecated"]).optional(),
-    tags: z.array(z.string()).optional(),
-  })
-  .passthrough();
 
 // =============================================================================
 // Helper Functions
@@ -81,14 +41,7 @@ function safeParseJsonFile<T>(filePath: string): T | null {
   }
 }
 
-/**
- * Safe atomic write using tmp file + rename
- */
-function safeWriteJsonFile(filePath: string, data: unknown): void {
-  const tmpPath = `${filePath}.tmp`;
-  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2));
-  fs.renameSync(tmpPath, filePath);
-}
+// Note: safeWriteJsonFile removed - dashboard is read-only
 
 const app = new Hono();
 
@@ -160,14 +113,6 @@ const findJsonFileById = (dir: string, id: string): string | null => {
 };
 
 const rulesDir = () => path.join(getMemoriaDir(), "rules");
-
-const getYearMonthDir = (baseDir: string, isoDate: string): string => {
-  const parsed = new Date(isoDate);
-  const date = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  return path.join(baseDir, String(year), month);
-};
 
 // CORS for development (allow any localhost port)
 app.use(
@@ -406,84 +351,8 @@ app.get("/api/sessions/:id/markdown", async (c) => {
   }
 });
 
-app.put("/api/sessions/:id", async (c) => {
-  const id = sanitizeId(c.req.param("id"));
-  const sessionsDir = path.join(getMemoriaDir(), "sessions");
-  try {
-    const filePath = findJsonFileById(sessionsDir, id);
-    if (!filePath) {
-      return c.json({ error: "Session not found" }, 404);
-    }
-    const body = await c.req.json();
-    const parsed = sessionUpdateSchema.safeParse(body);
-    if (!parsed.success) {
-      return c.json(
-        { error: "Invalid session data", details: parsed.error.issues },
-        400,
-      );
-    }
-    safeWriteJsonFile(filePath, parsed.data);
-    return c.json(parsed.data);
-  } catch (error) {
-    console.error("Failed to update session:", error);
-    return c.json({ error: "Failed to update session" }, 500);
-  }
-});
-
-app.delete("/api/sessions/:id", async (c) => {
-  const id = sanitizeId(c.req.param("id"));
-  const memoriaDir = getMemoriaDir();
-  const sessionsDir = path.join(memoriaDir, "sessions");
-  try {
-    const filePath = findJsonFileById(sessionsDir, id);
-    if (!filePath) {
-      return c.json({ error: "Session not found" }, 404);
-    }
-    fs.unlinkSync(filePath);
-    // Rebuild index after deletion
-    rebuildAllIndexes(memoriaDir);
-    return c.json({ success: true });
-  } catch (error) {
-    console.error("Failed to delete session:", error);
-    return c.json({ error: "Failed to delete session" }, 500);
-  }
-});
-
-app.post("/api/sessions/:id/comments", async (c) => {
-  const id = sanitizeId(c.req.param("id"));
-  const sessionsDir = path.join(getMemoriaDir(), "sessions");
-  try {
-    const filePath = findJsonFileById(sessionsDir, id);
-    if (!filePath) {
-      return c.json({ error: "Session not found" }, 404);
-    }
-    const body = await c.req.json();
-    const parsed = commentSchema.safeParse(body);
-    if (!parsed.success) {
-      return c.json(
-        { error: "Invalid comment data", details: parsed.error.issues },
-        400,
-      );
-    }
-    const session = safeParseJsonFile<Record<string, unknown>>(filePath);
-    if (!session) {
-      return c.json({ error: "Failed to parse session" }, 500);
-    }
-    const comment = {
-      id: `comment-${Date.now()}`,
-      content: parsed.data.content,
-      user: parsed.data.user,
-      createdAt: new Date().toISOString(),
-    };
-    session.comments = (session.comments as unknown[]) || [];
-    (session.comments as unknown[]).push(comment);
-    safeWriteJsonFile(filePath, session);
-    return c.json(comment, 201);
-  } catch (error) {
-    console.error("Failed to add comment:", error);
-    return c.json({ error: "Failed to add comment" }, 500);
-  }
-});
+// Note: PUT/DELETE/POST endpoints removed - dashboard is read-only
+// Data modifications should be done via /memoria:* commands
 
 // Decisions
 app.get("/api/decisions", async (c) => {
@@ -576,72 +445,8 @@ app.get("/api/decisions/:id", async (c) => {
   }
 });
 
-app.post("/api/decisions", async (c) => {
-  const decisionsDir = path.join(getMemoriaDir(), "decisions");
-  try {
-    const body = await c.req.json();
-    const parsed = decisionCreateSchema.safeParse(body);
-    if (!parsed.success) {
-      return c.json(
-        { error: "Invalid decision data", details: parsed.error.issues },
-        400,
-      );
-    }
-    const data = parsed.data;
-    const id = sanitizeId(data.id || `decision-${Date.now()}`);
-    data.id = id;
-    data.createdAt = data.createdAt || new Date().toISOString();
-    const targetDir = getYearMonthDir(decisionsDir, data.createdAt);
-    fs.mkdirSync(targetDir, { recursive: true });
-    const filePath = path.join(targetDir, `${id}.json`);
-    safeWriteJsonFile(filePath, data);
-    return c.json(data, 201);
-  } catch (error) {
-    console.error("Failed to create decision:", error);
-    return c.json({ error: "Failed to create decision" }, 500);
-  }
-});
-
-app.put("/api/decisions/:id", async (c) => {
-  const id = sanitizeId(c.req.param("id"));
-  const decisionsDir = path.join(getMemoriaDir(), "decisions");
-  try {
-    const filePath = findJsonFileById(decisionsDir, id);
-    if (!filePath) {
-      return c.json({ error: "Decision not found" }, 404);
-    }
-    const body = await c.req.json();
-    const parsed = decisionUpdateSchema.safeParse(body);
-    if (!parsed.success) {
-      return c.json(
-        { error: "Invalid decision data", details: parsed.error.issues },
-        400,
-      );
-    }
-    const data = { ...parsed.data, updatedAt: new Date().toISOString() };
-    safeWriteJsonFile(filePath, data);
-    return c.json(data);
-  } catch (error) {
-    console.error("Failed to update decision:", error);
-    return c.json({ error: "Failed to update decision" }, 500);
-  }
-});
-
-app.delete("/api/decisions/:id", async (c) => {
-  const id = sanitizeId(c.req.param("id"));
-  const decisionsDir = path.join(getMemoriaDir(), "decisions");
-  try {
-    const filePath = findJsonFileById(decisionsDir, id);
-    if (!filePath) {
-      return c.json({ error: "Decision not found" }, 404);
-    }
-    fs.unlinkSync(filePath);
-    return c.json({ success: true });
-  } catch (error) {
-    console.error("Failed to delete decision:", error);
-    return c.json({ error: "Failed to delete decision" }, 500);
-  }
-});
+// Note: POST/PUT/DELETE for decisions removed - dashboard is read-only
+// Decisions are created via /memoria:save command
 
 // Project info
 app.get("/api/info", async (c) => {
@@ -674,23 +479,8 @@ app.get("/api/rules/:id", async (c) => {
   }
 });
 
-app.put("/api/rules/:id", async (c) => {
-  const id = sanitizeId(c.req.param("id"));
-  const dir = rulesDir();
-  try {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    const filePath = path.join(dir, `${id}.json`);
-    const body = await c.req.json();
-    body.updatedAt = new Date().toISOString();
-    safeWriteJsonFile(filePath, body);
-    return c.json(body);
-  } catch (error) {
-    console.error("Failed to update rules:", error);
-    return c.json({ error: "Failed to update rules" }, 500);
-  }
-});
+// Note: PUT for rules removed - dashboard is read-only
+// Rules are managed via /memoria:save command
 
 // Timeline API - セッションを時系列でグループ化
 app.get("/api/timeline", async (c) => {
@@ -1234,44 +1024,8 @@ app.get("/api/patterns/stats", async (c) => {
   }
 });
 
-app.delete("/api/patterns/:id", async (c) => {
-  const patternId = c.req.param("id");
-  const dir = patternsDir();
-
-  try {
-    if (!fs.existsSync(dir)) {
-      return c.json({ error: "Pattern not found" }, 404);
-    }
-
-    const files = listJsonFiles(dir);
-    for (const filePath of files) {
-      try {
-        const content = fs.readFileSync(filePath, "utf-8");
-        const data = JSON.parse(content);
-        const patterns = data.patterns || [];
-        const index = patterns.findIndex(
-          (p: Record<string, unknown>) => p.id === patternId,
-        );
-
-        if (index !== -1) {
-          patterns.splice(index, 1);
-          fs.writeFileSync(
-            filePath,
-            JSON.stringify({ ...data, patterns }, null, 2),
-          );
-          return c.json({ success: true });
-        }
-      } catch {
-        // Skip invalid files
-      }
-    }
-
-    return c.json({ error: "Pattern not found" }, 404);
-  } catch (error) {
-    console.error("Failed to delete pattern:", error);
-    return c.json({ error: "Failed to delete pattern" }, 500);
-  }
-});
+// Note: DELETE for patterns removed - dashboard is read-only
+// Patterns are managed via /memoria:save command
 
 // Export API
 function sessionToMarkdown(session: Record<string, unknown>): string {

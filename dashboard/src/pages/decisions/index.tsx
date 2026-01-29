@@ -1,19 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DecisionCardSkeletonList } from "@/components/ui/decision-card-skeleton";
 import { Input } from "@/components/ui/input";
@@ -25,34 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useDecisions, useInvalidateDecisions } from "@/hooks/use-decisions";
-import { deleteDecision } from "@/lib/api";
+import { useDecisions } from "@/hooks/use-decisions";
 import type { Decision } from "@/lib/types";
 
-function DecisionCard({
-  decision,
-  onDelete,
-}: {
-  decision: Decision;
-  onDelete: () => void;
-}) {
+function DecisionCard({ decision }: { decision: Decision }) {
   const { t, i18n } = useTranslation("decisions");
-  const { t: tc } = useTranslation("common");
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      await deleteDecision(decision.id);
-      onDelete();
-      setDialogOpen(false);
-    } catch {
-      // Silently fail - could add toast here
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   const date = new Date(decision.createdAt).toLocaleDateString(
     i18n.language === "ja" ? "ja-JP" : "en-US",
@@ -82,43 +47,6 @@ function DecisionCard({
               <Badge variant={statusColors[decision.status]}>
                 {t(`status.${decision.status}`)}
               </Badge>
-              <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setDialogOpen(true);
-                    }}
-                    disabled={isDeleting}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    {isDeleting ? "..." : "×"}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {tc("deleteDialog.description")}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isDeleting}>
-                      {tc("cancel")}
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      variant="destructive"
-                      onClick={handleDelete}
-                      disabled={isDeleting}
-                    >
-                      {isDeleting ? tc("deleting") : tc("delete")}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
             </div>
           </div>
         </CardHeader>
@@ -173,8 +101,6 @@ export function DecisionsPage() {
     tag: tagFilter !== "all" ? tagFilter : undefined,
     search: debouncedSearch || undefined,
   });
-
-  const invalidate = useInvalidateDecisions();
 
   // Get unique tags from decisions
   const availableTags = useMemo(() => {
@@ -267,11 +193,7 @@ export function DecisionsPage() {
             <>
               <div className="grid gap-4">
                 {decisions.map((decision) => (
-                  <DecisionCard
-                    key={decision.id}
-                    decision={decision}
-                    onDelete={invalidate}
-                  />
+                  <DecisionCard key={decision.id} decision={decision} />
                 ))}
               </div>
 

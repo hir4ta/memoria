@@ -1,9 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -50,11 +49,6 @@ async function fetchPatternStats(): Promise<PatternStats> {
   return res.json();
 }
 
-async function deletePattern(id: string): Promise<void> {
-  const res = await fetch(`/api/patterns/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error("Failed to delete pattern");
-}
-
 const typeColors: Record<string, { bg: string; text: string; border: string }> =
   {
     good: {
@@ -70,13 +64,7 @@ const typeColors: Record<string, { bg: string; text: string; border: string }> =
     },
   };
 
-function PatternCard({
-  pattern,
-  onDelete,
-}: {
-  pattern: Pattern;
-  onDelete: (id: string) => void;
-}) {
+function PatternCard({ pattern }: { pattern: Pattern }) {
   const { t, i18n } = useTranslation("patterns");
   const [isExpanded, setIsExpanded] = useState(false);
   const colors = typeColors[pattern.type] || typeColors.good;
@@ -109,10 +97,6 @@ function PatternCard({
               {pattern.description}
             </CardTitle>
           </div>
-          <DeleteConfirmDialog
-            title={t("deleteTitle")}
-            onConfirm={() => onDelete(pattern.id)}
-          />
         </div>
       </CardHeader>
       <CardContent className="pt-0">
@@ -200,7 +184,6 @@ function StatCard({
 
 export function PatternsPage() {
   const { t } = useTranslation("patterns");
-  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
 
@@ -220,13 +203,6 @@ export function PatternsPage() {
   } = useQuery({
     queryKey: ["patterns", "stats"],
     queryFn: fetchPatternStats,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deletePattern,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["patterns"] });
-    },
   });
 
   if (patternsError || statsError) {
@@ -382,11 +358,7 @@ export function PatternsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredPatterns.map((pattern) => (
-            <PatternCard
-              key={pattern.id}
-              pattern={pattern}
-              onDelete={(id) => deleteMutation.mutate(id)}
-            />
+            <PatternCard key={pattern.id} pattern={pattern} />
           ))}
         </div>
       )}

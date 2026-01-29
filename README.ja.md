@@ -2,27 +2,21 @@
 
 Claude Codeの長期記憶を実現するプラグイン
 
-セッションの自動保存、技術的な判断の記録、Webダッシュボードでの管理を提供します。
+セッションの自動保存、インテリジェントな記憶検索、Webダッシュボードでの管理を提供します。
 
 ## 機能
 
 ### コア機能
 - **会話の自動保存**: セッション終了時にjqで自動保存（確実・高速）
+- **自動記憶検索**: プロンプトごとに関連する過去のセッション・判断を自動で注入
 - **PreCompactバックアップ**: Auto-Compact前にinteractionsをバックアップ（コンテキスト95%で発動）
-- **手動保存**: `/memoria:save` で要約作成 + 構造化データ保存
+- **フルデータ抽出**: `/memoria:save` で要約・判断・パターン・ルールを一括保存
+- **記憶参照プランニング**: `/memoria:plan` で過去の知見を活用した設計・計画
 - **セッション再開**: `/memoria:resume` で過去のセッションを再開（チェーン追跡付き）
 - **セッション提案**: セッション開始時に最新3件を提案
-- **技術的な判断の記録**: `/memoria:decision` で判断を記録
 - **ルールベースレビュー**: `dev-rules.json` / `review-guidelines.json` に基づくレビュー
 - **週次レポート**: レビュー結果を集計したMarkdownレポートを自動生成
-- **Webダッシュボード**: セッション・判断記録の閲覧・編集
-
-### 開発ワークフロー
-- **ブレインストーミング**: ソクラティック質問 + 記憶参照で設計 (`/memoria:brainstorm`)
-- **計画作成**: 2-5分単位のTDDタスク分割 (`/memoria:plan`)
-- **TDD**: RED-GREEN-REFACTORサイクルの厳格強制 (`/memoria:tdd`)
-- **デバッグ**: 根本原因分析 + エラーパターン参照 (`/memoria:debug`)
-- **二段階レビュー**: 仕様準拠 + コード品質 (`/memoria:review --full`)
+- **Webダッシュボード**: セッション・判断・パターン・ルールの閲覧
 
 ## 課題と解決（導入メリット）
 
@@ -30,15 +24,16 @@ Claude Codeの長期記憶を実現するプラグイン
 
 - **コンテキストの消失**: セッション終了やAuto-Compactで会話の文脈が失われる
 - **判断の不透明化**: 「なぜこの設計にしたのか」が後から追えない
+- **同じミスの繰り返し**: 同じエラーを何度も解決（学習されない）
 - **知見の再利用が難しい**: 過去のやり取りや決定を検索・参照しづらい
 
-### memoria でできること／解消できること
+### memoria でできること
 
 - **自動保存 + 再開**で、セッションを跨いだ文脈の継続が可能
-- **判断記録**で、理由・代替案を後から追跡
+- **自動記憶検索**で、関連する過去の知見が常に会話に反映される
+- **判断・パターン記録**で、理由やエラー解決策を後から追跡
 - **検索とダッシュボード**で、過去の記録を素早く参照
 - **レビュー機能**で、リポジトリ固有の観点に基づいて指摘
-- **週次レポート**で、レビュー観点の改善と共有が容易
 
 ### チーム利用のメリット
 
@@ -106,8 +101,14 @@ Claude Codeを再起動
 
 **PreCompact**ではinteractionsを`preCompactBackups`にバックアップします（コンテキスト95%で発動）。要約は自動作成されません。
 
-**要約と構造化データ**は `/memoria:save` で手動作成：
-- JSON: `title`, `tags`, `summary`, `plan`, `discussions`, `errors`, `handoff`, `references` を更新
+### 自動記憶検索
+
+**プロンプトごとに**、memoriaは自動で：
+1. メッセージからキーワードを抽出
+2. sessions/decisions/patternsを検索
+3. 関連情報をClaudeに注入
+
+手動で検索しなくても、過去の知見が常に活用されます。
 
 ### セッション提案
 
@@ -122,43 +123,27 @@ Claude Codeを再起動
 Continue from a previous session? Use `/memoria:resume <id>`
 ```
 
-### セッションチェーン追跡
-
-セッションを再開すると、チェーンが追跡されます：
-
-```
-/memoria:resume abc123
-  ↓
-現在のセッションJSONを更新: "resumedFrom": "abc123"
-  ↓
-チェーン: current ← abc123
-```
-
 ### コマンド
 
 | コマンド | 説明 |
 | --------- | ------ |
+| `/memoria:save` | 全データ抽出: 要約・判断・パターン・ルール |
+| `/memoria:plan [トピック]` | 記憶参照 + ソクラティック質問 + タスク分割 |
 | `/memoria:resume [id]` | セッションを再開（ID省略で一覧表示） |
-| `/memoria:save` | 要約作成 + 構造化データ保存 + ルール抽出 |
-| `/memoria:decision "タイトル"` | 技術的な判断を記録 |
-| `/memoria:search "クエリ"` | セッション・判断記録を検索 |
-| `/memoria:review [--staged\|--all\|--diff=branch\|--full]` | ルールに基づくレビュー（--fullで二段階） |
+| `/memoria:search "クエリ"` | セッション・判断・パターンを検索 |
+| `/memoria:review [--staged\|--all\|--diff=branch\|--full]` | ルールに基づくレビュー |
 | `/memoria:report [--from YYYY-MM-DD --to YYYY-MM-DD]` | 週次レビューレポート |
-| `/memoria:brainstorm [トピック]` | ソクラティック質問 + 記憶参照で設計 |
-| `/memoria:plan [トピック]` | 2-5分TDDタスクに分割した計画作成 |
-| `/memoria:tdd` | RED-GREEN-REFACTOR厳格サイクル |
-| `/memoria:debug` | 根本原因分析 + エラーパターン参照 |
 
 ### 推奨ワークフロー
 
 ```
-brainstorm → plan → tdd → review
+plan → implement → save → review
 ```
 
-1. **brainstorm**: ソクラティック質問 + 記憶参照で設計
-2. **plan**: 2-5分TDDタスクに分割
-3. **tdd**: RED → GREEN → REFACTOR で実装
-4. **review**: 仕様準拠（--full）+ コード品質をレビュー
+1. **plan**: 記憶参照 + ソクラティック質問 + タスク分割
+2. **implement**: 計画に沿って実装
+3. **save**: 判断・パターン・ルールを抽出
+4. **review**: 計画準拠とコード品質をレビュー
 
 ### ダッシュボード
 
@@ -178,9 +163,9 @@ npx @hir4ta/memoria --dashboard --port 8080
 
 #### 画面一覧
 
-- **Sessions**: セッション一覧・詳細・編集・削除
-- **Decisions**: 技術的な判断の一覧・作成・編集・削除
-- **Rules**: 開発ルール・レビュー観点の閲覧・編集
+- **Sessions**: セッション一覧・詳細
+- **Decisions**: 技術的な判断の一覧・詳細
+- **Rules**: 開発ルール・レビュー観点の閲覧
 - **Patterns**: 学習済みパターンの閲覧（グッドパターン、アンチパターン、エラー解決策）
 - **Statistics**: アクティビティチャート・セッション統計の表示
 - **Graph**: タグ共有によるセッション関連性の可視化
@@ -199,47 +184,41 @@ flowchart TB
         C --> D[interactions + files + metrics]
     end
 
+    subgraph autosearch [自動記憶検索]
+        E[ユーザープロンプト] --> F[UserPromptSubmitフック]
+        F --> G[sessions/decisions/patternsを検索]
+        G --> H[関連コンテキストを注入]
+    end
+
     subgraph backup [PreCompactバックアップ]
-        E[コンテキスト95%] --> F[PreCompactフック]
-        F --> G[interactionsをpreCompactBackupsに保存]
+        I[コンテキスト95%] --> J[PreCompactフック]
+        J --> K[interactionsをpreCompactBackupsに保存]
     end
 
     subgraph manual [手動操作]
-        H["memoria:save"] --> I[JSON更新（構造化データ）]
-        J["memoria:decision"] --> K[判断を明示的に記録]
+        L["memoria:save"] --> M[判断 + パターン + ルールを抽出]
+        N["memoria:plan"] --> O[記憶参照 + 設計 + タスク分割]
     end
 
     subgraph resume [セッション再開]
-        L["memoria:resume"] --> M[一覧から選択]
-        M --> N[過去の文脈を復元 + resumedFrom設定]
-    end
-
-    subgraph search [検索]
-        O["memoria:search"] --> P[セッションと判断を検索]
+        P["memoria:resume"] --> Q[一覧から選択]
+        Q --> R[過去の文脈を復元 + resumedFrom設定]
     end
 
     subgraph review [レビュー]
-        Q["memoria:review"] --> R[ルールに基づく指摘]
-        R --> S[レビュー結果を保存]
-    end
-
-    subgraph report [週次レポート]
-        T["memoria:report"] --> U[レビュー集計レポート]
+        S["memoria:review"] --> T[ルールに基づく指摘]
+        T --> U[レビュー結果を保存]
     end
 
     subgraph dashboard [ダッシュボード]
         V["npx @hir4ta/memoria -d"] --> W[ブラウザで表示]
-        W --> X[閲覧・編集・削除]
+        W --> X[全データを閲覧]
     end
 
-    D --> L
-    G --> L
-    I --> L
-    K --> O
-    D --> S
-    S --> U
-    D --> V
-    K --> V
+    D --> P
+    H --> L
+    M --> V
+    U --> V
 ```
 
 ## データ保存
@@ -249,10 +228,14 @@ flowchart TB
 ```text
 .memoria/
 ├── tags.json         # タグマスターファイル（93タグ、表記揺れ防止）
-├── sessions/         # セッション履歴 (YYYY/MM)
+├── sessions/         # セッション履歴（自動 + 手動保存）
 │   └── YYYY/MM/
-│       └── {id}.json # 全セッションデータ（自動 + 手動保存）
-├── decisions/        # 技術的な判断 (YYYY/MM)
+│       └── {id}.json
+├── decisions/        # 技術的な判断（/saveから）
+│   └── YYYY/MM/
+│       └── {id}.json
+├── patterns/         # エラーパターン（/saveから）
+│   └── {user}.json
 ├── rules/            # 開発ルール / レビュー観点
 ├── reviews/          # レビュー結果 (YYYY/MM)
 └── reports/          # 週次レポート (YYYY-MM)
