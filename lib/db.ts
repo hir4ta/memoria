@@ -15,21 +15,29 @@ import { fileURLToPath } from "node:url";
 
 // Suppress Node.js SQLite experimental warning
 const originalEmit = process.emit;
-// @ts-expect-error - process.emit override for warning suppression
-process.emit = (name, data, ...args) => {
+// @ts-expect-error - Suppressing experimental warning
+process.emit = (event, ...args) => {
   if (
-    name === "warning" &&
-    typeof data === "object" &&
-    data?.name === "ExperimentalWarning" &&
-    data?.message?.includes("SQLite")
+    event === "warning" &&
+    typeof args[0] === "object" &&
+    args[0] !== null &&
+    "name" in args[0] &&
+    (args[0] as { name: string }).name === "ExperimentalWarning" &&
+    "message" in args[0] &&
+    typeof (args[0] as { message: string }).message === "string" &&
+    (args[0] as { message: string }).message.includes("SQLite")
   ) {
     return false;
   }
-  return originalEmit.call(process, name, data, ...args);
+  return originalEmit.apply(
+    process,
+    [event, ...args] as unknown as Parameters<typeof process.emit>,
+  );
 };
 
 // Import after warning suppression is set up
 const { DatabaseSync } = await import("node:sqlite");
+type DatabaseSyncType = InstanceType<typeof DatabaseSync>;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -101,16 +109,9 @@ export function getGlobalDbPath(): string {
 }
 
 /**
- * @deprecated Use getGlobalDbPath() instead. Kept for migration compatibility.
- */
-export function getDbPath(memoriaDir: string): string {
-  return join(memoriaDir, "local.db");
-}
-
-/**
  * Configure database pragmas for optimal performance
  */
-function configurePragmas(db: DatabaseSync): void {
+function configurePragmas(db: DatabaseSyncType): void {
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA busy_timeout = 5000");
   db.exec("PRAGMA synchronous = NORMAL");
@@ -119,7 +120,7 @@ function configurePragmas(db: DatabaseSync): void {
 /**
  * Initialize global database with schema
  */
-export function initGlobalDatabase(): DatabaseSync {
+export function initGlobalDatabase(): DatabaseSyncType {
   const dbDir = getGlobalDbDir();
   if (!existsSync(dbDir)) {
     mkdirSync(dbDir, { recursive: true });
@@ -142,40 +143,10 @@ export function initGlobalDatabase(): DatabaseSync {
 }
 
 /**
- * @deprecated Use initGlobalDatabase() instead.
- */
-export function initDatabase(memoriaDir: string): DatabaseSync {
-  const dbPath = getDbPath(memoriaDir);
-  const db = new DatabaseSync(dbPath);
-  configurePragmas(db);
-
-  const schemaPath = join(__dirname, "schema.sql");
-  if (existsSync(schemaPath)) {
-    const schema = readFileSync(schemaPath, "utf-8");
-    db.exec(schema);
-  }
-
-  return db;
-}
-
-/**
  * Open global database
  */
-export function openGlobalDatabase(): DatabaseSync | null {
+export function openGlobalDatabase(): DatabaseSyncType | null {
   const dbPath = getGlobalDbPath();
-  if (!existsSync(dbPath)) {
-    return null;
-  }
-  const db = new DatabaseSync(dbPath);
-  configurePragmas(db);
-  return db;
-}
-
-/**
- * @deprecated Use openGlobalDatabase() instead.
- */
-export function openDatabase(memoriaDir: string): DatabaseSync | null {
-  const dbPath = getDbPath(memoriaDir);
   if (!existsSync(dbPath)) {
     return null;
   }
@@ -236,7 +207,7 @@ export function getRepositoryInfo(projectPath: string): RepositoryInfo {
  * Insert interactions into database
  */
 export function insertInteractions(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   interactions: Interaction[],
 ): void {
   const insert = db.prepare(`
@@ -274,7 +245,7 @@ export function insertInteractions(
  * Get interactions for a session
  */
 export function getInteractions(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   sessionId: string,
 ): Interaction[] {
   const stmt = db.prepare(`
@@ -282,14 +253,14 @@ export function getInteractions(
     WHERE session_id = ?
     ORDER BY timestamp ASC
   `);
-  return stmt.all(sessionId) as Interaction[];
+  return stmt.all(sessionId) as unknown as Interaction[];
 }
 
 /**
  * Get interactions for a session owned by specific user
  */
 export function getInteractionsByOwner(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   sessionId: string,
   owner: string,
 ): Interaction[] {
@@ -298,7 +269,7 @@ export function getInteractionsByOwner(
     WHERE session_id = ? AND owner = ?
     ORDER BY timestamp ASC
   `);
-  return stmt.all(sessionId, owner) as Interaction[];
+  return stmt.all(sessionId, owner) as unknown as Interaction[];
 }
 
 /**
@@ -307,7 +278,7 @@ export function getInteractionsByOwner(
  * Note: Use getInteractionsBySessionIdsAndOwner for security when exposing to API.
  */
 export function getInteractionsBySessionIds(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   sessionIds: string[],
 ): Interaction[] {
   if (sessionIds.length === 0) {
@@ -321,7 +292,7 @@ export function getInteractionsBySessionIds(
     WHERE session_id IN (${placeholders})
     ORDER BY timestamp ASC, session_id ASC, role ASC
   `);
-  return stmt.all(...sessionIds) as Interaction[];
+  return stmt.all(...sessionIds) as unknown as Interaction[];
 }
 
 /**
@@ -329,7 +300,7 @@ export function getInteractionsBySessionIds(
  * This should be used for API endpoints to ensure security.
  */
 export function getInteractionsBySessionIdsAndOwner(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   sessionIds: string[],
   owner: string,
 ): Interaction[] {
@@ -343,14 +314,14 @@ export function getInteractionsBySessionIdsAndOwner(
     WHERE session_id IN (${placeholders}) AND owner = ?
     ORDER BY timestamp ASC, session_id ASC, role ASC
   `);
-  return stmt.all(...sessionIds, owner) as Interaction[];
+  return stmt.all(...sessionIds, owner) as unknown as Interaction[];
 }
 
 /**
  * Check if user owns any interactions for multiple sessions
  */
 export function hasInteractionsForSessionIds(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   sessionIds: string[],
   owner: string,
 ): boolean {
@@ -371,7 +342,7 @@ export function hasInteractionsForSessionIds(
  * Check if user owns any interactions for a session
  */
 export function hasInteractions(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   sessionId: string,
   owner: string,
 ): boolean {
@@ -387,7 +358,7 @@ export function hasInteractions(
  * Insert pre-compact backup
  */
 export function insertPreCompactBackup(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   backup: PreCompactBackup,
 ): void {
   const stmt = db.prepare(`
@@ -406,7 +377,7 @@ export function insertPreCompactBackup(
  * Get latest pre-compact backup for a session
  */
 export function getLatestBackup(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   sessionId: string,
 ): PreCompactBackup | null {
   const stmt = db.prepare(`
@@ -415,14 +386,14 @@ export function getLatestBackup(
     ORDER BY created_at DESC
     LIMIT 1
   `);
-  return (stmt.get(sessionId) as PreCompactBackup) || null;
+  return (stmt.get(sessionId) as unknown as PreCompactBackup) || null;
 }
 
 /**
  * Get all backups for a session
  */
 export function getAllBackups(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   sessionId: string,
 ): PreCompactBackup[] {
   const stmt = db.prepare(`
@@ -430,14 +401,14 @@ export function getAllBackups(
     WHERE session_id = ?
     ORDER BY created_at ASC
   `);
-  return stmt.all(sessionId) as PreCompactBackup[];
+  return stmt.all(sessionId) as unknown as PreCompactBackup[];
 }
 
 /**
  * Search interactions using FTS5
  */
 export function searchInteractions(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   query: string,
   limit = 10,
 ): Array<{ session_id: string; content: string; thinking: string | null }> {
@@ -458,7 +429,10 @@ export function searchInteractions(
 /**
  * Delete interactions for a session
  */
-export function deleteInteractions(db: DatabaseSync, sessionId: string): void {
+export function deleteInteractions(
+  db: DatabaseSyncType,
+  sessionId: string,
+): void {
   const stmt = db.prepare("DELETE FROM interactions WHERE session_id = ?");
   stmt.run(sessionId);
 }
@@ -466,7 +440,7 @@ export function deleteInteractions(db: DatabaseSync, sessionId: string): void {
 /**
  * Delete backups for a session
  */
-export function deleteBackups(db: DatabaseSync, sessionId: string): void {
+export function deleteBackups(db: DatabaseSyncType, sessionId: string): void {
   const stmt = db.prepare(
     "DELETE FROM pre_compact_backups WHERE session_id = ?",
   );
@@ -476,7 +450,7 @@ export function deleteBackups(db: DatabaseSync, sessionId: string): void {
 /**
  * Get database statistics
  */
-export function getDbStats(db: DatabaseSync): {
+export function getDbStats(db: DatabaseSyncType): {
   interactions: number;
   backups: number;
 } {
@@ -497,7 +471,7 @@ export function getDbStats(db: DatabaseSync): {
  * Get interactions by project path
  */
 export function getInteractionsByProject(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   projectPath: string,
 ): Interaction[] {
   const stmt = db.prepare(`
@@ -505,14 +479,14 @@ export function getInteractionsByProject(
     WHERE project_path = ?
     ORDER BY timestamp ASC
   `);
-  return stmt.all(projectPath) as Interaction[];
+  return stmt.all(projectPath) as unknown as Interaction[];
 }
 
 /**
  * Get interactions by repository
  */
 export function getInteractionsByRepository(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   repository: string,
 ): Interaction[] {
   const stmt = db.prepare(`
@@ -520,13 +494,13 @@ export function getInteractionsByRepository(
     WHERE repository = ?
     ORDER BY timestamp ASC
   `);
-  return stmt.all(repository) as Interaction[];
+  return stmt.all(repository) as unknown as Interaction[];
 }
 
 /**
  * Get unique projects from database
  */
-export function getUniqueProjects(db: DatabaseSync): string[] {
+export function getUniqueProjects(db: DatabaseSyncType): string[] {
   const stmt = db.prepare(`
     SELECT DISTINCT project_path FROM interactions
     ORDER BY project_path
@@ -538,7 +512,7 @@ export function getUniqueProjects(db: DatabaseSync): string[] {
 /**
  * Get unique repositories from database
  */
-export function getUniqueRepositories(db: DatabaseSync): string[] {
+export function getUniqueRepositories(db: DatabaseSyncType): string[] {
   const stmt = db.prepare(`
     SELECT DISTINCT repository FROM interactions
     WHERE repository IS NOT NULL
@@ -552,45 +526,45 @@ export function getUniqueRepositories(db: DatabaseSync): string[] {
  * Delete interactions by project path
  */
 export function deleteInteractionsByProject(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   projectPath: string,
 ): number {
   const stmt = db.prepare("DELETE FROM interactions WHERE project_path = ?");
   const result = stmt.run(projectPath);
-  return result.changes;
+  return Number(result.changes);
 }
 
 /**
  * Delete interactions before a specific date
  */
 export function deleteInteractionsBefore(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   beforeDate: string,
 ): number {
   const stmt = db.prepare("DELETE FROM interactions WHERE timestamp < ?");
   const result = stmt.run(beforeDate);
-  return result.changes;
+  return Number(result.changes);
 }
 
 /**
  * Delete backups by project path
  */
 export function deleteBackupsByProject(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   projectPath: string,
 ): number {
   const stmt = db.prepare(
     "DELETE FROM pre_compact_backups WHERE project_path = ?",
   );
   const result = stmt.run(projectPath);
-  return result.changes;
+  return Number(result.changes);
 }
 
 /**
  * Count interactions matching filter criteria
  */
 export function countInteractions(
-  db: DatabaseSync,
+  db: DatabaseSyncType,
   filter: {
     sessionId?: string;
     projectPath?: string;

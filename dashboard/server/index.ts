@@ -11,7 +11,6 @@ import {
   getCurrentUser,
   getInteractionsBySessionIdsAndOwner,
   hasInteractionsForSessionIds,
-  openDatabase,
   openGlobalDatabase,
 } from "../../lib/db.js";
 import {
@@ -576,12 +575,8 @@ app.get("/api/sessions/:id/interactions", async (c) => {
     // Get current user
     const currentUser = getCurrentUser();
 
-    // Open global SQLite database (fallback to local for backward compatibility)
-    let db = openGlobalDatabase();
-    if (!db) {
-      // Try local database for backward compatibility
-      db = openDatabase(memoriaDir);
-    }
+    // Open global SQLite database
+    const db = openGlobalDatabase();
     if (!db) {
       return c.json({ interactions: [], count: 0, isOwner: false });
     }

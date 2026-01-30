@@ -5,11 +5,14 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 var originalEmit = process.emit;
-process.emit = (name, data, ...args) => {
-  if (name === "warning" && typeof data === "object" && data?.name === "ExperimentalWarning" && data?.message?.includes("SQLite")) {
+process.emit = (event, ...args) => {
+  if (event === "warning" && typeof args[0] === "object" && args[0] !== null && "name" in args[0] && args[0].name === "ExperimentalWarning" && "message" in args[0] && typeof args[0].message === "string" && args[0].message.includes("SQLite")) {
     return false;
   }
-  return originalEmit.call(process, name, data, ...args);
+  return originalEmit.apply(
+    process,
+    [event, ...args]
+  );
 };
 var { DatabaseSync } = await import("node:sqlite");
 var __filename = fileURLToPath(import.meta.url);
@@ -35,9 +38,6 @@ function getGlobalDbDir() {
 function getGlobalDbPath() {
   return join(getGlobalDbDir(), "global.db");
 }
-function getDbPath(memoriaDir) {
-  return join(memoriaDir, "local.db");
-}
 function configurePragmas(db) {
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA busy_timeout = 5000");
@@ -58,28 +58,8 @@ function initGlobalDatabase() {
   }
   return db;
 }
-function initDatabase(memoriaDir) {
-  const dbPath = getDbPath(memoriaDir);
-  const db = new DatabaseSync(dbPath);
-  configurePragmas(db);
-  const schemaPath = join(__dirname, "schema.sql");
-  if (existsSync(schemaPath)) {
-    const schema = readFileSync(schemaPath, "utf-8");
-    db.exec(schema);
-  }
-  return db;
-}
 function openGlobalDatabase() {
   const dbPath = getGlobalDbPath();
-  if (!existsSync(dbPath)) {
-    return null;
-  }
-  const db = new DatabaseSync(dbPath);
-  configurePragmas(db);
-  return db;
-}
-function openDatabase(memoriaDir) {
-  const dbPath = getDbPath(memoriaDir);
   if (!existsSync(dbPath)) {
     return null;
   }
@@ -300,19 +280,19 @@ function getUniqueRepositories(db) {
 function deleteInteractionsByProject(db, projectPath) {
   const stmt = db.prepare("DELETE FROM interactions WHERE project_path = ?");
   const result = stmt.run(projectPath);
-  return result.changes;
+  return Number(result.changes);
 }
 function deleteInteractionsBefore(db, beforeDate) {
   const stmt = db.prepare("DELETE FROM interactions WHERE timestamp < ?");
   const result = stmt.run(beforeDate);
-  return result.changes;
+  return Number(result.changes);
 }
 function deleteBackupsByProject(db, projectPath) {
   const stmt = db.prepare(
     "DELETE FROM pre_compact_backups WHERE project_path = ?"
   );
   const result = stmt.run(projectPath);
-  return result.changes;
+  return Number(result.changes);
 }
 function countInteractions(db, filter) {
   const conditions = [];
@@ -349,7 +329,6 @@ export {
   deleteInteractionsByProject,
   getAllBackups,
   getCurrentUser,
-  getDbPath,
   getDbStats,
   getGlobalDbDir,
   getGlobalDbPath,
@@ -365,11 +344,9 @@ export {
   getUniqueRepositories,
   hasInteractions,
   hasInteractionsForSessionIds,
-  initDatabase,
   initGlobalDatabase,
   insertInteractions,
   insertPreCompactBackup,
-  openDatabase,
   openGlobalDatabase,
   searchInteractions
 };

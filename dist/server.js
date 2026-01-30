@@ -2884,11 +2884,14 @@ import { homedir } from "node:os";
 import { dirname, join as join2 } from "node:path";
 import { fileURLToPath } from "node:url";
 var originalEmit = process.emit;
-process.emit = (name, data, ...args) => {
-  if (name === "warning" && typeof data === "object" && data?.name === "ExperimentalWarning" && data?.message?.includes("SQLite")) {
+process.emit = (event, ...args) => {
+  if (event === "warning" && typeof args[0] === "object" && args[0] !== null && "name" in args[0] && args[0].name === "ExperimentalWarning" && "message" in args[0] && typeof args[0].message === "string" && args[0].message.includes("SQLite")) {
     return false;
   }
-  return originalEmit.call(process, name, data, ...args);
+  return originalEmit.apply(
+    process,
+    [event, ...args]
+  );
 };
 var { DatabaseSync } = await import("node:sqlite");
 var __filename = fileURLToPath(import.meta.url);
@@ -2914,9 +2917,6 @@ function getGlobalDbDir() {
 function getGlobalDbPath() {
   return join2(getGlobalDbDir(), "global.db");
 }
-function getDbPath(memoriaDir2) {
-  return join2(memoriaDir2, "local.db");
-}
 function configurePragmas(db) {
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA busy_timeout = 5000");
@@ -2924,15 +2924,6 @@ function configurePragmas(db) {
 }
 function openGlobalDatabase() {
   const dbPath = getGlobalDbPath();
-  if (!existsSync2(dbPath)) {
-    return null;
-  }
-  const db = new DatabaseSync(dbPath);
-  configurePragmas(db);
-  return db;
-}
-function openDatabase(memoriaDir2) {
-  const dbPath = getDbPath(memoriaDir2);
   if (!existsSync2(dbPath)) {
     return null;
   }
@@ -3753,10 +3744,7 @@ app.get("/api/sessions/:id/interactions", async (c) => {
   const sessionsDir = path3.join(memoriaDir2, "sessions");
   try {
     const currentUser = getCurrentUser();
-    let db = openGlobalDatabase();
-    if (!db) {
-      db = openDatabase(memoriaDir2);
-    }
+    const db = openGlobalDatabase();
     if (!db) {
       return c.json({ interactions: [], count: 0, isOwner: false });
     }
