@@ -6,8 +6,14 @@
 # This ensures all thinking, user messages, and responses are preserved
 # without relying on Claude to update the session file.
 #
+# IMPORTANT: This script merges preCompactBackups with newly extracted interactions
+# to preserve conversations from before auto-compact events.
+#
 # Input (stdin): JSON with session_id, transcript_path, cwd
-# Output: None (cannot block session end)
+# Output (stderr): Log messages
+# Exit codes: 0 = success (SessionEnd cannot be blocked)
+#
+# Dependencies: jq
 
 set -euo pipefail
 
@@ -118,25 +124,72 @@ if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
         }
     ' 2>/dev/null || echo '{"interactions":[],"toolUsage":[],"files":[],"metrics":{}}')
 
-    # Update session file with extracted data
+    # Update session file with extracted data, merging with existing data
     now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+    # Read existing data to merge: use the most complete source
+    # Priority: preCompactBackups (if exists) > existing .interactions > empty
+    existing_backup=$(jq -r '
+        # Get preCompactBackups last entry (most complete)
+        (if (.preCompactBackups | length) > 0 then
+            .preCompactBackups[-1].interactions
+        else
+            []
+        end) as $backup |
+
+        # Get existing interactions
+        (.interactions // []) as $existing |
+
+        # Use whichever has more entries or later timestamps
+        if ($backup | length) > ($existing | length) then
+            $backup
+        elif ($backup | length) < ($existing | length) then
+            $existing
+        elif ($backup | length) > 0 and ($existing | length) > 0 then
+            # Same length: compare last timestamp
+            (($backup | last | .timestamp) // "1970-01-01") as $backup_ts |
+            (($existing | last | .timestamp) // "1970-01-01") as $existing_ts |
+            if $backup_ts > $existing_ts then $backup else $existing end
+        else
+            $existing
+        end
+    ' "$session_file" 2>/dev/null || echo '[]')
+
     jq --argjson extracted "$interactions_json" \
+       --argjson backup "$existing_backup" \
        --arg status "complete" \
        --arg endedAt "$now" \
        --arg updatedAt "$now" '
-        # Replace interactions with extracted data (filtered)
-        .interactions = ($extracted.interactions // []) |
+        # Merge preCompactBackups with extracted interactions
+        # Strategy: Use backup as base, add NEW interactions from extracted
+        # that have timestamps after the last backup interaction
+        ($backup | if type == "array" then . else [] end) as $backup_arr |
+        ($extracted.interactions // []) as $new_arr |
+
+        # Get the last timestamp from backup (or epoch if empty)
+        ($backup_arr | if length > 0 then .[-1].timestamp else "1970-01-01T00:00:00Z" end) as $last_backup_ts |
+
+        # Filter new interactions that are after backup
+        [$new_arr[] | select(.timestamp > $last_backup_ts)] as $truly_new |
+
+        # Merge: backup + truly new interactions
+        ($backup_arr + $truly_new) as $merged |
+
+        # Re-number IDs sequentially
+        [$merged | to_entries[] | .value + {id: ("int-" + ((.key + 1) | tostring | if length < 3 then "00"[0:(3-length)] + . else . end))}] as $final_interactions |
+
+        # Apply updates
+        .interactions = $final_interactions |
         # Update files
         .files = ((.files // []) + ($extracted.files // []) | unique_by(.path)) |
-        # Update metrics
+        # Update metrics (recalculate from merged interactions)
         .metrics = (.metrics // {}) + {
-            userMessages: ($extracted.metrics.userMessages // 0),
-            assistantResponses: ($extracted.metrics.assistantResponses // 0),
-            thinkingBlocks: ($extracted.metrics.thinkingBlocks // 0),
+            userMessages: ($final_interactions | length),
+            assistantResponses: ($final_interactions | length),
+            thinkingBlocks: ([$final_interactions[].thinking | select(. != "" and . != null)] | length),
             toolUsage: ($extracted.toolUsage // [])
         } |
-        # Clear preCompactBackups (no longer needed after full extraction)
+        # Clear preCompactBackups (merged into interactions)
         .preCompactBackups = [] |
         # Set status and timestamps
         .status = $status |
@@ -144,7 +197,10 @@ if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
         .updatedAt = $updatedAt
     ' "$session_file" > "${session_file}.tmp" && mv "${session_file}.tmp" "$session_file"
 
-    echo "[memoria] Session auto-saved with $(echo "$interactions_json" | jq '.interactions | length') interactions: ${session_file}" >&2
+    # Report merged count
+    merged_count=$(jq '.interactions | length' "$session_file")
+    backup_count=$(echo "$existing_backup" | jq 'if type == "array" then length else 0 end')
+    echo "[memoria] Session auto-saved with ${merged_count} interactions (${backup_count} from backup): ${session_file}" >&2
 else
     # No transcript, just update status
     now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

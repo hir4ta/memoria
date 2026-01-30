@@ -28,9 +28,16 @@ Phase 4: Task Breakdown     → Create actionable task list
 
 ---
 
-## Phase 1: Memory Search (MANDATORY)
+## Phase 1: Memory Search
 
-**Before any design work, search memoria for relevant context.**
+Search memoria for relevant context before design work. This surfaces past decisions
+and patterns that inform the current task.
+
+**Example benefit:**
+```
+Found: Previous JWT implementation used RS256
+→ Saves time by not re-discussing algorithm choice
+```
 
 ### Search Procedure
 
@@ -96,7 +103,14 @@ No directly relevant past sessions found. Starting fresh design.
 
 ## Phase 2: Socratic Questions
 
-**CRITICAL: Ask ONE question per message. Wait for response before next.**
+Ask one question per message. Wait for response before next question.
+
+**Example flow:**
+```
+Q1: What scenario should this support? → User answers
+Q2: What's the success criteria? → User answers
+Q3: Any constraints? → User answers
+```
 
 ### Core Questions (adapt as needed)
 

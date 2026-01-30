@@ -406,7 +406,9 @@ function HandoffSection({
 
 function ReferencesSection({
   references,
-}: { references: (SessionReference | string)[] }) {
+}: {
+  references: (SessionReference | string)[];
+}) {
   return (
     <div className="space-y-2">
       {references.map((ref) => {

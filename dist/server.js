@@ -3844,14 +3844,49 @@ app.get("/api/stats/overview", async (c) => {
       const type = session.sessionType || "unknown";
       sessionTypeCount[type] = (sessionTypeCount[type] || 0) + 1;
     }
-    const decisionStatusCount = {};
-    for (const decision of decisionsIndex.items) {
-      const status = decision.status || "unknown";
-      decisionStatusCount[status] = (decisionStatusCount[status] || 0) + 1;
-    }
     let totalInteractions = 0;
     for (const session of sessionsIndex.items) {
       totalInteractions += session.interactionCount || 0;
+    }
+    let totalPatterns = 0;
+    const patternsByType = {};
+    const patternsPath = path3.join(memoriaDir2, "patterns");
+    if (fs4.existsSync(patternsPath)) {
+      const patternFiles = listJsonFiles(patternsPath);
+      for (const filePath of patternFiles) {
+        try {
+          const content = fs4.readFileSync(filePath, "utf-8");
+          const data = JSON.parse(content);
+          const patterns = data.patterns || [];
+          for (const pattern of patterns) {
+            totalPatterns++;
+            const type = pattern.type || "unknown";
+            patternsByType[type] = (patternsByType[type] || 0) + 1;
+          }
+        } catch {
+        }
+      }
+    }
+    let totalRules = 0;
+    const rulesByType = {};
+    const rulesPath = path3.join(memoriaDir2, "rules");
+    if (fs4.existsSync(rulesPath)) {
+      for (const ruleType of ["dev-rules", "review-guidelines"]) {
+        const rulePath = path3.join(rulesPath, `${ruleType}.json`);
+        if (fs4.existsSync(rulePath)) {
+          try {
+            const content = fs4.readFileSync(rulePath, "utf-8");
+            const data = JSON.parse(content);
+            const items = data.items || [];
+            const activeItems = items.filter(
+              (item) => item.status === "active"
+            );
+            rulesByType[ruleType] = activeItems.length;
+            totalRules += activeItems.length;
+          } catch {
+          }
+        }
+      }
     }
     return c.json({
       sessions: {
@@ -3859,11 +3894,18 @@ app.get("/api/stats/overview", async (c) => {
         byType: sessionTypeCount
       },
       decisions: {
-        total: decisionsIndex.items.length,
-        byStatus: decisionStatusCount
+        total: decisionsIndex.items.length
       },
       interactions: {
         total: totalInteractions
+      },
+      patterns: {
+        total: totalPatterns,
+        byType: patternsByType
+      },
+      rules: {
+        total: totalRules,
+        byType: rulesByType
       }
     });
   } catch (error) {

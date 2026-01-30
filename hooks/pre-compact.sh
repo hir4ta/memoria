@@ -6,7 +6,10 @@
 # Does NOT create summary - summary creation is manual via /memoria:save.
 #
 # Input (stdin): JSON with session_id, transcript_path, cwd, trigger
-# Output: JSON with decision to continue (non-blocking)
+# Output (stdout): JSON with {"continue": true}
+# Exit codes: 0 = success (non-blocking, always continues)
+#
+# Dependencies: jq
 
 set -euo pipefail
 

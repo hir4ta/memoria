@@ -1,14 +1,16 @@
 {
   "title": "Statistics",
   "subtitle": "View activity charts and usage statistics.",
-  "totalSessions": "Total Sessions",
-  "totalDecisions": "Total Decisions",
-  "totalInteractions": "Total Interactions",
-  "avgInteractionsPerSession": "Avg Interactions/Session",
+  "totalSessions": "Sessions",
+  "totalDecisions": "Decisions",
+  "totalPatterns": "Patterns",
+  "totalRules": "Rules",
+  "totalInteractions": "Interactions",
+  "avgInteractionsPerSession": "Avg/Session",
   "activityChart": "Activity (Last 30 Days)",
   "sessionsByType": "Sessions by Type",
   "topTags": "Top Tags",
-  "decisionsByStatus": "Decisions by Status",
+  "patternsByType": "Patterns by Type",
   "noData": "No data",
   "noTags": "No tags"
 }

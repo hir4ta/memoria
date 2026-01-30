@@ -850,17 +850,56 @@ app.get("/api/stats/overview", async (c) => {
       sessionTypeCount[type] = (sessionTypeCount[type] || 0) + 1;
     }
 
-    // Count by decision status
-    const decisionStatusCount: Record<string, number> = {};
-    for (const decision of decisionsIndex.items) {
-      const status = decision.status || "unknown";
-      decisionStatusCount[status] = (decisionStatusCount[status] || 0) + 1;
-    }
-
     // Total interactions
     let totalInteractions = 0;
     for (const session of sessionsIndex.items) {
       totalInteractions += session.interactionCount || 0;
+    }
+
+    // Count patterns
+    let totalPatterns = 0;
+    const patternsByType: Record<string, number> = {};
+    const patternsPath = path.join(memoriaDir, "patterns");
+    if (fs.existsSync(patternsPath)) {
+      const patternFiles = listJsonFiles(patternsPath);
+      for (const filePath of patternFiles) {
+        try {
+          const content = fs.readFileSync(filePath, "utf-8");
+          const data = JSON.parse(content);
+          const patterns = data.patterns || [];
+          for (const pattern of patterns) {
+            totalPatterns++;
+            const type = pattern.type || "unknown";
+            patternsByType[type] = (patternsByType[type] || 0) + 1;
+          }
+        } catch {
+          // Skip invalid files
+        }
+      }
+    }
+
+    // Count rules
+    let totalRules = 0;
+    const rulesByType: Record<string, number> = {};
+    const rulesPath = path.join(memoriaDir, "rules");
+    if (fs.existsSync(rulesPath)) {
+      for (const ruleType of ["dev-rules", "review-guidelines"]) {
+        const rulePath = path.join(rulesPath, `${ruleType}.json`);
+        if (fs.existsSync(rulePath)) {
+          try {
+            const content = fs.readFileSync(rulePath, "utf-8");
+            const data = JSON.parse(content);
+            const items = data.items || [];
+            const activeItems = items.filter(
+              (item: { status?: string }) => item.status === "active",
+            );
+            rulesByType[ruleType] = activeItems.length;
+            totalRules += activeItems.length;
+          } catch {
+            // Skip invalid files
+          }
+        }
+      }
     }
 
     return c.json({
@@ -870,10 +909,17 @@ app.get("/api/stats/overview", async (c) => {
       },
       decisions: {
         total: decisionsIndex.items.length,
-        byStatus: decisionStatusCount,
       },
       interactions: {
         total: totalInteractions,
+      },
+      patterns: {
+        total: totalPatterns,
+        byType: patternsByType,
+      },
+      rules: {
+        total: totalRules,
+        byType: rulesByType,
       },
     });
   } catch (error) {

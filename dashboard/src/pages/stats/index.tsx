@@ -16,8 +16,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface OverviewStats {
   sessions: { total: number; byType: Record<string, number> };
-  decisions: { total: number; byStatus: Record<string, number> };
+  decisions: { total: number };
   interactions: { total: number };
+  patterns: { total: number; byType: Record<string, number> };
+  rules: { total: number; byType: Record<string, number> };
 }
 
 interface ActivityData {
@@ -132,9 +134,9 @@ export function StatsPage() {
       }))
     : [];
 
-  // Prepare decision status data
-  const decisionStatusData = overview
-    ? Object.entries(overview.decisions.byStatus).map(([name, value]) => ({
+  // Prepare pattern type data
+  const patternTypeData = overview?.patterns?.byType
+    ? Object.entries(overview.patterns.byType).map(([name, value]) => ({
         name,
         value,
       }))
@@ -148,9 +150,11 @@ export function StatsPage() {
       </div>
 
       {/* Overview Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
         {overviewLoading ? (
           <>
+            <SkeletonCard />
+            <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
@@ -165,6 +169,14 @@ export function StatsPage() {
             <StatCard
               title={t("totalDecisions")}
               value={overview?.decisions.total || 0}
+            />
+            <StatCard
+              title={t("totalPatterns")}
+              value={overview?.patterns?.total || 0}
+            />
+            <StatCard
+              title={t("totalRules")}
+              value={overview?.rules?.total || 0}
             />
             <StatCard
               title={t("totalInteractions")}
@@ -287,19 +299,17 @@ export function StatsPage() {
         </Card>
       </div>
 
-      {/* Decision Status */}
-      {decisionStatusData.length > 0 && (
+      {/* Pattern Types */}
+      {patternTypeData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>{t("decisionsByStatus")}</CardTitle>
+            <CardTitle>{t("patternsByType")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex gap-4 flex-wrap">
-              {decisionStatusData.map(({ name, value }) => (
+              {patternTypeData.map(({ name, value }) => (
                 <div key={name} className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground capitalize">
-                    {name}:
-                  </span>
+                  <span className="text-sm text-muted-foreground">{name}:</span>
                   <span className="font-semibold">{value}</span>
                 </div>
               ))}

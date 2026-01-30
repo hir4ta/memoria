@@ -1,15 +1,25 @@
 #!/usr/bin/env bash
-# UserPromptSubmit hook for memoria plugin
-# Searches memoria for relevant context based on user prompt
+#
+# user-prompt-submit.sh - UserPromptSubmit hook for memoria plugin
+#
+# Purpose: Search memoria for relevant context and inject as additionalContext
+#
+# Input (stdin): JSON with prompt, cwd
+# Output (stdout): JSON with hookSpecificOutput.additionalContext (if matches found)
+# Exit codes: 0 = success (continue with optional context)
+#
+# Dependencies: jq
+#
 
 set -euo pipefail
 
 # Read input from stdin
 input_json=$(cat)
 
-# Check for jq
+# Check for jq (required dependency)
 if ! command -v jq &> /dev/null; then
-    exit 0
+    echo "[memoria] Warning: jq not found, memory search skipped." >&2
+    exit 0  # Non-blocking - continue without memory search
 fi
 
 # Extract prompt and cwd

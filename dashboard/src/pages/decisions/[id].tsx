@@ -120,11 +120,11 @@ export function DecisionDetailPage() {
               </h3>
               <ul className="space-y-2">
                 {decision.alternatives.map((alt) => (
-                  <li key={`${alt.option}-${alt.rejected}`} className="text-sm">
-                    <span className="font-medium">{alt.option}</span>
+                  <li key={`${alt.name}-${alt.reason}`} className="text-sm">
+                    <span className="font-medium">{alt.name}</span>
                     <span className="text-muted-foreground">
                       {" "}
-                      - {alt.rejected}
+                      - {alt.reason}
                     </span>
                   </li>
                 ))}

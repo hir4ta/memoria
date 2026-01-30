@@ -7,7 +7,10 @@
 # and suggests solutions from past error-solution patterns.
 #
 # Input (stdin): JSON with tool_name, tool_input, tool_response, cwd
-# Output: JSON with continue (boolean) and optional additionalContext
+# Output (stdout): JSON with {"continue": true} and optional additionalContext
+# Exit codes: 0 = success (non-blocking)
+#
+# Dependencies: jq
 
 set -euo pipefail
 

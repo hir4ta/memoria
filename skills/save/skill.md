@@ -34,9 +34,28 @@ Extract and save all meaningful data from the current session.
 
 ## Execution Steps
 
+<phases>
+Execute all phases in order. Each phase builds on the previous.
+
+- Phase 0: Interactions - Merge preCompactBackups with current conversation
+- Phase 1: Summary - Extract session metadata
+- Phase 2: Decisions - Save to decisions/
+- Phase 3: Patterns - Save to patterns/
+- Phase 4: Rules - Extract development standards
+</phases>
+
 ### Phase 0: Save Conversation History (interactions)
 
-**IMPORTANT: Do this FIRST before any other extraction.**
+Execute this phase first. If auto-compact occurred during the session, `preCompactBackups`
+contains earlier conversations that must be merged with current interactions.
+
+**Example scenario:**
+```
+Session start → 16 interactions → auto-compact → 8 more interactions → /memoria:save
+
+Without merge: Only 8 interactions saved (data loss)
+With merge: All 24 interactions saved
+```
 
 1. Get session path from additionalContext (e.g., `.memoria/sessions/2026/01/abc12345.json`)
 2. Read current session file
@@ -239,14 +258,65 @@ Extract and save all meaningful data from the current session.
 
 ### Phase 4: Extract Rules
 
-Scan conversation for user instructions:
+Scan conversation for development standards. These include both explicit user
+instructions and implicit standards from technical discussions.
+
+**Example extraction:**
+```
+Conversation: "Codex pointed out that all pgvector queries need tenantId for security"
+
+Extracted rule:
+{
+  "category": "security",
+  "rule": "All pgvector queries must include tenantId condition",
+  "reasoning": "Multi-tenant data isolation",
+  "source": "session:abc12345"
+}
+```
+
+Scan for user instructions AND technical standards:
 
 #### Dev Rules
-Look for:
-- "Use X"
-- "Don't use X"
-- "Write with X pattern"
-- "Always do X"
+
+<rule-sources>
+1. Explicit user instructions: "Use X", "Don't use X", "Always do X", "Never do X"
+2. Technical discussions: Security requirements, architectural decisions, best practices from code review
+</rule-sources>
+
+**Example - Explicit instruction:**
+```
+User: "Always validate embedding dimensions before saving"
+
+Rule: {
+  "id": "rule-001",
+  "key": "validate-embedding-dimensions",
+  "text": "Validate embedding dimensions (3072) before saving",
+  "category": "architecture",
+  "status": "active",
+  "createdAt": "2026-01-30T12:00:00Z",
+  "updatedAt": "2026-01-30T12:00:00Z"
+}
+```
+
+**Example - Implicit from discussion:**
+```
+Codex review: "This query lacks tenantId - multi-tenant security risk"
+Discussion concluded: Add tenantId to all pgvector queries
+
+Rule: {
+  "id": "rule-002",
+  "key": "pgvector-tenantid-required",
+  "text": "All pgvector queries must include tenantId condition",
+  "category": "security",
+  "rationale": "Multi-tenant data isolation",
+  "status": "active",
+  "createdAt": "2026-01-30T12:00:00Z",
+  "updatedAt": "2026-01-30T12:00:00Z"
+}
+```
+
+**Required fields:** `id`, `key`, `text`, `category`, `status`, `createdAt`, `updatedAt`
+**Optional fields:** `rationale`, `tags`, `priority`, `scope`
 
 Categories: `code-style`, `architecture`, `error-handling`, `performance`, `security`, `testing`, `other`
 
@@ -295,35 +365,45 @@ Read + Edit: .memoria/rules/review-guidelines.json
 
 ## Output Format
 
+Report each phase result:
+
 ```
-Session saved.
+---
+**Session saved.**
 
-Session ID: abc12345
-Path: .memoria/sessions/2026/01/abc12345.json
+**Session ID:** abc12345
+**Path:** .memoria/sessions/2026/01/abc12345.json
 
-Interactions: 15 saved
-Files changed: 8
+**Phase 0 - Interactions:** 15 saved (8 from preCompactBackups + 7 new)
+**Phase 1 - Summary:**
+| Field | Value |
+|-------|-------|
+| Title | JWT authentication implementation |
+| Goal | Implement JWT-based auth |
+| Outcome | success |
+| Type | implementation |
 
-Summary:
-  Title: JWT authentication implementation
-  Goal: Implement JWT-based auth
-  Outcome: success
-  Type: implementation
+**Phase 2 - Decisions (2):**
+- `[jwt-auth-001]` Authentication method selection → decisions/2026/01/
+- `[token-expiry-001]` Token expiry strategy → decisions/2026/01/
 
-Decisions saved (2):
-  + [jwt-auth-001] Authentication method selection → decisions/2026/01/jwt-auth-001.json
-  + [token-expiry-001] Token expiry strategy → decisions/2026/01/token-expiry-001.json
+**Phase 3 - Patterns (1):**
+- `[error-solution]` secretOrPrivateKey must be asymmetric → patterns/user.json
 
-Patterns saved (1):
-  + [error-solution] secretOrPrivateKey must be asymmetric → patterns/user.json
-
-Rules updated:
+**Phase 4 - Rules:**
   dev-rules.json:
     + [code-style] Use early return pattern
     ~ [architecture] Avoid circular dependencies (skipped: similar exists)
 
   review-guidelines.json:
     (no changes)
+```
+
+If no rules are found, report what was scanned:
+```
+**Phase 4 - Rules:**
+  Scanned for: user instructions, technical standards from Codex review, security requirements
+  Result: No new rules identified
 ```
 
 ## Notes

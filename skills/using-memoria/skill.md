@@ -49,6 +49,10 @@ Automatically saved:
 - Tool usage
 - File changes
 
+**Auto-compact handling:** If auto-compact occurred during the session, the SessionEnd hook
+automatically merges `preCompactBackups` with newly extracted interactions to preserve
+the complete conversation history.
+
 ### Manual Save (`/memoria:save`)
 
 **Run anytime** to save all session data (no need to exit first):
@@ -61,6 +65,15 @@ Automatically saved:
 | Errors → **Patterns** | patterns/*.json |
 | Dev rules | rules/dev-rules.json |
 | Review guidelines | rules/review-guidelines.json |
+
+<phases>
+Execute all phases in order:
+- Phase 0: Interactions (merges preCompactBackups if auto-compact occurred)
+- Phase 1: Summary
+- Phase 2: Decisions
+- Phase 3: Patterns
+- Phase 4: Rules (scan for explicit instructions and implicit technical standards)
+</phases>
 
 ### Auto Memory Search
 

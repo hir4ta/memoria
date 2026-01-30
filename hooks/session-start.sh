@@ -1,16 +1,26 @@
 #!/usr/bin/env bash
-# SessionStart hook for memoria plugin
-# Initializes session JSON and injects minimal context via additionalContext
+#
+# session-start.sh - SessionStart hook for memoria plugin
+#
+# Purpose: Initialize session JSON and inject context via additionalContext
+#
+# Input (stdin): JSON with session_id, cwd, trigger (startup|resume|clear|compact)
+# Output (stdout): JSON with hookSpecificOutput.additionalContext
+# Exit codes: 0 = success (continue session)
+#
+# Dependencies: jq
+#
 
 set -euo pipefail
 
 # Read input from stdin
 input_json=$(cat)
 
-# Extract fields from input (requires jq)
+# Check for jq (required dependency)
 if ! command -v jq &> /dev/null; then
-    echo '{"error": "jq is required. Install with: brew install jq"}' >&2
-    exit 0
+    echo "[memoria] Warning: jq not found. Install with: brew install jq" >&2
+    echo "[memoria] Session tracking disabled for this session." >&2
+    exit 0  # Non-blocking - allow session to continue without memoria
 fi
 
 cwd=$(echo "$input_json" | jq -r '.cwd // empty' 2>/dev/null || echo "")
