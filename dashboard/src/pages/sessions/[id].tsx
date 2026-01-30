@@ -588,7 +588,7 @@ export function SessionDetailPage() {
                   {tc("tags")}
                 </span>
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {session.tags.length > 0 ? (
+                  {(session.tags?.length ?? 0) > 0 ? (
                     session.tags.map((tagId) => (
                       <Badge
                         key={tagId}
