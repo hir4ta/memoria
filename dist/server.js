@@ -3453,6 +3453,29 @@ function paginateArray(items, page, limit) {
     }
   };
 }
+app.get("/api/project", (c) => {
+  const projectRoot = getProjectRoot();
+  const projectName = path3.basename(projectRoot);
+  let repository = null;
+  try {
+    const gitConfigPath = path3.join(projectRoot, ".git", "config");
+    if (fs4.existsSync(gitConfigPath)) {
+      const gitConfig = fs4.readFileSync(gitConfigPath, "utf-8");
+      const match2 = gitConfig.match(
+        /url\s*=\s*.*[:/]([^/]+\/[^/]+?)(?:\.git)?$/m
+      );
+      if (match2) {
+        repository = match2[1];
+      }
+    }
+  } catch {
+  }
+  return c.json({
+    name: projectName,
+    path: projectRoot,
+    repository
+  });
+});
 app.get("/api/sessions", async (c) => {
   const useIndex = c.req.query("useIndex") !== "false";
   const usePagination = c.req.query("paginate") !== "false";
@@ -3936,6 +3959,28 @@ app.get("/api/rules/:id", async (c) => {
   } catch (error) {
     console.error("Failed to read rules:", error);
     return c.json({ error: "Failed to read rules" }, 500);
+  }
+});
+app.put("/api/rules/:id", async (c) => {
+  const id = c.req.param("id");
+  if (id !== "dev-rules" && id !== "review-guidelines") {
+    return c.json({ error: "Invalid rule type" }, 400);
+  }
+  const dir = rulesDir();
+  try {
+    const filePath = path3.join(dir, `${id}.json`);
+    if (!fs4.existsSync(filePath)) {
+      return c.json({ error: "Rules not found" }, 404);
+    }
+    const body = await c.req.json();
+    if (!body.items || !Array.isArray(body.items)) {
+      return c.json({ error: "Invalid rules format" }, 400);
+    }
+    fs4.writeFileSync(filePath, JSON.stringify(body, null, 2));
+    return c.json(body);
+  } catch (error) {
+    console.error("Failed to update rules:", error);
+    return c.json({ error: "Failed to update rules" }, 500);
   }
 });
 app.get("/api/timeline", async (c) => {

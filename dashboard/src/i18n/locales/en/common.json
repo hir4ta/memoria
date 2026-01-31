@@ -35,5 +35,18 @@
   "deleteDialog": {
     "title": "Are you sure?",
     "description": "This action cannot be undone."
+  },
+  "tagCategories": {
+    "domain": "Domain",
+    "phase": "Phase",
+    "infra": "Infrastructure",
+    "cloud": "Cloud",
+    "architecture": "Architecture",
+    "feature": "Feature",
+    "ui": "UI/UX",
+    "data": "Data",
+    "ai": "AI/ML",
+    "quality": "Quality",
+    "workflow": "Workflow"
   }
 }

@@ -35,5 +35,18 @@
   "deleteDialog": {
     "title": "本当に削除しますか？",
     "description": "この操作は取り消せません。"
+  },
+  "tagCategories": {
+    "domain": "ドメイン",
+    "phase": "フェーズ",
+    "infra": "インフラ",
+    "cloud": "クラウド",
+    "architecture": "アーキテクチャ",
+    "feature": "機能",
+    "ui": "UI/UX",
+    "data": "データ",
+    "ai": "AI/ML",
+    "quality": "品質",
+    "workflow": "ワークフロー"
   }
 }

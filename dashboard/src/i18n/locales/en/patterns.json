@@ -1,6 +1,7 @@
 {
   "title": "Learned Patterns",
   "subtitle": "Patterns extracted from development sessions via /memoria:save",
+  "patternCount": "{{count}} patterns",
   "searchPlaceholder": "Search patterns...",
   "noPatterns": "No patterns learned yet. Run /memoria:save to extract patterns from sessions.",
   "noMatchingFilters": "No patterns match your filters.",
@@ -28,8 +29,11 @@
     "errorSolutions": "Error Solutions"
   },
   "fields": {
+    "description": "Description",
     "errorPattern": "Error Pattern",
     "solution": "Solution",
+    "codeExample": "Code Example",
+    "context": "Context",
     "hideContext": "Hide context",
     "showContext": "Show context"
   }

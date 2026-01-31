@@ -12,5 +12,8 @@
   "topTags": "トップタグ",
   "patternsByType": "タイプ別パターン",
   "noData": "データなし",
-  "noTags": "タグなし"
+  "noTags": "タグなし",
+  "sessions": "セッション",
+  "decisions": "意思決定",
+  "usage": "使用回数"
 }

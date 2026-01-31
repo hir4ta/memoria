@@ -8,7 +8,10 @@ import { Pagination } from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -123,17 +126,51 @@ export function SessionsPage() {
   const { data: tagsData } = useTags();
   const tags = tagsData?.tags || [];
 
-  // Get unique tags from all sessions for filter dropdown
-  const availableTags = useMemo(() => {
-    if (!data?.data) return [];
-    const tagSet = new Set<string>();
-    for (const session of data.data) {
+  // Group tags by category for filter dropdown
+  const tagsByCategory = useMemo(() => {
+    if (!tags.length) return {};
+
+    // Get tags that are actually used in sessions
+    const usedTagIds = new Set<string>();
+    for (const session of data?.data || []) {
       for (const tag of session.tags || []) {
-        tagSet.add(tag);
+        usedTagIds.add(tag);
       }
     }
-    return Array.from(tagSet).sort();
-  }, [data?.data]);
+
+    // Group by category, only include used tags
+    const grouped: Record<string, Tag[]> = {};
+    for (const tag of tags) {
+      if (!usedTagIds.has(tag.id)) continue;
+      const category = tag.category || "other";
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(tag);
+    }
+
+    // Sort tags within each category
+    for (const category of Object.keys(grouped)) {
+      grouped[category].sort((a, b) => a.label.localeCompare(b.label));
+    }
+
+    return grouped;
+  }, [tags, data?.data]);
+
+  // Define category order for display
+  const categoryOrder = [
+    "domain",
+    "phase",
+    "feature",
+    "ui",
+    "architecture",
+    "infra",
+    "cloud",
+    "data",
+    "ai",
+    "quality",
+    "workflow",
+  ];
 
   // Get unique projects from all sessions for filter dropdown
   const availableProjects = useMemo(() => {
@@ -229,11 +266,25 @@ export function SessionsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{tc("allTags")}</SelectItem>
-                {availableTags.map((tag) => (
-                  <SelectItem key={tag} value={tag}>
-                    {tag}
-                  </SelectItem>
-                ))}
+                {categoryOrder
+                  .filter((category) => tagsByCategory[category]?.length > 0)
+                  .map((category, index) => (
+                    <SelectGroup key={category}>
+                      {index > 0 && <SelectSeparator />}
+                      <SelectLabel>
+                        {tc(`tagCategories.${category}`)}
+                      </SelectLabel>
+                      {tagsByCategory[category].map((tag) => (
+                        <SelectItem key={tag.id} value={tag.id}>
+                          <span
+                            className="inline-block w-2 h-2 rounded-full mr-2"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                          {tag.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
               </SelectContent>
             </Select>
             <Select
@@ -263,7 +314,7 @@ export function SessionsPage() {
             </div>
           ) : (
             <>
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                 {sessions.map((session) => (
                   <SessionCard key={session.id} session={session} tags={tags} />
                 ))}

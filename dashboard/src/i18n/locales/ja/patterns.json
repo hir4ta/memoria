@@ -1,6 +1,7 @@
 {
   "title": "学習されたパターン",
   "subtitle": "/memoria:saveで開発セッションから抽出されたパターン",
+  "patternCount": "{{count}}件",
   "searchPlaceholder": "パターンを検索...",
   "noPatterns": "まだパターンがありません。/memoria:saveを実行してセッションからパターンを抽出してください。",
   "noMatchingFilters": "フィルターに一致するパターンがありません。",
@@ -28,8 +29,11 @@
     "errorSolutions": "エラー解決"
   },
   "fields": {
+    "description": "説明",
     "errorPattern": "エラーパターン",
     "solution": "解決策",
+    "codeExample": "コード例",
+    "context": "コンテキスト",
     "hideContext": "コンテキストを非表示",
     "showContext": "コンテキストを表示"
   }

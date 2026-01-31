@@ -12,5 +12,8 @@
   "topTags": "Top Tags",
   "patternsByType": "Patterns by Type",
   "noData": "No data",
-  "noTags": "No tags"
+  "noTags": "No tags",
+  "sessions": "Sessions",
+  "decisions": "Decisions",
+  "usage": "Usage"
 }

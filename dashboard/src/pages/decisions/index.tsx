@@ -1,9 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { DecisionCardSkeletonList } from "@/components/ui/decision-card-skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -13,10 +18,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDecisions } from "@/hooks/use-decisions";
+import { getDecision } from "@/lib/api";
 import type { Decision } from "@/lib/types";
 
-function DecisionCard({ decision }: { decision: Decision }) {
+function DecisionCard({
+  decision,
+  onClick,
+}: {
+  decision: Decision;
+  onClick: () => void;
+}) {
   const { i18n } = useTranslation("decisions");
 
   const date = new Date(decision.createdAt).toLocaleDateString(
@@ -24,33 +37,150 @@ function DecisionCard({ decision }: { decision: Decision }) {
   );
 
   return (
-    <Link to={`/decisions/${decision.id}`}>
-      <Card className="hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors cursor-pointer h-full">
-        <CardContent className="p-3">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <CardTitle className="text-sm font-medium line-clamp-2">
-              {decision.title}
-            </CardTitle>
+    <Card
+      className="hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors cursor-pointer h-full"
+      onClick={onClick}
+    >
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <CardTitle className="text-sm font-medium line-clamp-2">
+            {decision.title}
+          </CardTitle>
+        </div>
+        <div className="text-xs text-stone-500 dark:text-stone-400 mb-2">
+          {date}
+        </div>
+        {decision.tags && decision.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {decision.tags.slice(0, 3).map((tag) => (
+              <Badge
+                key={tag}
+                variant="secondary"
+                className="text-xs px-1.5 py-0"
+              >
+                {tag}
+              </Badge>
+            ))}
           </div>
-          <div className="text-xs text-stone-500 dark:text-stone-400 mb-2">
-            {date}
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DecisionDetailDialog({
+  decisionId,
+  open,
+  onOpenChange,
+}: {
+  decisionId: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useTranslation("decisions");
+  const { t: tc } = useTranslation("common");
+  const [decision, setDecision] = useState<Decision | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!decisionId || !open) {
+      setDecision(null);
+      return;
+    }
+
+    setLoading(true);
+    getDecision(decisionId)
+      .then(setDecision)
+      .catch(() => setDecision(null))
+      .finally(() => setLoading(false));
+  }, [decisionId, open]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+        {loading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
           </div>
-          {decision.tags && decision.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {decision.tags.slice(0, 3).map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="secondary"
-                  className="text-xs px-1.5 py-0"
-                >
-                  {tag}
-                </Badge>
-              ))}
+        ) : decision ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>{decision.title}</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Decision - main content */}
+              <div className="space-y-1">
+                <span className="text-xs font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wide">
+                  {t("detail.decision")}
+                </span>
+                <div className="bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-600 rounded px-4 py-3">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {decision.decision}
+                  </p>
+                </div>
+              </div>
+
+              {/* Reasoning */}
+              <div className="space-y-1">
+                <span className="text-xs font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wide">
+                  {t("detail.reasoning")}
+                </span>
+                <div className="bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 rounded px-4 py-3">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-amber-900 dark:text-amber-100">
+                    {decision.reasoning}
+                  </p>
+                </div>
+              </div>
+
+              {/* Alternatives */}
+              {decision.alternatives?.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wide">
+                    {t("detail.alternatives")}
+                  </span>
+                  <div className="space-y-2">
+                    {decision.alternatives.map((alt) => {
+                      // Support both 'name' (schema) and 'option' (legacy JSON)
+                      const altName =
+                        alt.name || (alt as { option?: string }).option;
+                      return (
+                        <div
+                          key={`${altName}-${alt.reason}`}
+                          className="border border-stone-300 dark:border-stone-600 rounded px-4 py-3"
+                        >
+                          <span className="font-medium text-sm">{altName}</span>
+                          <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">
+                            {alt.reason}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Tags */}
+              {decision.tags?.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-2">
+                  {decision.tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </Link>
+          </>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            {tc("loading")}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -60,6 +190,9 @@ export function DecisionsPage() {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string>("all");
+  const [selectedDecisionId, setSelectedDecisionId] = useState<string | null>(
+    null,
+  );
 
   // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -167,9 +300,13 @@ export function DecisionsPage() {
             </div>
           ) : (
             <>
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                 {decisions.map((decision) => (
-                  <DecisionCard key={decision.id} decision={decision} />
+                  <DecisionCard
+                    key={decision.id}
+                    decision={decision}
+                    onClick={() => setSelectedDecisionId(decision.id)}
+                  />
                 ))}
               </div>
 
@@ -186,6 +323,12 @@ export function DecisionsPage() {
           )}
         </>
       )}
+
+      <DecisionDetailDialog
+        decisionId={selectedDecisionId}
+        open={!!selectedDecisionId}
+        onOpenChange={(open) => !open && setSelectedDecisionId(null)}
+      />
     </div>
   );
 }

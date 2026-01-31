@@ -1,5 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router";
+import { getProject } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -133,9 +135,34 @@ export function Sidebar() {
   const { t } = useTranslation("layout");
   const location = useLocation();
 
+  const { data: project } = useQuery({
+    queryKey: ["project"],
+    queryFn: getProject,
+  });
+
   return (
-    <aside className="w-60 shrink-0 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 px-4 py-6">
-      <nav className="flex flex-col gap-6">
+    <aside className="w-60 shrink-0 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 px-4 py-6 flex flex-col">
+      {/* Project Info */}
+      {project && (
+        <div className="mb-6 pb-4 border-b border-stone-200 dark:border-stone-700">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500 dark:text-stone-400 mb-2">
+            {t("nav.project")}
+          </p>
+          <p className="text-sm font-medium truncate" title={project.path}>
+            {project.name}
+          </p>
+          {project.repository && (
+            <p
+              className="text-xs text-muted-foreground truncate"
+              title={project.repository}
+            >
+              {project.repository}
+            </p>
+          )}
+        </div>
+      )}
+
+      <nav className="flex flex-col gap-6 flex-1">
         {navGroups.map((group) => (
           <div key={group.labelKey} className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500 dark:text-stone-400">

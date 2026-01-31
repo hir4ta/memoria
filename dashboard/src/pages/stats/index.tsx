@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
+  Cell,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -88,8 +90,26 @@ function SkeletonCard() {
   );
 }
 
+// Monochrome color palette (stone/slate)
+const COLORS = {
+  primary: "#57534e", // stone-600
+  secondary: "#78716c", // stone-500
+  accent: "#44403c", // stone-700
+  light: "#a8a29e", // stone-400
+  chart: [
+    "#292524", // stone-900
+    "#44403c", // stone-700
+    "#57534e", // stone-600
+    "#78716c", // stone-500
+    "#a8a29e", // stone-400
+    "#d6d3d1", // stone-300
+    "#1c1917", // stone-950
+    "#3f3f46", // zinc-700
+  ],
+};
+
 export function StatsPage() {
-  const { t } = useTranslation("stats");
+  const { t, i18n } = useTranslation("stats");
 
   const {
     data: overview,
@@ -126,34 +146,37 @@ export function StatsPage() {
     );
   }
 
-  // Prepare session type data
+  // Prepare session type data - sort by value descending, filter out unknown
   const sessionTypeData = overview
-    ? Object.entries(overview.sessions.byType).map(([name, value]) => ({
-        name: name || "unknown",
-        value,
-      }))
+    ? Object.entries(overview.sessions.byType)
+        .filter(([name]) => name && name !== "unknown")
+        .map(([name, value], index) => ({
+          name,
+          value,
+          fill: COLORS.chart[index % COLORS.chart.length],
+        }))
+        .sort((a, b) => b.value - a.value)
     : [];
 
-  // Prepare pattern type data
-  const patternTypeData = overview?.patterns?.byType
-    ? Object.entries(overview.patterns.byType).map(([name, value]) => ({
-        name,
-        value,
-      }))
-    : [];
+  // Format date for display
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return i18n.language === "ja"
+      ? `${date.getMonth() + 1}/${date.getDate()}`
+      : `${date.getMonth() + 1}/${date.getDate()}`;
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        <h1 className="text-xl font-bold">{t("title")}</h1>
+        <p className="text-xs text-muted-foreground">{t("subtitle")}</p>
       </div>
 
       {/* Overview Cards */}
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         {overviewLoading ? (
           <>
-            <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
@@ -182,81 +205,192 @@ export function StatsPage() {
               title={t("totalInteractions")}
               value={overview?.interactions.total || 0}
             />
-            <StatCard
-              title={t("avgInteractionsPerSession")}
-              value={
-                overview && overview.sessions.total > 0
-                  ? (
-                      overview.interactions.total / overview.sessions.total
-                    ).toFixed(1)
-                  : "0"
-              }
-            />
           </>
         )}
       </div>
 
-      {/* Activity Chart */}
+      {/* Activity Chart - Area chart for better visual */}
       <Card>
-        <CardHeader>
-          <CardTitle>{t("activityChart")}</CardTitle>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">{t("activityChart")}</CardTitle>
         </CardHeader>
         <CardContent>
           {activityLoading ? (
-            <Skeleton className="h-[300px] w-full" />
+            <Skeleton className="h-[200px] w-full" />
           ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={activity?.activity || []}>
-                <CartesianGrid strokeDasharray="3 3" />
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart
+                data={activity?.activity || []}
+                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient
+                    id="colorSessions"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="5%" stopColor="#292524" stopOpacity={0.5} />
+                    <stop offset="95%" stopColor="#292524" stopOpacity={0.05} />
+                  </linearGradient>
+                  <linearGradient
+                    id="colorDecisions"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="5%" stopColor="#78716c" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#78716c" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="hsl(var(--border))"
+                  vertical={false}
+                />
                 <XAxis
                   dataKey="date"
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={(value) => value.slice(5)}
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  tickFormatter={formatDate}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                  tickLine={false}
                 />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Line
+                <YAxis
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={30}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #e7e5e4",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                  }}
+                  labelFormatter={formatDate}
+                />
+                <Legend
+                  wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }}
+                />
+                <Area
                   type="monotone"
                   dataKey="sessions"
-                  stroke="#3b82f6"
+                  stroke="#292524"
                   strokeWidth={2}
-                  name="Sessions"
+                  fill="url(#colorSessions)"
+                  name={t("sessions")}
+                  animationDuration={1200}
+                  animationEasing="ease-out"
                 />
-                <Line
+                <Area
                   type="monotone"
                   dataKey="decisions"
-                  stroke="#10b981"
+                  stroke="#78716c"
                   strokeWidth={2}
-                  name="Decisions"
+                  fill="url(#colorDecisions)"
+                  name={t("decisions")}
+                  animationDuration={1200}
+                  animationEasing="ease-out"
+                  animationBegin={200}
                 />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           )}
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         {/* Session Type Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle>{t("sessionsByType")}</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">{t("sessionsByType")}</CardTitle>
           </CardHeader>
           <CardContent>
             {overviewLoading ? (
-              <Skeleton className="h-[200px] w-full" />
+              <Skeleton className="h-[180px] w-full" />
             ) : sessionTypeData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={sessionTypeData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tick={{ fontSize: 12 }} />
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart
+                  data={sessionTypeData}
+                  layout="vertical"
+                  margin={{ top: 0, right: 20, left: 0, bottom: 0 }}
+                >
+                  <defs>
+                    {sessionTypeData.map((entry) => (
+                      <linearGradient
+                        key={`gradient-${entry.name}`}
+                        id={`barGradient-${entry.name}`}
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="0"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor={entry.fill}
+                          stopOpacity={0.8}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor={entry.fill}
+                          stopOpacity={1}
+                        />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    tick={{
+                      fontSize: 11,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
+                    axisLine={{ stroke: "hsl(var(--border))" }}
+                    tickLine={false}
+                  />
                   <YAxis
                     dataKey="name"
                     type="category"
-                    tick={{ fontSize: 12 }}
-                    width={100}
+                    tick={{
+                      fontSize: 11,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={90}
                   />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#3b82f6" name="Sessions" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#ffffff",
+                      border: "1px solid #e7e5e4",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    }}
+                    cursor={false}
+                  />
+                  <Bar
+                    dataKey="value"
+                    name={t("sessions")}
+                    radius={[0, 6, 6, 0]}
+                    animationDuration={1200}
+                    animationEasing="ease-out"
+                  >
+                    {sessionTypeData.map((entry) => (
+                      <Cell
+                        key={`cell-${entry.name}`}
+                        fill={`url(#barGradient-${entry.name})`}
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -269,25 +403,79 @@ export function StatsPage() {
 
         {/* Top Tags Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle>{t("topTags")}</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">{t("topTags")}</CardTitle>
           </CardHeader>
           <CardContent>
             {tagsLoading ? (
-              <Skeleton className="h-[200px] w-full" />
+              <Skeleton className="h-[180px] w-full" />
             ) : tagStats?.tags && tagStats.tags.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={tagStats.tags.slice(0, 10)} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tick={{ fontSize: 12 }} />
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart
+                  data={tagStats.tags.slice(0, 8)}
+                  layout="vertical"
+                  margin={{ top: 0, right: 20, left: 0, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient
+                      id="tagBarGradient"
+                      x1="0"
+                      y1="0"
+                      x2="1"
+                      y2="0"
+                    >
+                      <stop offset="0%" stopColor="#a8a29e" stopOpacity={0.6} />
+                      <stop
+                        offset="100%"
+                        stopColor="#57534e"
+                        stopOpacity={0.9}
+                      />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    tick={{
+                      fontSize: 11,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
+                    axisLine={{ stroke: "hsl(var(--border))" }}
+                    tickLine={false}
+                  />
                   <YAxis
                     dataKey="name"
                     type="category"
-                    tick={{ fontSize: 12 }}
-                    width={100}
+                    tick={{
+                      fontSize: 11,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={90}
                   />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#10b981" name="Usage" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#ffffff",
+                      border: "1px solid #e7e5e4",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    }}
+                    cursor={false}
+                  />
+                  <Bar
+                    dataKey="count"
+                    fill="url(#tagBarGradient)"
+                    name={t("usage")}
+                    radius={[0, 6, 6, 0]}
+                    animationDuration={1200}
+                    animationEasing="ease-out"
+                    animationBegin={200}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -298,25 +486,6 @@ export function StatsPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Pattern Types */}
-      {patternTypeData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("patternsByType")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4 flex-wrap">
-              {patternTypeData.map(({ name, value }) => (
-                <div key={name} className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">{name}:</span>
-                  <span className="font-semibold">{value}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

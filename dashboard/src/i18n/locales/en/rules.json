@@ -30,5 +30,10 @@
   "status": {
     "active": "active",
     "deprecated": "deprecated"
+  },
+  "editRule": "Edit Rule",
+  "errors": {
+    "emptyText": "Rule text cannot be empty.",
+    "saveFailed": "Failed to save rule. Please try again."
   }
 }

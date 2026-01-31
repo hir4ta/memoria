@@ -1,5 +1,6 @@
 {
   "nav": {
+    "project": "Project",
     "platform": "Platform",
     "settings": "Settings",
     "sessions": "Sessions",

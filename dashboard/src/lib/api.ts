@@ -2,6 +2,19 @@ import type { Decision, Session, TagsFile } from "./types";
 
 const API_BASE = "/api";
 
+// Project Info
+export interface ProjectInfo {
+  name: string;
+  path: string;
+  repository: string | null;
+}
+
+export async function getProject(): Promise<ProjectInfo> {
+  const res = await fetch(`${API_BASE}/project`);
+  if (!res.ok) throw new Error("Failed to fetch project info");
+  return res.json();
+}
+
 // Pagination types
 export interface PaginationInfo {
   page: number;

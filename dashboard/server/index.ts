@@ -187,6 +187,35 @@ function paginateArray<T>(items: T[], page: number, limit: number) {
   };
 }
 
+// Project Info
+app.get("/api/project", (c) => {
+  const projectRoot = getProjectRoot();
+  const projectName = path.basename(projectRoot);
+
+  // Try to get repository from git config
+  let repository: string | null = null;
+  try {
+    const gitConfigPath = path.join(projectRoot, ".git", "config");
+    if (fs.existsSync(gitConfigPath)) {
+      const gitConfig = fs.readFileSync(gitConfigPath, "utf-8");
+      const match = gitConfig.match(
+        /url\s*=\s*.*[:/]([^/]+\/[^/]+?)(?:\.git)?$/m,
+      );
+      if (match) {
+        repository = match[1];
+      }
+    }
+  } catch {
+    // Ignore git config errors
+  }
+
+  return c.json({
+    name: projectName,
+    path: projectRoot,
+    repository,
+  });
+});
+
 // Sessions
 app.get("/api/sessions", async (c) => {
   const useIndex = c.req.query("useIndex") !== "false";
@@ -842,8 +871,31 @@ app.get("/api/rules/:id", async (c) => {
   }
 });
 
-// Note: PUT for rules removed - dashboard is read-only
-// Rules are managed via /memoria:save command
+// Update rules
+app.put("/api/rules/:id", async (c) => {
+  const id = c.req.param("id");
+  // Only allow known rule types
+  if (id !== "dev-rules" && id !== "review-guidelines") {
+    return c.json({ error: "Invalid rule type" }, 400);
+  }
+  const dir = rulesDir();
+  try {
+    const filePath = path.join(dir, `${id}.json`);
+    if (!fs.existsSync(filePath)) {
+      return c.json({ error: "Rules not found" }, 404);
+    }
+    const body = await c.req.json();
+    // Basic validation
+    if (!body.items || !Array.isArray(body.items)) {
+      return c.json({ error: "Invalid rules format" }, 400);
+    }
+    fs.writeFileSync(filePath, JSON.stringify(body, null, 2));
+    return c.json(body);
+  } catch (error) {
+    console.error("Failed to update rules:", error);
+    return c.json({ error: "Failed to update rules" }, 500);
+  }
+});
 
 // Timeline API - セッションを時系列でグループ化
 app.get("/api/timeline", async (c) => {

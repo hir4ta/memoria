@@ -16,16 +16,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Dynamically import ForceGraph2D to avoid SSR issues
 const ForceGraph2D = lazy(() => import("react-force-graph-2d"));
 
-// Hook to get container dimensions
+// Hook to get container dimensions - calculates height to fit viewport
 function useContainerDimensions(ref: React.RefObject<HTMLDivElement | null>) {
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
 
   useEffect(() => {
     const updateDimensions = () => {
       if (ref.current) {
+        // Calculate available height: viewport - header(70) - layout padding(32) - page header(50) - gaps(32)
+        const availableHeight = window.innerHeight - 184;
         setDimensions({
           width: ref.current.offsetWidth,
-          height: 600,
+          height: Math.max(400, availableHeight),
         });
       }
     };
@@ -80,6 +82,7 @@ export function GraphPage() {
   const graphRef = useRef<unknown>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const dimensions = useContainerDimensions(containerRef);
 
   const { data, isLoading, error } = useQuery({
@@ -117,6 +120,17 @@ export function GraphPage() {
     setHoveredNode(node);
   }, []);
 
+  const handleMouseMove = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setMousePos({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+    },
+    [],
+  );
+
   if (error) {
     return (
       <div className="text-center py-12 text-destructive">
@@ -126,27 +140,32 @@ export function GraphPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+    <div className="h-full flex flex-col">
+      <div className="mb-4">
+        <h1 className="text-xl font-bold">{t("title")}</h1>
+        <p className="text-xs text-muted-foreground">{t("subtitle")}</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+      <div className="grid gap-4 lg:grid-cols-[1fr_280px] flex-1 min-h-0">
         <Card className="overflow-hidden">
-          <CardContent className="p-0" ref={containerRef}>
+          <CardContent
+            className="p-0 relative"
+            ref={containerRef}
+            onMouseMove={handleMouseMove}
+          >
             {isLoading ? (
-              <Skeleton className="h-[600px] w-full" />
+              <Skeleton className="h-full min-h-[400px] w-full" />
             ) : graphData.nodes.length === 0 ? (
-              <div className="h-[600px] flex items-center justify-center text-muted-foreground">
+              <div className="h-full min-h-[400px] flex items-center justify-center text-muted-foreground">
                 {t("noSessions")}
               </div>
             ) : (
-              <Suspense fallback={<Skeleton className="h-[600px] w-full" />}>
+              <Suspense
+                fallback={<Skeleton className="h-full min-h-[400px] w-full" />}
+              >
                 <ForceGraph2D
                   ref={graphRef}
                   graphData={graphData}
-                  nodeLabel="title"
                   nodeColor="color"
                   nodeRelSize={6}
                   linkWidth={(link) =>
@@ -160,6 +179,50 @@ export function GraphPage() {
                   backgroundColor="#ffffff"
                 />
               </Suspense>
+            )}
+            {/* Floating tooltip on graph */}
+            {hoveredNode && (
+              <div
+                className="absolute pointer-events-none bg-white border border-stone-200 rounded-lg shadow-lg p-3 max-w-[240px] z-10"
+                style={{
+                  left: Math.min(mousePos.x + 12, dimensions.width - 260),
+                  top: Math.min(mousePos.y + 12, dimensions.height - 120),
+                }}
+              >
+                <p className="font-medium text-sm line-clamp-2 mb-1">
+                  {hoveredNode.title}
+                </p>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{
+                      backgroundColor:
+                        typeColors[hoveredNode.type] || typeColors.unknown,
+                    }}
+                  />
+                  <span>{t(`types.${hoveredNode.type}`)}</span>
+                </div>
+                {hoveredNode.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-1">
+                    {hoveredNode.tags.slice(0, 3).map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-xs bg-stone-100 px-1.5 py-0.5 rounded"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {hoveredNode.tags.length > 3 && (
+                      <span className="text-xs text-muted-foreground">
+                        +{hoveredNode.tags.length - 3}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-stone-400">
+                  {t("clickToViewDetails")}
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -192,52 +255,20 @@ export function GraphPage() {
             <CardHeader>
               <CardTitle className="text-sm">{t("sessionTypes")}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="grid grid-cols-2 gap-x-4 gap-y-2">
               {Object.entries(typeColors).map(([type, color]) => (
                 <div key={type} className="flex items-center gap-2">
                   <span
-                    className="h-3 w-3 rounded-full"
+                    className="h-3 w-3 rounded-full shrink-0"
                     style={{ backgroundColor: color }}
                   />
-                  <span className="text-sm capitalize">
+                  <span className="text-sm capitalize truncate">
                     {t(`types.${type}`)}
                   </span>
                 </div>
               ))}
             </CardContent>
           </Card>
-
-          {/* Hovered Node Info */}
-          {hoveredNode && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">
-                  {t("selectedSession")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="font-medium line-clamp-2">{hoveredNode.title}</p>
-                <p className="text-sm text-muted-foreground capitalize">
-                  Type: {t(`types.${hoveredNode.type}`)}
-                </p>
-                {hoveredNode.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {hoveredNode.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="text-xs bg-muted px-2 py-0.5 rounded"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  {t("clickToViewDetails")}
-                </p>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Stats */}
           <Card>

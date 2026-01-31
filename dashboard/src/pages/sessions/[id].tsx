@@ -324,35 +324,6 @@ function ContextRestorationCard({ session }: { session: Session }) {
           </p>
         </div>
 
-        {/* Environment */}
-        {(projectDir || branch) && (
-          <div>
-            <div className="text-sm font-medium text-muted-foreground mb-2">
-              {t("contextRestoration.environment")}
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              {projectDir && (
-                <div className="col-span-2">
-                  <span className="text-muted-foreground">
-                    {t("contextRestoration.directory")}:
-                  </span>{" "}
-                  <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-xs">
-                    {projectDir}
-                  </code>
-                </div>
-              )}
-              {branch && (
-                <div>
-                  <span className="text-muted-foreground">{tc("branch")}:</span>{" "}
-                  <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-xs">
-                    {branch}
-                  </code>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Modified Files */}
         {modifiedFiles.size > 0 && (
           <div>
@@ -495,14 +466,7 @@ export function SessionDetailPage() {
   const interactionCount = interactions.length;
 
   return (
-    <div className="h-[calc(100%+64px)] flex flex-col overflow-hidden -my-8 -mx-8 px-6 py-4">
-      {/* Header - fixed */}
-      <div className="flex items-center gap-4 pb-4 flex-shrink-0">
-        <Link to="/" className="text-muted-foreground hover:text-foreground">
-          &larr; {tc("back")}
-        </Link>
-      </div>
-
+    <div className="h-[calc(100%+32px)] flex flex-col overflow-hidden -my-4 -mx-6 px-6 py-4">
       {/* Two-column layout: Overview (30%) | Main Content (70%) */}
       <div className="flex gap-6 flex-1 min-h-0">
         {/* Left Column - Overview (scrollable) */}
@@ -546,12 +510,6 @@ export function SessionDetailPage() {
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    {t("detail.interactions")}
-                  </span>
-                  <span>{interactionCount}</span>
-                </div>
                 {session.sessionType && (
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">{tc("type")}</span>
@@ -680,16 +638,24 @@ export function SessionDetailPage() {
         {/* Right Column - Tabbed Content */}
         <div className="flex-1 min-w-0 flex flex-col min-h-0">
           <Tabs defaultValue="context" className="flex flex-col flex-1 min-h-0">
-            <TabsList className="flex-shrink-0">
-              <TabsTrigger value="context">
-                {t("detail.sessionContext")}
-              </TabsTrigger>
-              {isOwner && (
-                <TabsTrigger value="interactions">
-                  {t("detail.interactions")} ({interactionCount})
+            <div className="flex items-center justify-between flex-shrink-0 mb-2">
+              <TabsList>
+                <TabsTrigger value="context">
+                  {t("detail.sessionContext")}
                 </TabsTrigger>
-              )}
-            </TabsList>
+                {isOwner && (
+                  <TabsTrigger value="interactions">
+                    {t("detail.interactions")} ({interactionCount})
+                  </TabsTrigger>
+                )}
+              </TabsList>
+              <Link
+                to="/"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                &larr; {tc("back")}
+              </Link>
+            </div>
 
             {/* Session Context Tab */}
             <TabsContent

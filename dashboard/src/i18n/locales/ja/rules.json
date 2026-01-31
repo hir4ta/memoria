@@ -30,5 +30,10 @@
   "status": {
     "active": "有効",
     "deprecated": "非推奨"
+  },
+  "editRule": "ルールを編集",
+  "errors": {
+    "emptyText": "ルールテキストを入力してください。",
+    "saveFailed": "ルールの保存に失敗しました。もう一度お試しください。"
   }
 }
