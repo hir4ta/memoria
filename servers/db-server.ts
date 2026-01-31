@@ -9,7 +9,9 @@
  */
 
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
+import * as readline from "node:readline";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -436,6 +438,397 @@ function crossProjectSearch(
   }
 }
 
+// Helper: Get transcript path from Claude session ID
+function getTranscriptPath(claudeSessionId: string): string | null {
+  const projectPath = getProjectPath();
+  // Encode project path: replace / with -
+  // Claude Code keeps the leading dash (e.g., -Users-user-Projects-memoria)
+  const encodedPath = projectPath.replace(/\//g, "-");
+
+  const transcriptPath = path.join(
+    os.homedir(),
+    ".claude",
+    "projects",
+    encodedPath,
+    `${claudeSessionId}.jsonl`,
+  );
+
+  return fs.existsSync(transcriptPath) ? transcriptPath : null;
+}
+
+// Helper: Parse JSONL transcript and extract interactions
+interface ParsedInteraction {
+  id: string;
+  timestamp: string;
+  user: string;
+  thinking: string;
+  assistant: string;
+  isCompactSummary: boolean;
+}
+
+interface ParsedTranscript {
+  interactions: ParsedInteraction[];
+  toolUsage: Array<{ name: string; count: number }>;
+  files: Array<{ path: string; action: string }>;
+  metrics: {
+    userMessages: number;
+    assistantResponses: number;
+    thinkingBlocks: number;
+  };
+}
+
+async function parseTranscript(
+  transcriptPath: string,
+): Promise<ParsedTranscript> {
+  const fileStream = fs.createReadStream(transcriptPath);
+  const rl = readline.createInterface({
+    input: fileStream,
+    crlfDelay: Number.POSITIVE_INFINITY,
+  });
+
+  interface TranscriptEntry {
+    type: string;
+    timestamp: string;
+    message?: {
+      role?: string;
+      content?:
+        | string
+        | Array<{
+            type: string;
+            thinking?: string;
+            text?: string;
+            name?: string;
+            input?: { file_path?: string };
+          }>;
+    };
+    isCompactSummary?: boolean;
+  }
+
+  const entries: TranscriptEntry[] = [];
+
+  for await (const line of rl) {
+    if (line.trim()) {
+      try {
+        entries.push(JSON.parse(line));
+      } catch {
+        // Skip invalid JSON lines
+      }
+    }
+  }
+
+  // Extract user messages (text only, exclude tool results and local command outputs)
+  const userMessages = entries
+    .filter((e) => {
+      if (e.type !== "user" || e.message?.role !== "user") return false;
+      const content = e.message?.content;
+      if (typeof content !== "string") return false;
+      if (content.startsWith("<local-command-stdout>")) return false;
+      if (content.startsWith("<local-command-caveat>")) return false;
+      return true;
+    })
+    .map((e) => ({
+      timestamp: e.timestamp,
+      content: e.message?.content as string,
+      isCompactSummary: e.isCompactSummary || false,
+    }));
+
+  // Extract assistant messages with thinking and text
+  const assistantMessages = entries
+    .filter((e) => e.type === "assistant")
+    .map((e) => {
+      const contentArray = e.message?.content;
+      if (!Array.isArray(contentArray)) return null;
+
+      const thinking = contentArray
+        .filter((c) => c.type === "thinking" && c.thinking)
+        .map((c) => c.thinking)
+        .join("\n");
+
+      const text = contentArray
+        .filter((c) => c.type === "text" && c.text)
+        .map((c) => c.text)
+        .join("\n");
+
+      if (!thinking && !text) return null;
+
+      return {
+        timestamp: e.timestamp,
+        thinking,
+        text,
+      };
+    })
+    .filter((m) => m !== null);
+
+  // Tool usage summary
+  const toolUsageMap = new Map<string, number>();
+  for (const entry of entries) {
+    if (entry.type === "assistant" && Array.isArray(entry.message?.content)) {
+      for (const c of entry.message.content) {
+        if (c.type === "tool_use" && c.name) {
+          toolUsageMap.set(c.name, (toolUsageMap.get(c.name) || 0) + 1);
+        }
+      }
+    }
+  }
+  const toolUsage = Array.from(toolUsageMap.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // File changes
+  const filesMap = new Map<string, string>();
+  for (const entry of entries) {
+    if (entry.type === "assistant" && Array.isArray(entry.message?.content)) {
+      for (const c of entry.message.content) {
+        if (
+          c.type === "tool_use" &&
+          (c.name === "Edit" || c.name === "Write")
+        ) {
+          const filePath = c.input?.file_path;
+          if (filePath) {
+            filesMap.set(filePath, c.name === "Write" ? "create" : "edit");
+          }
+        }
+      }
+    }
+  }
+  const files = Array.from(filesMap.entries()).map(([p, action]) => ({
+    path: p,
+    action,
+  }));
+
+  // Build interactions by pairing user messages with assistant responses
+  const interactions: ParsedInteraction[] = [];
+  for (let i = 0; i < userMessages.length; i++) {
+    const user = userMessages[i];
+    const nextUserTs =
+      i + 1 < userMessages.length
+        ? userMessages[i + 1].timestamp
+        : "9999-12-31T23:59:59Z";
+
+    // Collect all assistant responses between this user message and next
+    const turnResponses = assistantMessages.filter(
+      (a) => a.timestamp > user.timestamp && a.timestamp < nextUserTs,
+    );
+
+    if (turnResponses.length > 0) {
+      interactions.push({
+        id: `int-${String(i + 1).padStart(3, "0")}`,
+        timestamp: user.timestamp,
+        user: user.content,
+        thinking: turnResponses
+          .filter((r) => r.thinking)
+          .map((r) => r.thinking)
+          .join("\n"),
+        assistant: turnResponses
+          .filter((r) => r.text)
+          .map((r) => r.text)
+          .join("\n"),
+        isCompactSummary: user.isCompactSummary,
+      });
+    }
+  }
+
+  return {
+    interactions,
+    toolUsage,
+    files,
+    metrics: {
+      userMessages: userMessages.length,
+      assistantResponses: assistantMessages.length,
+      thinkingBlocks: assistantMessages.filter((a) => a.thinking).length,
+    },
+  };
+}
+
+// Save interactions to SQLite
+interface SaveInteractionsResult {
+  success: boolean;
+  savedCount: number;
+  mergedFromBackup: number;
+  message: string;
+}
+
+async function saveInteractions(
+  claudeSessionId: string,
+  memoriaSessionId?: string,
+): Promise<SaveInteractionsResult> {
+  const transcriptPath = getTranscriptPath(claudeSessionId);
+  if (!transcriptPath) {
+    return {
+      success: false,
+      savedCount: 0,
+      mergedFromBackup: 0,
+      message: `Transcript not found for session: ${claudeSessionId}`,
+    };
+  }
+
+  const database = getDb();
+  if (!database) {
+    return {
+      success: false,
+      savedCount: 0,
+      mergedFromBackup: 0,
+      message: "Database not available",
+    };
+  }
+
+  const projectPath = getProjectPath();
+  const sessionId = memoriaSessionId || claudeSessionId.slice(0, 8);
+
+  // Get owner from git or fallback
+  let owner = "unknown";
+  try {
+    const { execSync } = await import("node:child_process");
+    owner =
+      execSync("git config user.name", {
+        encoding: "utf8",
+        cwd: projectPath,
+      }).trim() || owner;
+  } catch {
+    try {
+      owner = os.userInfo().username || owner;
+    } catch {
+      // keep default
+    }
+  }
+
+  // Get repository info
+  let repository = "";
+  let repositoryUrl = "";
+  let repositoryRoot = "";
+  try {
+    const { execSync } = await import("node:child_process");
+    repositoryRoot = execSync("git rev-parse --show-toplevel", {
+      encoding: "utf8",
+      cwd: projectPath,
+    }).trim();
+    repositoryUrl = execSync("git remote get-url origin", {
+      encoding: "utf8",
+      cwd: projectPath,
+    }).trim();
+    // Extract owner/repo from URL
+    const match = repositoryUrl.match(/[:/]([^/]+\/[^/]+?)(\.git)?$/);
+    if (match) {
+      repository = match[1].replace(/\.git$/, "");
+    }
+  } catch {
+    // Not a git repo
+  }
+
+  // Parse transcript
+  const parsed = await parseTranscript(transcriptPath);
+
+  // Get backup from pre_compact_backups
+  let backupInteractions: ParsedInteraction[] = [];
+  try {
+    const stmt = database.prepare(`
+      SELECT interactions FROM pre_compact_backups
+      WHERE session_id = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `);
+    const row = stmt.get(sessionId) as { interactions: string } | undefined;
+    if (row?.interactions) {
+      backupInteractions = JSON.parse(row.interactions);
+    }
+  } catch {
+    // No backup or parse error
+  }
+
+  // Merge backup with new interactions
+  const lastBackupTs =
+    backupInteractions.length > 0
+      ? backupInteractions[backupInteractions.length - 1].timestamp
+      : "1970-01-01T00:00:00Z";
+
+  const trulyNew = parsed.interactions.filter(
+    (i) => i.timestamp > lastBackupTs,
+  );
+  const merged = [...backupInteractions, ...trulyNew];
+
+  // Re-number IDs
+  const finalInteractions = merged.map((interaction, idx) => ({
+    ...interaction,
+    id: `int-${String(idx + 1).padStart(3, "0")}`,
+  }));
+
+  // Delete existing interactions for this session
+  try {
+    const deleteStmt = database.prepare(
+      "DELETE FROM interactions WHERE session_id = ?",
+    );
+    deleteStmt.run(sessionId);
+  } catch {
+    // Ignore delete errors
+  }
+
+  // Insert interactions
+  const insertStmt = database.prepare(`
+    INSERT INTO interactions (
+      session_id, project_path, repository, repository_url, repository_root,
+      owner, role, content, thinking, timestamp, is_compact_summary
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  let insertedCount = 0;
+  for (const interaction of finalInteractions) {
+    try {
+      // Insert user message
+      insertStmt.run(
+        sessionId,
+        projectPath,
+        repository,
+        repositoryUrl,
+        repositoryRoot,
+        owner,
+        "user",
+        interaction.user,
+        null,
+        interaction.timestamp,
+        interaction.isCompactSummary ? 1 : 0,
+      );
+      insertedCount++;
+
+      // Insert assistant response
+      if (interaction.assistant) {
+        insertStmt.run(
+          sessionId,
+          projectPath,
+          repository,
+          repositoryUrl,
+          repositoryRoot,
+          owner,
+          "assistant",
+          interaction.assistant,
+          interaction.thinking || null,
+          interaction.timestamp,
+          0,
+        );
+        insertedCount++;
+      }
+    } catch {
+      // Skip on insert error
+    }
+  }
+
+  // Clear pre_compact_backups for this session
+  try {
+    const clearBackupStmt = database.prepare(
+      "DELETE FROM pre_compact_backups WHERE session_id = ?",
+    );
+    clearBackupStmt.run(sessionId);
+  } catch {
+    // Ignore
+  }
+
+  return {
+    success: true,
+    savedCount: insertedCount,
+    mergedFromBackup: backupInteractions.length,
+    message: `Saved ${insertedCount} interactions (${finalInteractions.length} turns, ${backupInteractions.length} from backup)`,
+  };
+}
+
 // MCP Server setup
 const server = new McpServer({
   name: "memoria-db",
@@ -549,6 +942,40 @@ server.registerTool(
     const results = crossProjectSearch(query, { limit });
     return {
       content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+    };
+  },
+);
+
+// Tool: memoria_save_interactions
+server.registerTool(
+  "memoria_save_interactions",
+  {
+    description:
+      "Save conversation interactions from Claude Code transcript to SQLite. " +
+      "Use this during /memoria:save to persist the conversation history. " +
+      "Reads the transcript file directly and extracts user/assistant messages.",
+    inputSchema: {
+      claudeSessionId: z
+        .string()
+        .describe("Full Claude Code session UUID (36 chars)"),
+      memoriaSessionId: z
+        .string()
+        .optional()
+        .describe(
+          "Memoria session ID (8 chars). If not provided, uses first 8 chars of claudeSessionId",
+        ),
+    },
+  },
+  async ({ claudeSessionId, memoriaSessionId }) => {
+    const result = await saveInteractions(claudeSessionId, memoriaSessionId);
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(result, null, 2),
+        },
+      ],
+      isError: !result.success,
     };
   },
 );

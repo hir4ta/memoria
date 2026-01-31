@@ -111,11 +111,11 @@ Execute all phases in order. Each phase builds on the previous.
 
 ### Phase 1: Save Interactions to SQLite
 
-**IMPORTANT:** This phase saves interactions to the local SQLite database (`.memoria/local.db`).
-This ensures interactions are available in the dashboard immediately, without waiting for session end.
+**REQUIRED:** You MUST save interactions to `.memoria/local.db` in this phase.
+Do NOT skip this step or delegate to SessionEnd hook.
 
 1. Use master session ID from Phase 0 (e.g., `abc12345`)
-2. Get Claude Code session ID from the system (available in session context)
+2. Get Claude Code session ID from the system (check session context for the full UUID)
 
 3. **Create session-link file** (for SessionEnd hook to find the correct memoria session):
    ```bash
@@ -131,35 +131,47 @@ This ensures interactions are available in the dashboard immediately, without wa
    ```
    The claude-session-short-id is the first 8 characters of the Claude Code session ID.
 
-4. **Extract and save interactions to SQLite:**
-   Use Bash to run the extraction script:
-   ```bash
-   # Initialize local database if needed
-   MEMORIA_DIR=".memoria"
-   DB_PATH="${MEMORIA_DIR}/local.db"
+4. **Save interactions using MCP tool:**
 
-   # Get transcript path from Claude Code context
-   TRANSCRIPT_PATH="${CLAUDE_TRANSCRIPT_PATH:-}"
+   Call the `memoria_save_interactions` MCP tool with:
+   - `claudeSessionId`: The full Claude Code session UUID (36 chars)
+   - `memoriaSessionId`: The master session ID from Phase 0 (8 chars)
 
-   if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
-     # Extract interactions using jq (same logic as session-end.sh)
-     # Then insert into SQLite
-     # (The full extraction is done by session-end.sh, but we save what we can now)
-   fi
+   Example:
+   ```
+   mcp__memoria-db__memoria_save_interactions({
+     claudeSessionId: "86ea2268-ae4d-4f5c-bb38-424d3716061f",
+     memoriaSessionId: "abc12345"
+   })
    ```
 
-   **Alternative approach (simpler):** Scan the current conversation and save:
-   - For each user message and assistant response in the conversation
-   - Insert into `.memoria/local.db` interactions table
-   - Use session_id = master session ID
-   - Set project_path, repository, owner from context
+   The tool will:
+   - Read the transcript file directly from `~/.claude/projects/`
+   - Extract all user/assistant messages with thinking blocks
+   - Merge with any pre_compact_backups
+   - Save to `.memoria/local.db`
 
-5. **Update session JSON** with files and metrics
-6. Set `updatedAt` to current timestamp
+5. **Verify the result:**
+   Check the tool response for:
+   - `success`: Should be `true`
+   - `savedCount`: Number of interactions saved
+   - `mergedFromBackup`: Count from pre-compact backup
 
-**Note:** The SessionEnd hook will also save interactions when the session ends. The local.db handles duplicates by deleting existing interactions for the session before inserting.
+   If `success` is `false`, check the `message` for error details.
+
+6. **Update session JSON** with files and metrics
+7. Set `updatedAt` to current timestamp
+
+**Verification:** Report the savedCount from the MCP tool response to the user.
 
 ### Phase 2: Extract Session Data
+
+**Language Detection (IMPORTANT):**
+- Detect the language used in the conversation with the user
+- ALL generated content (title, summary, decisions, patterns, rules) MUST be in the same language as the user's messages
+- If the user writes in Japanese → generate Japanese content
+- If the user writes in English → generate English content
+- Do NOT default to English; match the user's language
 
 1. Use master session from Phase 0
 2. Read master session file (already updated with merged data from Phase 0-1)
@@ -423,9 +435,9 @@ Report each phase result:
   Children merged: xyz78901, def45678
   Work periods: 3
 
-**Phase 1 - Session Link:** Created for SessionEnd hook
+**Phase 1 - Interactions:** Saved to local.db
   - Link: .memoria/session-links/{claude-session-id}.json
-  - Note: Interactions will be saved when session ends
+  - Interactions saved: 15 (user: 8, assistant: 7)
 
 **Phase 2 - Summary:**
 | Field | Value |
@@ -461,8 +473,8 @@ If no rules are found, report what was scanned:
 ## Notes
 
 - Session path is shown in additionalContext at session start
-- **Interactions ARE saved by this command** to `.memoria/local.db`
-- Interactions are also auto-saved by SessionEnd hook when the session ends
+- **Phase 1 MUST save interactions** to `.memoria/local.db` immediately - do NOT skip or defer
+- SessionEnd hook is only a backup; `/memoria:save` is the primary way to persist interactions
 - **Privacy**: Interactions in SQLite are local (`.memoria/local.db` should be gitignored)
 - **Project-local storage**: Each project has its own `.memoria/local.db`
 - **JSON lightness**: Session JSON contains only metadata (no interactions)
