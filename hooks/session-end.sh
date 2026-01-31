@@ -3,7 +3,7 @@
 # session-end.sh - SessionEnd hook for memoria plugin
 #
 # Auto-save session by extracting interactions from transcript using jq.
-# Interactions are stored in global SQLite (~/.claude/memoria/global.db) for cross-project search.
+# Interactions are stored in project-local SQLite (.memoria/local.db).
 # JSON file contains only metadata (no interactions).
 #
 # IMPORTANT: This script merges pre_compact_backups from SQLite with
@@ -40,9 +40,8 @@ memoria_dir="${cwd}/.memoria"
 sessions_dir="${memoria_dir}/sessions"
 session_links_dir="${memoria_dir}/session-links"
 
-# Global database path
-global_db_dir="${MEMORIA_DATA_DIR:-$HOME/.claude/memoria}"
-db_path="${global_db_dir}/global.db"
+# Local database path (project-local)
+db_path="${memoria_dir}/local.db"
 
 # Find session file
 session_short_id="${session_id:0:8}"
@@ -68,25 +67,7 @@ if [ -z "$session_file" ] || [ ! -f "$session_file" ]; then
     fi
 fi
 
-# If still not found, try to find the most recently modified session file
-if [ -z "$session_file" ] || [ ! -f "$session_file" ]; then
-    if [ -d "$sessions_dir" ]; then
-        # Find session file that was modified within the last 5 minutes
-        recent_file=$(find "$sessions_dir" -type f -name "*.json" -mmin -5 2>/dev/null | head -1)
-        if [ -n "$recent_file" ] && [ -f "$recent_file" ]; then
-            # Extract session ID from filename
-            recent_id=$(basename "$recent_file" .json)
-            session_file="$recent_file"
-            memoria_session_id="$recent_id"
-
-            # Create session-link for future reference
-            mkdir -p "$session_links_dir"
-            echo "{\"masterSessionId\": \"${recent_id}\", \"claudeSessionId\": \"${session_id}\", \"createdAt\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"}" > "${session_links_dir}/${session_short_id}.json"
-            echo "[memoria] Created session-link: ${session_short_id} -> ${recent_id}" >&2
-        fi
-    fi
-fi
-
+# If still not found, exit (no auto-linking to avoid confusion)
 if [ -z "$session_file" ] || [ ! -f "$session_file" ]; then
     exit 0
 fi
@@ -118,15 +99,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 schema_path="${PLUGIN_ROOT}/lib/schema.sql"
 
-# Initialize global SQLite database if not exists
+# Initialize local SQLite database if not exists
 init_database() {
-    if [ ! -d "$global_db_dir" ]; then
-        mkdir -p "$global_db_dir"
+    if [ ! -d "$memoria_dir" ]; then
+        mkdir -p "$memoria_dir"
     fi
     if [ ! -f "$db_path" ]; then
         if [ -f "$schema_path" ]; then
             sqlite3 "$db_path" < "$schema_path"
-            echo "[memoria] Global SQLite database initialized: ${db_path}" >&2
+            echo "[memoria] Local SQLite database initialized: ${db_path}" >&2
         else
             # Minimal schema if schema.sql not found
             sqlite3 "$db_path" <<'SQLEOF'
@@ -338,7 +319,7 @@ if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
         .updatedAt = $updatedAt
     ' "$session_file" > "${session_file}.tmp" && mv "${session_file}.tmp" "$session_file"
 
-    echo "[memoria] Session auto-saved with ${merged_count} interactions to global DB (${backup_count} from backup): ${session_file}" >&2
+    echo "[memoria] Session auto-saved with ${merged_count} interactions to local DB (${backup_count} from backup): ${session_file}" >&2
 else
     # No transcript, just update status
     now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

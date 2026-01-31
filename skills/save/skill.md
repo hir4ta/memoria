@@ -109,16 +109,15 @@ Execute all phases in order. Each phase builds on the previous.
 
 **Important:** After this phase, all subsequent operations work on the MASTER session.
 
-### Phase 1: Create Session Link (for SessionEnd hook)
+### Phase 1: Save Interactions to SQLite
 
-**IMPORTANT:** Do NOT save interactions to SQLite in this phase. The `session-end.sh` hook will automatically extract and save complete interactions from the transcript when the session ends.
-
-This phase creates a session-link file so that `session-end.sh` can find the correct memoria session.
+**IMPORTANT:** This phase saves interactions to the local SQLite database (`.memoria/local.db`).
+This ensures interactions are available in the dashboard immediately, without waiting for session end.
 
 1. Use master session ID from Phase 0 (e.g., `abc12345`)
 2. Get Claude Code session ID from the system (available in session context)
 
-3. **Create session-link file**:
+3. **Create session-link file** (for SessionEnd hook to find the correct memoria session):
    ```bash
    mkdir -p .memoria/session-links
    ```
@@ -132,10 +131,33 @@ This phase creates a session-link file so that `session-end.sh` can find the cor
    ```
    The claude-session-short-id is the first 8 characters of the Claude Code session ID.
 
-4. **Update session JSON** with files and metrics only
-5. Set `updatedAt` to current timestamp
+4. **Extract and save interactions to SQLite:**
+   Use Bash to run the extraction script:
+   ```bash
+   # Initialize local database if needed
+   MEMORIA_DIR=".memoria"
+   DB_PATH="${MEMORIA_DIR}/local.db"
 
-**Note:** Interactions are automatically saved by `session-end.sh` when the session ends. This ensures complete conversation history is captured from the transcript.
+   # Get transcript path from Claude Code context
+   TRANSCRIPT_PATH="${CLAUDE_TRANSCRIPT_PATH:-}"
+
+   if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
+     # Extract interactions using jq (same logic as session-end.sh)
+     # Then insert into SQLite
+     # (The full extraction is done by session-end.sh, but we save what we can now)
+   fi
+   ```
+
+   **Alternative approach (simpler):** Scan the current conversation and save:
+   - For each user message and assistant response in the conversation
+   - Insert into `.memoria/local.db` interactions table
+   - Use session_id = master session ID
+   - Set project_path, repository, owner from context
+
+5. **Update session JSON** with files and metrics
+6. Set `updatedAt` to current timestamp
+
+**Note:** The SessionEnd hook will also save interactions when the session ends. The local.db handles duplicates by deleting existing interactions for the session before inserting.
 
 ### Phase 2: Extract Session Data
 
@@ -352,10 +374,10 @@ Before adding:
 ### File Operations
 
 ```bash
-# Global SQLite (interactions - private)
-# Location: ~/.claude/memoria/global.db (or MEMORIA_DATA_DIR env var)
-Read + Write: ${MEMORIA_DATA_DIR:-~/.claude/memoria}/global.db
-  - interactions table (includes project_path, repository for filtering)
+# Local SQLite (interactions - project-local)
+# Location: .memoria/local.db
+Read + Write: .memoria/local.db
+  - interactions table
   - pre_compact_backups table
 
 # Session JSON (metadata - shared)
@@ -439,11 +461,10 @@ If no rules are found, report what was scanned:
 ## Notes
 
 - Session path is shown in additionalContext at session start
-- **Interactions are NOT saved by this command** - they are auto-saved by SessionEnd hook when the session ends
-- To see interactions in dashboard, you must end the session (`/exit`) after `/memoria:save`
-- **Privacy**: Interactions in SQLite are local to each developer (not in Git)
-- **Global storage**: `~/.claude/memoria/global.db` stores interactions from all projects
-- **Project filtering**: Each interaction includes `project_path` and `repository` fields
+- **Interactions ARE saved by this command** to `.memoria/local.db`
+- Interactions are also auto-saved by SessionEnd hook when the session ends
+- **Privacy**: Interactions in SQLite are local (`.memoria/local.db` should be gitignored)
+- **Project-local storage**: Each project has its own `.memoria/local.db`
 - **JSON lightness**: Session JSON contains only metadata (no interactions)
 - Decisions and patterns are also kept in session JSON for context
 - Duplicate checking prevents bloat in decisions/ and patterns/

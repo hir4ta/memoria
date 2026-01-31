@@ -2880,7 +2880,6 @@ var cors = (options) => {
 // lib/db.ts
 import { execSync } from "node:child_process";
 import { existsSync as existsSync2, mkdirSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { dirname, join as join2 } from "node:path";
 import { fileURLToPath } from "node:url";
 var originalEmit = process.emit;
@@ -2904,23 +2903,16 @@ function getCurrentUser() {
     }
   }
 }
-function getGlobalDbDir() {
-  const envDir = process.env.MEMORIA_DATA_DIR;
-  if (envDir) {
-    return envDir;
-  }
-  return join2(homedir(), ".claude", "memoria");
-}
-function getGlobalDbPath() {
-  return join2(getGlobalDbDir(), "global.db");
+function getLocalDbPath(projectPath) {
+  return join2(projectPath, ".memoria", "local.db");
 }
 function configurePragmas(db) {
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA busy_timeout = 5000");
   db.exec("PRAGMA synchronous = NORMAL");
 }
-function openGlobalDatabase() {
-  const dbPath = getGlobalDbPath();
+function openLocalDatabase(projectPath) {
+  const dbPath = getLocalDbPath(projectPath);
   if (!existsSync2(dbPath)) {
     return null;
   }
@@ -2928,29 +2920,17 @@ function openGlobalDatabase() {
   configurePragmas(db);
   return db;
 }
-function getInteractionsBySessionIdsAndOwner(db, sessionIds, owner) {
+function getInteractionsBySessionIds(db, sessionIds) {
   if (sessionIds.length === 0) {
     return [];
   }
   const placeholders = sessionIds.map(() => "?").join(", ");
   const stmt = db.prepare(`
     SELECT * FROM interactions
-    WHERE session_id IN (${placeholders}) AND owner = ?
+    WHERE session_id IN (${placeholders})
     ORDER BY timestamp ASC, session_id ASC, role ASC
   `);
-  return stmt.all(...sessionIds, owner);
-}
-function hasInteractionsForSessionIds(db, sessionIds, owner) {
-  if (sessionIds.length === 0) {
-    return false;
-  }
-  const placeholders = sessionIds.map(() => "?").join(", ");
-  const stmt = db.prepare(`
-    SELECT COUNT(*) as count FROM interactions
-    WHERE session_id IN (${placeholders}) AND owner = ?
-  `);
-  const result = stmt.get(...sessionIds, owner);
-  return result.count > 0;
+  return stmt.all(...sessionIds);
 }
 function deleteInteractions(db, sessionId) {
   const stmt = db.prepare("DELETE FROM interactions WHERE session_id = ?");
@@ -3632,7 +3612,7 @@ app.delete("/api/sessions/:id", async (c) => {
       return c.json({ error: "Session not found" }, 404);
     }
     safeParseJsonFile(filePath);
-    const db = openGlobalDatabase();
+    const db = openLocalDatabase(getProjectRoot());
     let interactionCount = 0;
     if (db) {
       interactionCount = countInteractions(db, { sessionId: id });
@@ -3705,7 +3685,7 @@ app.delete("/api/sessions", async (c) => {
       }
     }
     let totalInteractions = 0;
-    const db = openGlobalDatabase();
+    const db = openLocalDatabase(getProjectRoot());
     if (db) {
       for (const session of sessionsToDelete) {
         totalInteractions += countInteractions(db, { sessionId: session.id });
@@ -3763,10 +3743,9 @@ app.get("/api/sessions/:id/interactions", async (c) => {
   const sessionLinksDir = path3.join(memoriaDir2, "session-links");
   const sessionsDir = path3.join(memoriaDir2, "sessions");
   try {
-    const currentUser = getCurrentUser();
-    const db = openGlobalDatabase();
+    const db = openLocalDatabase(getProjectRoot());
     if (!db) {
-      return c.json({ interactions: [], count: 0, isOwner: false });
+      return c.json({ interactions: [], count: 0 });
     }
     let masterId = id;
     const myLinkFile = path3.join(sessionLinksDir, `${id}.json`);
@@ -3812,19 +3791,7 @@ app.get("/api/sessions/:id/interactions", async (c) => {
       } catch {
       }
     }
-    const isOwner = hasInteractionsForSessionIds(db, sessionIds, currentUser);
-    if (!isOwner) {
-      db.close();
-      return c.json(
-        { error: "Forbidden: You are not the owner of this session" },
-        403
-      );
-    }
-    const interactions = getInteractionsBySessionIdsAndOwner(
-      db,
-      sessionIds,
-      currentUser
-    );
+    const interactions = getInteractionsBySessionIds(db, sessionIds);
     db.close();
     const groupedInteractions = [];
     let currentInteraction = null;
@@ -3851,8 +3818,7 @@ app.get("/api/sessions/:id/interactions", async (c) => {
     }
     return c.json({
       interactions: groupedInteractions,
-      count: groupedInteractions.length,
-      isOwner: true
+      count: groupedInteractions.length
     });
   } catch (error) {
     console.error("Failed to get session interactions:", error);

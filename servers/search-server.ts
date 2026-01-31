@@ -98,12 +98,6 @@ interface PatternFile {
   }>;
 }
 
-// Environment
-const MEMORIA_DATA_DIR =
-  process.env.MEMORIA_DATA_DIR ||
-  path.join(process.env.HOME || "", ".claude/memoria");
-const GLOBAL_DB_PATH = path.join(MEMORIA_DATA_DIR, "global.db");
-
 // Get project path from env or current working directory
 function getProjectPath(): string {
   return process.env.MEMORIA_PROJECT_PATH || process.cwd();
@@ -113,18 +107,23 @@ function getMemoriaDir(): string {
   return path.join(getProjectPath(), ".memoria");
 }
 
+function getLocalDbPath(): string {
+  return path.join(getMemoriaDir(), "local.db");
+}
+
 // Database connection (lazy initialization)
 let db: DatabaseSyncType | null = null;
 
 function getDb(): DatabaseSyncType | null {
   if (db) return db;
 
-  if (!fs.existsSync(GLOBAL_DB_PATH)) {
+  const dbPath = getLocalDbPath();
+  if (!fs.existsSync(dbPath)) {
     return null;
   }
 
   try {
-    db = new DatabaseSync(GLOBAL_DB_PATH);
+    db = new DatabaseSync(dbPath);
     db.exec("PRAGMA journal_mode = WAL");
     return db;
   } catch {

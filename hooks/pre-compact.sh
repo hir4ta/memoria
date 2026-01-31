@@ -2,7 +2,7 @@
 #
 # pre-compact.sh - Backup interactions before Auto-Compact
 #
-# Saves current interactions to global SQLite (~/.claude/memoria/global.db)
+# Saves current interactions to project-local SQLite (.memoria/local.db)
 # pre_compact_backups table before context is compressed.
 # Does NOT create summary - summary creation is manual via /memoria:save.
 #
@@ -36,12 +36,31 @@ fi
 session_short_id="${session_id:0:8}"
 memoria_dir="${cwd}/.memoria"
 sessions_dir="${memoria_dir}/sessions"
+session_links_dir="${memoria_dir}/session-links"
 
-# Global database path
-global_db_dir="${MEMORIA_DATA_DIR:-$HOME/.claude/memoria}"
-db_path="${global_db_dir}/global.db"
+# Local database path (project-local)
+db_path="${memoria_dir}/local.db"
 
+# The session ID to use for storing data (may be updated to master session ID)
+memoria_session_id="$session_short_id"
+
+# First, try to find session file with current session ID
 session_file=$(find "$sessions_dir" -name "${session_short_id}.json" -type f 2>/dev/null | head -1)
+
+# If not found, check session-links for master session ID
+if [ -z "$session_file" ] || [ ! -f "$session_file" ]; then
+    session_link_file="${session_links_dir}/${session_short_id}.json"
+    if [ -f "$session_link_file" ]; then
+        master_session_id=$(jq -r '.masterSessionId // empty' "$session_link_file" 2>/dev/null || echo "")
+        if [ -n "$master_session_id" ]; then
+            session_file=$(find "$sessions_dir" -type f -name "${master_session_id}.json" 2>/dev/null | head -1)
+            if [ -n "$session_file" ] && [ -f "$session_file" ]; then
+                memoria_session_id="$master_session_id"
+                echo "[memoria] PreCompact: Using master session via session-link: ${master_session_id}" >&2
+            fi
+        fi
+    fi
+fi
 
 if [ -z "$session_file" ] || [ ! -f "$session_file" ]; then
     echo '{"continue": true}'
@@ -59,15 +78,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 schema_path="${PLUGIN_ROOT}/lib/schema.sql"
 
-# Initialize global SQLite database if not exists
+# Initialize local SQLite database if not exists
 init_database() {
-    if [ ! -d "$global_db_dir" ]; then
-        mkdir -p "$global_db_dir"
+    if [ ! -d "$memoria_dir" ]; then
+        mkdir -p "$memoria_dir"
     fi
     if [ ! -f "$db_path" ]; then
         if [ -f "$schema_path" ]; then
             sqlite3 "$db_path" < "$schema_path"
-            echo "[memoria] Global SQLite database initialized: ${db_path}" >&2
+            echo "[memoria] Local SQLite database initialized: ${db_path}" >&2
         else
             # Minimal schema if schema.sql not found
             sqlite3 "$db_path" <<'SQLEOF'
@@ -155,10 +174,10 @@ if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
         # Escape single quotes for SQL
         interactions_escaped="${interactions_json//\'/\'\'}"
 
-        # Insert backup into global SQLite with project_path
-        sqlite3 "$db_path" "INSERT INTO pre_compact_backups (session_id, project_path, owner, interactions) VALUES ('${session_short_id}', '${project_path_escaped}', '${owner}', '${interactions_escaped}');" 2>/dev/null || true
+        # Insert backup into local SQLite with project_path (use master session ID if linked)
+        sqlite3 "$db_path" "INSERT INTO pre_compact_backups (session_id, project_path, owner, interactions) VALUES ('${memoria_session_id}', '${project_path_escaped}', '${owner}', '${interactions_escaped}');" 2>/dev/null || true
 
-        echo "[memoria] PreCompact: Backed up ${interaction_count} interactions to global DB" >&2
+        echo "[memoria] PreCompact: Backed up ${interaction_count} interactions to local DB" >&2
     else
         echo "[memoria] PreCompact: No interactions to backup" >&2
     fi

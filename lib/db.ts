@@ -1,15 +1,14 @@
 /**
  * memoria SQLite Database Utilities
  *
- * Global database for private interactions across all projects.
- * Location: ~/.claude/memoria/global.db (or MEMORIA_DATA_DIR env var)
+ * Project-local database for interactions.
+ * Location: {projectPath}/.memoria/local.db
  *
  * Uses Node.js built-in sqlite module (node:sqlite) for platform independence.
  */
 
 import { execSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -89,22 +88,11 @@ export function getCurrentUser(): string {
 }
 
 /**
- * Get global database directory path
- * Uses MEMORIA_DATA_DIR env var or defaults to ~/.claude/memoria/
+ * Get local database path for a project
+ * Location: {projectPath}/.memoria/local.db
  */
-export function getGlobalDbDir(): string {
-  const envDir = process.env.MEMORIA_DATA_DIR;
-  if (envDir) {
-    return envDir;
-  }
-  return join(homedir(), ".claude", "memoria");
-}
-
-/**
- * Get global database path
- */
-export function getGlobalDbPath(): string {
-  return join(getGlobalDbDir(), "global.db");
+export function getLocalDbPath(projectPath: string): string {
+  return join(projectPath, ".memoria", "local.db");
 }
 
 /**
@@ -117,15 +105,15 @@ function configurePragmas(db: DatabaseSyncType): void {
 }
 
 /**
- * Initialize global database with schema
+ * Initialize local database for a project with schema
  */
-export function initGlobalDatabase(): DatabaseSyncType {
-  const dbDir = getGlobalDbDir();
-  if (!existsSync(dbDir)) {
-    mkdirSync(dbDir, { recursive: true });
+export function initLocalDatabase(projectPath: string): DatabaseSyncType {
+  const memoriaDir = join(projectPath, ".memoria");
+  if (!existsSync(memoriaDir)) {
+    mkdirSync(memoriaDir, { recursive: true });
   }
 
-  const dbPath = getGlobalDbPath();
+  const dbPath = getLocalDbPath(projectPath);
   const db = new DatabaseSync(dbPath);
 
   // Configure pragmas
@@ -142,10 +130,12 @@ export function initGlobalDatabase(): DatabaseSyncType {
 }
 
 /**
- * Open global database
+ * Open local database for a project
  */
-export function openGlobalDatabase(): DatabaseSyncType | null {
-  const dbPath = getGlobalDbPath();
+export function openLocalDatabase(
+  projectPath: string,
+): DatabaseSyncType | null {
+  const dbPath = getLocalDbPath(projectPath);
   if (!existsSync(dbPath)) {
     return null;
   }

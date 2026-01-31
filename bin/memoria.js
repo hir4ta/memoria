@@ -2,7 +2,6 @@
 
 import { fork } from "node:child_process";
 import fs from "node:fs";
-import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -56,24 +55,14 @@ function checkMemoriaDir() {
   }
 }
 
-function getGlobalDbDir() {
-  const envDir = process.env.MEMORIA_DATA_DIR;
-  if (envDir) {
-    return envDir;
-  }
-  return path.join(homedir(), ".claude", "memoria");
-}
-
 function initMemoria() {
   const memoriaDir = path.join(projectRoot, ".memoria");
   const sessionsDir = path.join(memoriaDir, "sessions");
   const rulesDir = path.join(memoriaDir, "rules");
   const patternsDir = path.join(memoriaDir, "patterns");
   const tagsPath = path.join(memoriaDir, "tags.json");
-
-  // Global database path
-  const globalDbDir = getGlobalDbDir();
-  const globalDbPath = path.join(globalDbDir, "global.db");
+  const localDbPath = path.join(memoriaDir, "local.db");
+  const gitignorePath = path.join(memoriaDir, ".gitignore");
 
   // Check if already initialized
   if (fs.existsSync(memoriaDir)) {
@@ -111,15 +100,18 @@ function initMemoria() {
   );
   fs.writeFileSync(path.join(rulesDir, "dev-rules.json"), rulesTemplate);
 
-  // Initialize global SQLite database
+  // Create .gitignore for local.db
+  const gitignoreContent = `# Local SQLite database (private interactions)
+local.db
+local.db-wal
+local.db-shm
+`;
+  fs.writeFileSync(gitignorePath, gitignoreContent);
+
+  // Initialize local SQLite database
   const schemaPath = path.join(packageDir, "lib", "schema.sql");
   try {
-    // Create global db directory if not exists
-    if (!fs.existsSync(globalDbDir)) {
-      fs.mkdirSync(globalDbDir, { recursive: true });
-    }
-
-    const db = new DatabaseSync(globalDbPath);
+    const db = new DatabaseSync(localDbPath);
     db.exec("PRAGMA journal_mode = WAL");
     db.exec("PRAGMA busy_timeout = 5000");
     db.exec("PRAGMA synchronous = NORMAL");
@@ -143,9 +135,8 @@ Created:
   ${tagsPath}
   ${rulesDir}/review-guidelines.json
   ${rulesDir}/dev-rules.json
-
-Global database initialized:
-  ${globalDbPath}
+  ${gitignorePath}
+  ${localDbPath}
 
 You can now use memoria with Claude Code in this project.
 `);

@@ -29938,22 +29938,24 @@ process.emit = (event, ...args) => {
   return originalEmit.apply(process, [event, ...args]);
 };
 var { DatabaseSync } = await import("node:sqlite");
-var MEMORIA_DATA_DIR = process.env.MEMORIA_DATA_DIR || path.join(process.env.HOME || "", ".claude/memoria");
-var GLOBAL_DB_PATH = path.join(MEMORIA_DATA_DIR, "global.db");
 function getProjectPath() {
   return process.env.MEMORIA_PROJECT_PATH || process.cwd();
 }
 function getMemoriaDir() {
   return path.join(getProjectPath(), ".memoria");
 }
+function getLocalDbPath() {
+  return path.join(getMemoriaDir(), "local.db");
+}
 var db = null;
 function getDb() {
   if (db) return db;
-  if (!fs.existsSync(GLOBAL_DB_PATH)) {
+  const dbPath = getLocalDbPath();
+  if (!fs.existsSync(dbPath)) {
     return null;
   }
   try {
-    db = new DatabaseSync(GLOBAL_DB_PATH);
+    db = new DatabaseSync(dbPath);
     db.exec("PRAGMA journal_mode = WAL");
     return db;
   } catch {

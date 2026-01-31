@@ -256,59 +256,39 @@ flowchart TB
 
 ## Data Storage
 
-memoria uses a **hybrid storage** approach for privacy, collaboration, and cross-project knowledge sharing:
+memoria uses a **hybrid storage** approach for privacy and collaboration:
 
 | Storage | Location | Purpose | Sharing |
 |---------|----------|---------|---------|
 | **JSON** | `.memoria/` | Summaries, decisions, patterns, rules | Git-managed (team shared) |
-| **SQLite** | `~/.claude/memoria/global.db` | Interactions, backups | Local only (cross-project) |
+| **SQLite** | `.memoria/local.db` | Interactions, backups | Local only (gitignored) |
 
 **Why hybrid?**
-- **Privacy**: Conversation history (interactions) stays local to each developer
-- **Cross-project**: Global database enables knowledge sharing across all your projects
+- **Privacy**: Conversation history (interactions) stays local (gitignored)
 - **Lightweight**: JSON files reduced from 100KB+ to ~5KB (interactions excluded)
 - **Future-ready**: Embeddings table prepared for semantic search
 
-### Global Database
-
-Interactions are stored in a **global SQLite database** at `~/.claude/memoria/global.db`. This enables:
-- **Cross-project search**: Find related work from any project
-- **Unified history**: View all interactions across projects in the dashboard
-- **Project filtering**: Filter by `project_path` or `repository` in the dashboard
-
-To customize the database location, set the `MEMORIA_DATA_DIR` environment variable:
-
-```bash
-# Custom location (defaults to ~/.claude/memoria/)
-export MEMORIA_DATA_DIR="$HOME/.local/share/memoria"
-```
-
 ### Directory Structure
 
-**Project-local (`.memoria/`)** - Git-managed, team-shared:
+**Project-local (`.memoria/`)**:
 ```text
 .memoria/
+├── local.db          # SQLite with interactions (gitignored)
 ├── tags.json         # Tag master file (93 tags, prevents notation variations)
-├── sessions/         # Session metadata (YYYY/MM)
+├── sessions/         # Session metadata (YYYY/MM) - Git-managed
 │   └── YYYY/MM/
-│       └── {id}.json # Metadata only (interactions in global SQLite)
-├── decisions/        # Technical decisions (from /save)
+│       └── {id}.json # Metadata only (interactions in local.db)
+├── decisions/        # Technical decisions (from /save) - Git-managed
 │   └── YYYY/MM/
 │       └── {id}.json
-├── patterns/         # Error patterns (from /save)
+├── patterns/         # Error patterns (from /save) - Git-managed
 │   └── {user}.json
-├── rules/            # Dev rules / review guidelines
-├── reviews/          # Review results (YYYY/MM)
-└── reports/          # Weekly reports (YYYY-MM)
+├── rules/            # Dev rules / review guidelines - Git-managed
+├── reviews/          # Review results (YYYY/MM) - Git-managed
+└── reports/          # Weekly reports (YYYY-MM) - Git-managed
 ```
 
-**Global (`~/.claude/memoria/`)** - Local only, cross-project:
-```text
-~/.claude/memoria/
-└── global.db         # SQLite with interactions from ALL projects
-```
-
-Each interaction in the global database includes `project_path` and `repository` fields for filtering.
+The `local.db` file is automatically added to `.memoria/.gitignore` to keep conversations private.
 
 ### Session JSON Schema
 

@@ -73,10 +73,9 @@ Glob: .memoria/sessions/**/*.json
 # Read each session file (metadata)
 Read: .memoria/sessions/{year}/{month}/{filename}.json
 
-# Get interactions from global SQLite (private, local only)
-# Global DB location: ~/.claude/memoria/global.db (or MEMORIA_DATA_DIR env var)
-MEMORIA_DB="${MEMORIA_DATA_DIR:-$HOME/.claude/memoria}/global.db"
-sqlite3 "$MEMORIA_DB" "SELECT * FROM interactions WHERE session_id = '{id}' ORDER BY timestamp;"
+# Get interactions from local SQLite (private, project-local)
+# Local DB location: .memoria/local.db
+sqlite3 ".memoria/local.db" "SELECT * FROM interactions WHERE session_id = '{id}' ORDER BY timestamp;"
 
 # Create session-link file (NEW - master session support)
 # This links current Claude session to the master memoria session
@@ -207,9 +206,8 @@ When resuming, inject context from JSON (metadata) and SQLite (interactions):
 ### Interactions (from SQLite, auto-saved by SessionEnd):
 11. **Interactions**: Full conversation log with thinking (private, local only)
 
-**Privacy Note**: Interactions are stored in global SQLite (`~/.claude/memoria/global.db`) and are private to each developer.
+**Privacy Note**: Interactions are stored in project-local SQLite (`.memoria/local.db`) and are private to each developer.
 If you're resuming a session created by another team member, interactions won't be available.
-Use `MEMORIA_DATA_DIR` env var to customize the database location.
 
 **Important**:
 - JSON contains metadata (shared via Git)

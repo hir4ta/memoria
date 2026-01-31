@@ -1,8 +1,8 @@
 -- memoria SQLite Schema (v2)
--- Global database for private interactions across all projects
--- Location: ~/.claude/memoria/global.db
+-- Project-local database for private interactions
+-- Location: .memoria/local.db
 
--- interactions: 会話履歴（プライベート、全プロジェクト横断）
+-- interactions: 会話履歴（プライベート、プロジェクトローカル）
 CREATE TABLE IF NOT EXISTS interactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id TEXT NOT NULL,

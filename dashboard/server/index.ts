@@ -9,9 +9,8 @@ import {
   deleteBackups,
   deleteInteractions,
   getCurrentUser,
-  getInteractionsBySessionIdsAndOwner,
-  hasInteractionsForSessionIds,
-  openGlobalDatabase,
+  getInteractionsBySessionIds,
+  openLocalDatabase,
 } from "../../lib/db.js";
 import {
   isIndexStale,
@@ -24,7 +23,8 @@ import {
 } from "../../lib/index/manager.js";
 
 // =============================================================================
-// Note: Dashboard is read-only. Validation schemas for write operations removed.
+// Note: Dashboard supports read and delete operations.
+// Create/update should be done via /memoria:* commands.
 // Data modifications should be done via /memoria:* commands.
 // =============================================================================
 
@@ -429,8 +429,8 @@ app.delete("/api/sessions/:id", async (c) => {
     // Read session (for potential future use)
     safeParseJsonFile<{ context?: { projectDir?: string } }>(filePath);
 
-    // Count interactions in global DB
-    const db = openGlobalDatabase();
+    // Count interactions in local DB
+    const db = openLocalDatabase(getProjectRoot());
     let interactionCount = 0;
     if (db) {
       interactionCount = countInteractions(db, { sessionId: id });
@@ -528,7 +528,7 @@ app.delete("/api/sessions", async (c) => {
 
     // Count interactions
     let totalInteractions = 0;
-    const db = openGlobalDatabase();
+    const db = openLocalDatabase(getProjectRoot());
     if (db) {
       for (const session of sessionsToDelete) {
         totalInteractions += countInteractions(db, { sessionId: session.id });
@@ -592,7 +592,7 @@ app.get("/api/current-user", async (c) => {
   }
 });
 
-// Session Interactions API (from SQLite, owner-restricted)
+// Session Interactions API (from local SQLite)
 // Supports master session: collects interactions from all linked sessions
 app.get("/api/sessions/:id/interactions", async (c) => {
   const id = sanitizeId(c.req.param("id"));
@@ -601,13 +601,10 @@ app.get("/api/sessions/:id/interactions", async (c) => {
   const sessionsDir = path.join(memoriaDir, "sessions");
 
   try {
-    // Get current user
-    const currentUser = getCurrentUser();
-
-    // Open global SQLite database
-    const db = openGlobalDatabase();
+    // Open local SQLite database
+    const db = openLocalDatabase(getProjectRoot());
     if (!db) {
-      return c.json({ interactions: [], count: 0, isOwner: false });
+      return c.json({ interactions: [], count: 0 });
     }
 
     // Determine the master session ID
@@ -670,22 +667,8 @@ app.get("/api/sessions/:id/interactions", async (c) => {
       }
     }
 
-    // Check if current user owns interactions for any of these sessions
-    const isOwner = hasInteractionsForSessionIds(db, sessionIds, currentUser);
-    if (!isOwner) {
-      db.close();
-      return c.json(
-        { error: "Forbidden: You are not the owner of this session" },
-        403,
-      );
-    }
-
-    // Get interactions from all related sessions (filtered by owner for security)
-    const interactions = getInteractionsBySessionIdsAndOwner(
-      db,
-      sessionIds,
-      currentUser,
-    );
+    // Get interactions from all related sessions
+    const interactions = getInteractionsBySessionIds(db, sessionIds);
     db.close();
 
     // Group by user/assistant pairs for better display
@@ -736,7 +719,6 @@ app.get("/api/sessions/:id/interactions", async (c) => {
     return c.json({
       interactions: groupedInteractions,
       count: groupedInteractions.length,
-      isOwner: true,
     });
   } catch (error) {
     console.error("Failed to get session interactions:", error);

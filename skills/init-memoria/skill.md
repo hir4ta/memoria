@@ -16,13 +16,21 @@ Create the `.memoria` directory structure in the current project.
    - `.memoria/sessions/`
    - `.memoria/rules/`
    - `.memoria/patterns/`
+   - `.memoria/decisions/`
 3. Copy default tags from the plugin's `hooks/default-tags.json` to `.memoria/tags.json`
-4. Create empty rules files:
+4. Create `.memoria/.gitignore` to exclude local database:
+   ```
+   # Local SQLite database (private interactions)
+   local.db
+   local.db-wal
+   local.db-shm
+   ```
+5. Create empty rules files:
    - `.memoria/rules/dev-rules.json`
    - `.memoria/rules/review-guidelines.json`
-5. Initialize global SQLite database at `~/.claude/memoria/global.db` (if not exists)
-   - Note: Data is stored globally, shared across all projects
-   - Use `MEMORIA_DATA_DIR` env var to override location
+6. Initialize local SQLite database at `.memoria/local.db`
+   - Note: Data is stored locally within the project
+   - The local.db is gitignored (private interactions)
 
 Use this JSON template for the rules files:
 ```json
@@ -34,22 +42,20 @@ Use this JSON template for the rules files:
 }
 ```
 
-For SQLite initialization (global database):
+For SQLite initialization (local database):
 ```bash
-# Global database location
-MEMORIA_DB_DIR="${MEMORIA_DATA_DIR:-$HOME/.claude/memoria}"
-mkdir -p "$MEMORIA_DB_DIR"
+# Local database location
+MEMORIA_DIR=".memoria"
 
 # Initialize with schema
-sqlite3 "$MEMORIA_DB_DIR/global.db" < /path/to/memoria/lib/schema.sql
+sqlite3 "$MEMORIA_DIR/local.db" < /path/to/memoria/lib/schema.sql
 ```
 
 Or if schema.sql is not available, create minimal schema:
 ```bash
-MEMORIA_DB_DIR="${MEMORIA_DATA_DIR:-$HOME/.claude/memoria}"
-mkdir -p "$MEMORIA_DB_DIR"
+MEMORIA_DIR=".memoria"
 
-sqlite3 "$MEMORIA_DB_DIR/global.db" "
+sqlite3 "$MEMORIA_DIR/local.db" "
 CREATE TABLE IF NOT EXISTS interactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id TEXT NOT NULL,
@@ -89,7 +95,7 @@ CREATE TABLE IF NOT EXISTS migrations (
 "
 ```
 
-**Note:** The global database stores data from all projects. Each interaction includes `project_path` and `repository` fields for filtering.
+**Note:** The local database stores interactions for this project only. It is gitignored to keep conversations private.
 
 After creation, confirm success and explain that memoria will now track sessions in this project.
 </instructions>

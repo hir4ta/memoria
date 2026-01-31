@@ -1,7 +1,6 @@
 // lib/db.ts
 import { execSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 var originalEmit = process.emit;
@@ -25,27 +24,20 @@ function getCurrentUser() {
     }
   }
 }
-function getGlobalDbDir() {
-  const envDir = process.env.MEMORIA_DATA_DIR;
-  if (envDir) {
-    return envDir;
-  }
-  return join(homedir(), ".claude", "memoria");
-}
-function getGlobalDbPath() {
-  return join(getGlobalDbDir(), "global.db");
+function getLocalDbPath(projectPath) {
+  return join(projectPath, ".memoria", "local.db");
 }
 function configurePragmas(db) {
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA busy_timeout = 5000");
   db.exec("PRAGMA synchronous = NORMAL");
 }
-function initGlobalDatabase() {
-  const dbDir = getGlobalDbDir();
-  if (!existsSync(dbDir)) {
-    mkdirSync(dbDir, { recursive: true });
+function initLocalDatabase(projectPath) {
+  const memoriaDir = join(projectPath, ".memoria");
+  if (!existsSync(memoriaDir)) {
+    mkdirSync(memoriaDir, { recursive: true });
   }
-  const dbPath = getGlobalDbPath();
+  const dbPath = getLocalDbPath(projectPath);
   const db = new DatabaseSync(dbPath);
   configurePragmas(db);
   const schemaPath = join(__dirname, "schema.sql");
@@ -55,8 +47,8 @@ function initGlobalDatabase() {
   }
   return db;
 }
-function openGlobalDatabase() {
-  const dbPath = getGlobalDbPath();
+function openLocalDatabase(projectPath) {
+  const dbPath = getLocalDbPath(projectPath);
   if (!existsSync(dbPath)) {
     return null;
   }
@@ -327,8 +319,6 @@ export {
   getAllBackups,
   getCurrentUser,
   getDbStats,
-  getGlobalDbDir,
-  getGlobalDbPath,
   getInteractions,
   getInteractionsByOwner,
   getInteractionsByProject,
@@ -336,14 +326,15 @@ export {
   getInteractionsBySessionIds,
   getInteractionsBySessionIdsAndOwner,
   getLatestBackup,
+  getLocalDbPath,
   getRepositoryInfo,
   getUniqueProjects,
   getUniqueRepositories,
   hasInteractions,
   hasInteractionsForSessionIds,
-  initGlobalDatabase,
+  initLocalDatabase,
   insertInteractions,
   insertPreCompactBackup,
-  openGlobalDatabase,
+  openLocalDatabase,
   searchInteractions
 };

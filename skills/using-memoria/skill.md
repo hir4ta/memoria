@@ -54,13 +54,13 @@ This creates the `.memoria/` directory with the required structure. memoria will
 
 ### Auto-Save (at Session End)
 
-**Interactions are auto-saved** by SessionEnd hook using jq:
+**Interactions are auto-saved** by SessionEnd hook to `.memoria/local.db`:
 
 ```
-[Session ends] → [SessionEnd hook] → [jq extracts from transcript] → [JSON updated]
+[Session ends] → [SessionEnd hook] → [jq extracts from transcript] → [SQLite updated]
 ```
 
-Automatically saved:
+Automatically saved to local.db:
 - User messages
 - Assistant responses (including thinking blocks)
 - Tool usage
@@ -76,7 +76,7 @@ the complete conversation history.
 
 | Data | Destination |
 |------|-------------|
-| **Interactions** (conversation history) | sessions/*.json |
+| **Interactions** (conversation history) | local.db |
 | Summary (title, goal, outcome) | sessions/*.json |
 | Discussions → **Decisions** | decisions/*.json |
 | Errors → **Patterns** | patterns/*.json |
@@ -85,11 +85,12 @@ the complete conversation history.
 
 <phases>
 Execute all phases in order:
-- Phase 0: Interactions (merges preCompactBackups if auto-compact occurred)
-- Phase 1: Summary
-- Phase 2: Decisions
-- Phase 3: Patterns
-- Phase 4: Rules (scan for explicit instructions and implicit technical standards)
+- Phase 0: Master Session (merge child sessions)
+- Phase 1: Interactions (save to local.db)
+- Phase 2: Summary
+- Phase 3: Decisions
+- Phase 4: Patterns
+- Phase 5: Rules (scan for explicit instructions and implicit technical standards)
 </phases>
 
 ### Auto Memory Search
@@ -124,8 +125,9 @@ npx @hir4ta/memoria --dashboard
 
 ```
 .memoria/
+├── local.db          # SQLite database (interactions - gitignored)
 ├── tags.json         # Tag master file
-├── sessions/         # Session history (auto + manual)
+├── sessions/         # Session metadata (no interactions)
 │   └── YYYY/MM/
 │       └── {id}.json
 ├── decisions/        # Technical decisions (from /save)
@@ -138,22 +140,24 @@ npx @hir4ta/memoria --dashboard
 └── reports/          # Weekly reports
 ```
 
+**Privacy**: `local.db` is gitignored (private conversations stay local).
+
 ## What Gets Saved
 
-| Field | Trigger | Source |
-|-------|---------|--------|
-| interactions | SessionEnd or /memoria:save | Auto (jq) or Manual |
-| files | SessionEnd or /memoria:save | Auto (jq) or Manual |
-| metrics | SessionEnd or /memoria:save | Auto (jq) or Manual |
-| title, tags | /memoria:save | Manual |
-| summary | /memoria:save | Manual |
-| discussions → decisions/ | /memoria:save | Manual |
-| errors → patterns/ | /memoria:save | Manual |
-| rules/ | /memoria:save | Manual |
-| handoff | /memoria:save | Manual |
-| references | /memoria:save | Manual |
+| Field | Trigger | Destination |
+|-------|---------|-------------|
+| interactions | SessionEnd or /memoria:save | local.db |
+| files | SessionEnd or /memoria:save | sessions/*.json |
+| metrics | SessionEnd or /memoria:save | sessions/*.json |
+| title, tags | /memoria:save | sessions/*.json |
+| summary | /memoria:save | sessions/*.json |
+| discussions → decisions/ | /memoria:save | decisions/*.json |
+| errors → patterns/ | /memoria:save | patterns/*.json |
+| rules/ | /memoria:save | rules/*.json |
+| handoff | /memoria:save | sessions/*.json |
+| references | /memoria:save | sessions/*.json |
 
-**Note:** `/memoria:save` now saves interactions too - no need to exit first.
+**Note:** `/memoria:save` saves interactions to local.db immediately - no need to exit first.
 
 ## tags.json (Tag Master)
 

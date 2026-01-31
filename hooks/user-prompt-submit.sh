@@ -39,9 +39,8 @@ fi
 # Define memoria directory
 memoria_dir="${cwd}/.memoria"
 
-# Global database path
-global_db_dir="${MEMORIA_DATA_DIR:-$HOME/.claude/memoria}"
-global_db_path="${global_db_dir}/global.db"
+# Local database path
+local_db_path="${memoria_dir}/local.db"
 
 # Exit if no .memoria directory
 if [ ! -d "$memoria_dir" ]; then
@@ -102,13 +101,13 @@ if [ -z "$keywords" ]; then
     exit 0
 fi
 
-# Search global SQLite database for interactions
-search_global_db() {
+# Search local SQLite database for interactions
+search_local_db() {
     local pattern="$1"
     local results=""
 
-    # Check if sqlite3 is available and global DB exists
-    if ! command -v sqlite3 &> /dev/null || [ ! -f "$global_db_path" ]; then
+    # Check if sqlite3 is available and local DB exists
+    if ! command -v sqlite3 &> /dev/null || [ ! -f "$local_db_path" ]; then
         echo ""
         return
     fi
@@ -121,13 +120,12 @@ search_global_db() {
     # Try FTS5 first, fallback to LIKE
     local db_matches=""
 
-    # Search interactions for current project (by project_path)
+    # Search interactions (project-local database)
     # Limit to 3 most recent matches
-    db_matches=$(sqlite3 -separator '|' "$global_db_path" "
+    db_matches=$(sqlite3 -separator '|' "$local_db_path" "
         SELECT DISTINCT session_id, substr(content, 1, 100) as snippet
         FROM interactions
-        WHERE project_path = '${cwd}'
-          AND (content LIKE '%${like_pattern}%' OR thinking LIKE '%${like_pattern}%')
+        WHERE content LIKE '%${like_pattern}%' OR thinking LIKE '%${like_pattern}%'
         ORDER BY timestamp DESC
         LIMIT 3;
     " 2>/dev/null || echo "")
@@ -197,8 +195,8 @@ search_memoria() {
         done
     fi
 
-    # Search global SQLite database
-    local db_results=$(search_global_db "$pattern")
+    # Search local SQLite database
+    local db_results=$(search_local_db "$pattern")
     if [ -n "$db_results" ]; then
         results="${results}${db_results}"
     fi

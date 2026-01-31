@@ -258,42 +258,37 @@ flowchart TB
 
 memoriaは**ハイブリッドストレージ**方式でプライバシーと共有を両立：
 
-| ストレージ | 用途 | 共有 |
-|-----------|------|------|
-| **JSON** | 要約、決定、パターン、ルール | Git管理（チーム共有） |
-| **SQLite** | 会話履歴、バックアップ | ローカル専用（.gitignore） |
+| ストレージ | 場所 | 用途 | 共有 |
+|-----------|------|------|------|
+| **JSON** | `.memoria/` | 要約、決定、パターン、ルール | Git管理（チーム共有） |
+| **SQLite** | `.memoria/local.db` | 会話履歴、バックアップ | ローカル専用（gitignored） |
 
 **なぜハイブリッド？**
-- **プライバシー**: 会話履歴（interactions）は各開発者のローカルのみ
+- **プライバシー**: 会話履歴（interactions）はローカルのみ（gitignored）
 - **軽量化**: JSONファイルが100KB+から約5KBに軽量化（interactions除外）
 - **将来対応**: セマンティック検索用のembeddingsテーブル準備済み
 
 ### ディレクトリ構成
 
-**プロジェクト内** (`.memoria/`) - Git管理、チーム共有:
+**プロジェクト内** (`.memoria/`):
 ```text
 .memoria/
+├── local.db          # SQLite（会話履歴）- gitignored
 ├── tags.json         # タグマスターファイル（93タグ、表記揺れ防止）
-├── sessions/         # セッションメタデータ
+├── sessions/         # セッションメタデータ - Git管理
 │   └── YYYY/MM/
-│       └── {id}.json # メタデータのみ（interactionsはSQLite）
-├── decisions/        # 技術的な判断（/saveから）
+│       └── {id}.json # メタデータのみ（interactionsはlocal.db）
+├── decisions/        # 技術的な判断（/saveから）- Git管理
 │   └── YYYY/MM/
 │       └── {id}.json
-├── patterns/         # エラーパターン（/saveから）
+├── patterns/         # エラーパターン（/saveから）- Git管理
 │   └── {user}.json
-├── rules/            # 開発ルール / レビュー観点
-├── reviews/          # レビュー結果 (YYYY/MM)
-└── reports/          # 週次レポート (YYYY-MM)
+├── rules/            # 開発ルール / レビュー観点 - Git管理
+├── reviews/          # レビュー結果 (YYYY/MM) - Git管理
+└── reports/          # 週次レポート (YYYY-MM) - Git管理
 ```
 
-**グローバル** (`~/.claude/memoria/`) - ローカル専用、クロスプロジェクト:
-```text
-~/.claude/memoria/
-└── global.db         # SQLite（全プロジェクトのinteractions）
-```
-
-環境変数 `MEMORIA_DATA_DIR` でDBの場所をカスタマイズ可能。
+`local.db` は `.memoria/.gitignore` に追加され、会話はプライベートに保たれます。
 
 ### セッションJSONスキーマ
 
