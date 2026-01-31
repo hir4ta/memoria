@@ -103,7 +103,11 @@ function PatternCard({
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-2 mb-1">
           <CardTitle className="text-sm font-medium line-clamp-2">
-            {pattern.title || pattern.description}
+            {pattern.title ||
+              pattern.description ||
+              pattern.errorPattern ||
+              pattern.solution ||
+              "Untitled"}
           </CardTitle>
         </div>
         <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400 mb-2">
@@ -165,7 +169,11 @@ function PatternDetailDialog({
             </Badge>
           </div>
           <DialogTitle className="mt-2">
-            {pattern.title || pattern.description}
+            {pattern.title ||
+              pattern.description ||
+              pattern.errorPattern ||
+              pattern.solution ||
+              "Untitled"}
           </DialogTitle>
         </DialogHeader>
 
@@ -304,6 +312,7 @@ export function PatternsPage() {
   const filteredPatterns = patterns.filter((pattern) => {
     const matchesSearch =
       searchQuery === "" ||
+      pattern.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       pattern.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       pattern.errorPattern?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       pattern.solution?.toLowerCase().includes(searchQuery.toLowerCase());

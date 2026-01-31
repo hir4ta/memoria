@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useInvalidateSessions } from "@/hooks/use-sessions";
 import {
   deleteSession,
   getSession,
@@ -15,7 +16,6 @@ import {
   getTags,
   type InteractionFromSQLite,
 } from "@/lib/api";
-import { useInvalidateSessions } from "@/hooks/use-sessions";
 import type { Session, Tag } from "@/lib/types";
 
 // Format date as YYYY/M/D HH:MM:SS with leading zeros for time

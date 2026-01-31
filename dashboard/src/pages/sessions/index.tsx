@@ -102,7 +102,6 @@ export function SessionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [projectFilter, setProjectFilter] = useState<string>("all");
 
   // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -119,7 +118,6 @@ export function SessionsPage() {
     limit: 20,
     tag: tagFilter !== "all" ? tagFilter : undefined,
     type: typeFilter !== "all" ? typeFilter : undefined,
-    project: projectFilter !== "all" ? projectFilter : undefined,
     search: debouncedSearch || undefined,
   });
 
@@ -172,17 +170,6 @@ export function SessionsPage() {
     "workflow",
   ];
 
-  // Get unique projects from all sessions for filter dropdown
-  const availableProjects = useMemo(() => {
-    if (!data?.data) return [];
-    const projectSet = new Set<string>();
-    for (const session of data.data) {
-      const projectName = session.context?.projectName;
-      if (projectName) projectSet.add(projectName);
-    }
-    return Array.from(projectSet).sort();
-  }, [data?.data]);
-
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -220,8 +207,7 @@ export function SessionsPage() {
       {(pagination?.total || 0) === 0 &&
       !debouncedSearch &&
       tagFilter === "all" &&
-      typeFilter === "all" &&
-      projectFilter === "all" ? (
+      typeFilter === "all" ? (
         <div className="text-center py-12 text-muted-foreground">
           <p>{t("noSessionsFound")}</p>
           <p className="text-sm mt-2">{t("noSessionsDescription")}</p>
@@ -285,25 +271,6 @@ export function SessionsPage() {
                       ))}
                     </SelectGroup>
                   ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={projectFilter}
-              onValueChange={(value) => {
-                setProjectFilter(value);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder={tc("allProjects")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{tc("allProjects")}</SelectItem>
-                {availableProjects.map((project) => (
-                  <SelectItem key={project} value={project}>
-                    {project}
-                  </SelectItem>
-                ))}
               </SelectContent>
             </Select>
           </div>

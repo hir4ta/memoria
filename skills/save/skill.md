@@ -240,6 +240,8 @@ This phase creates a session-link file so that `session-end.sh` can find the cor
   "patterns": [
     {
       "type": "error-solution",
+      "title": "JWT RS256 requires asymmetric key",
+      "description": "secretOrPrivateKey must be an asymmetric key when using RS256",
       "errorPattern": "secretOrPrivateKey must be asymmetric",
       "errorRegex": "secretOrPrivateKey.*asymmetric",
       "solution": "Generate RS256 key pair instead of using symmetric secret",
@@ -256,6 +258,9 @@ This phase creates a session-link file so that `session-end.sh` can find the cor
   "updatedAt": "2026-01-27T10:00:00Z"
 }
 ```
+
+**Required fields:** `type`, `title`, `errorPattern` (for error-solution), `solution`
+**Optional fields:** `description`, `errorRegex`, `reasoning`, `relatedFiles`, `tags`, etc.
 
 **If pattern already exists:**
 - Increment `occurrences`
@@ -396,10 +401,9 @@ Report each phase result:
   Children merged: xyz78901, def45678
   Work periods: 3
 
-**Phase 1 - Interactions:** 42 saved to SQLite
-  - From abc12345: 15 interactions
-  - From xyz78901: 18 interactions
-  - From def45678: 9 interactions
+**Phase 1 - Session Link:** Created for SessionEnd hook
+  - Link: .memoria/session-links/{claude-session-id}.json
+  - Note: Interactions will be saved when session ends
 
 **Phase 2 - Summary:**
 | Field | Value |
@@ -435,8 +439,8 @@ If no rules are found, report what was scanned:
 ## Notes
 
 - Session path is shown in additionalContext at session start
-- **Interactions are saved to global SQLite** - no need to `/exit` first
-- Interactions are also auto-saved by SessionEnd hook to global SQLite
+- **Interactions are NOT saved by this command** - they are auto-saved by SessionEnd hook when the session ends
+- To see interactions in dashboard, you must end the session (`/exit`) after `/memoria:save`
 - **Privacy**: Interactions in SQLite are local to each developer (not in Git)
 - **Global storage**: `~/.claude/memoria/global.db` stores interactions from all projects
 - **Project filtering**: Each interaction includes `project_path` and `repository` fields
