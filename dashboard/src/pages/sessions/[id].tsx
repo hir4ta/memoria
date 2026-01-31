@@ -462,7 +462,11 @@ export function SessionDetailPage() {
   const date = new Date(session.createdAt).toLocaleString(
     i18n.language === "ja" ? "ja-JP" : "en-US",
   );
-  const userName = session.context.user?.name || tc("unknown");
+  // Check both context.user.name and top-level user.name for backwards compatibility
+  const userName =
+    session.context.user?.name ||
+    (session as { user?: { name?: string } }).user?.name ||
+    tc("unknown");
   const interactionCount = interactions.length;
 
   return (

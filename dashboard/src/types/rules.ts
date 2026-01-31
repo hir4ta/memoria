@@ -6,7 +6,14 @@ export interface RuleSource {
 export interface RuleItem {
   id: string;
   key: string;
-  text: string;
+  // text is the primary field, but some schemas use title/description instead
+  text?: string;
+  title?: string;
+  description?: string;
+  // Legacy field from older schema
+  severity?: "error" | "warning" | "info";
+  patterns?: string[];
+  check?: string;
   category?: string;
   scope?: string;
   tags?: string[];

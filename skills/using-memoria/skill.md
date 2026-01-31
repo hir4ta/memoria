@@ -15,7 +15,7 @@ Initialize memoria in your project:
 
 ```bash
 # From Claude Code (after /plugin add)
-/memoria:init
+/init-memoria
 
 # Or from terminal
 npx @hir4ta/memoria --init
@@ -40,7 +40,7 @@ This creates the `.memoria/` directory with the required structure. memoria will
 
 | Command | Description |
 |---------|-------------|
-| `/memoria:init` | Initialize memoria in current project |
+| `/init-memoria` | Initialize memoria in current project |
 | `/memoria:save` | Save all data: interactions, summary, decisions, patterns, rules |
 | `/memoria:plan [topic]` | Memory-informed design + Socratic questions + task breakdown |
 | `/memoria:resume [id]` | Resume session (omit ID for list) |

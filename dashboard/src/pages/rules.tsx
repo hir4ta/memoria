@@ -41,6 +41,18 @@ const uniqueSorted = (values: string[]) =>
 
 type RuleWithType = RuleItem & { ruleType?: RuleType };
 
+// Helper to get display text from rule item (supports both text and title/description schemas)
+function getRuleDisplayText(item: RuleWithType): string {
+  return item.text || item.title || "";
+}
+
+// Map severity to priority for legacy schema
+function severityToPriority(severity?: string): "p0" | "p1" | "p2" | undefined {
+  if (severity === "error") return "p0";
+  if (severity === "warning") return "p1";
+  return undefined;
+}
+
 function RuleCard({
   item,
   onClick,
@@ -48,8 +60,10 @@ function RuleCard({
   item: RuleWithType;
   onClick: () => void;
 }) {
-  const effectivePriority = item.priority ?? "p2";
+  const effectivePriority =
+    item.priority ?? severityToPriority(item.severity) ?? "p2";
   const categoryValue = item.category ?? "general";
+  const displayText = getRuleDisplayText(item);
 
   return (
     <Card
@@ -57,7 +71,7 @@ function RuleCard({
       onClick={onClick}
     >
       <CardContent className="p-3">
-        <p className="text-sm font-medium line-clamp-2 mb-2">{item.text}</p>
+        <p className="text-sm font-medium line-clamp-2 mb-2">{displayText}</p>
         <div className="flex items-center gap-2 flex-wrap">
           <Badge
             variant={priorityColors[effectivePriority]}
@@ -112,8 +126,10 @@ function RuleDetailDialog({
 
   if (!item) return null;
 
-  const effectivePriority = item.priority ?? "p2";
+  const effectivePriority =
+    item.priority ?? severityToPriority(item.severity) ?? "p2";
   const categoryValue = item.category ?? "general";
+  const displayText = getRuleDisplayText(item);
 
   const updateDraft = <K extends keyof RuleWithType>(
     key: K,
@@ -124,7 +140,7 @@ function RuleDetailDialog({
 
   const handleSave = async () => {
     if (!draft) return;
-    const trimmedText = draft.text.trim();
+    const trimmedText = getRuleDisplayText(draft).trim();
     if (!trimmedText) {
       setError(t("errors.emptyText"));
       return;
@@ -133,13 +149,20 @@ function RuleDetailDialog({
     setSaving(true);
     setError(null);
     try {
-      await onSave({
+      // Preserve the original schema format (text vs title/description)
+      const updates: Partial<RuleWithType> = {
         ...draft,
-        text: trimmedText,
         category: draft.category?.trim() || undefined,
         rationale: draft.rationale?.trim() || undefined,
         updatedAt: new Date().toISOString(),
-      });
+      };
+      // Update the appropriate field based on schema
+      if (draft.title !== undefined) {
+        updates.title = trimmedText;
+      } else {
+        updates.text = trimmedText;
+      }
+      await onSave(updates as RuleWithType);
       setIsEditing(false);
       onOpenChange(false);
     } catch {
@@ -171,7 +194,7 @@ function RuleDetailDialog({
             </span>
           </div>
           <DialogTitle className="text-left">
-            {isEditing ? t("editRule") : item.text}
+            {isEditing ? t("editRule") : displayText}
           </DialogTitle>
         </DialogHeader>
 
@@ -185,10 +208,30 @@ function RuleDetailDialog({
               </span>
               <Textarea
                 className="min-h-[80px]"
-                value={draft.text}
-                onChange={(e) => updateDraft("text", e.target.value)}
+                value={getRuleDisplayText(draft)}
+                onChange={(e) => {
+                  // Update the appropriate field based on schema
+                  if (draft.title !== undefined) {
+                    updateDraft("title", e.target.value);
+                  } else {
+                    updateDraft("text", e.target.value);
+                  }
+                }}
               />
             </div>
+            {/* Show description field if using title/description schema */}
+            {draft.description !== undefined && (
+              <div>
+                <span className="text-xs font-medium text-muted-foreground block mb-1">
+                  {t("fields.description")}
+                </span>
+                <Textarea
+                  className="min-h-[60px]"
+                  value={draft.description ?? ""}
+                  onChange={(e) => updateDraft("description", e.target.value)}
+                />
+              </div>
+            )}
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <span className="text-xs font-medium text-muted-foreground block mb-1">
@@ -258,19 +301,30 @@ function RuleDetailDialog({
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Show description if using title/description schema */}
+            {item.description && (
+              <div>
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  {t("fields.description")}
+                </span>
+                <p className="text-sm mt-1 whitespace-pre-wrap">
+                  {item.description}
+                </p>
+              </div>
+            )}
             <div>
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 {t("fields.category")}
               </span>
               <p className="text-sm mt-1">{categoryValue}</p>
             </div>
-            {item.rationale && (
+            {(item.rationale || item.check) && (
               <div>
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  {t("fields.rationale")}
+                  {item.check ? t("fields.check") : t("fields.rationale")}
                 </span>
                 <p className="text-sm mt-1 whitespace-pre-wrap">
-                  {item.rationale}
+                  {item.rationale || item.check}
                 </p>
               </div>
             )}
@@ -371,6 +425,8 @@ export function RulesPage() {
       if (!normalizedQuery) return true;
       const haystack = [
         item.text,
+        item.title,
+        item.description,
         item.key,
         categoryValue,
         item.status,

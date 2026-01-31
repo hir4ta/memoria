@@ -78,7 +78,7 @@ Then initialize memoria in your project:
 
 ```bash
 # In Claude Code
-/memoria:init
+/init-memoria
 
 # Or from terminal
 npx @hir4ta/memoria --init
@@ -139,7 +139,7 @@ Continue from a previous session? Use `/memoria:resume <id>`
 
 | Command | Description |
 |---------|-------------|
-| `/memoria:init` | Initialize memoria in current project |
+| `/init-memoria` | Initialize memoria in current project |
 | `/memoria:save` | Extract all data: summary, decisions, patterns, rules |
 | `/memoria:plan [topic]` | Memory-informed design + Socratic questions + task breakdown |
 | `/memoria:resume [id]` | Resume session (show list if ID omitted) |

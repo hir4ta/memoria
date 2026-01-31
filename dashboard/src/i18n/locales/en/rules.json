@@ -15,7 +15,9 @@
     "description": "Rules are extracted from sessions when you run <code>/memoria:save</code>. Use <code>/memoria:review</code> to check code against these rules."
   },
   "fields": {
-    "text": "Text",
+    "text": "Title",
+    "description": "Description",
+    "check": "Check",
     "status": "Status",
     "priority": "Priority",
     "category": "Category",
@@ -25,7 +27,8 @@
     "appliesTo": "Applies To (comma separated)",
     "exceptions": "Exceptions (comma separated)",
     "lastSeen": "Last Seen",
-    "occurrences": "Occurrences"
+    "occurrences": "Occurrences",
+    "source": "Source"
   },
   "status": {
     "active": "active",

@@ -15,7 +15,9 @@
     "description": "<code>/memoria:save</code>を実行するとセッションからルールが抽出されます。<code>/memoria:review</code>でこれらのルールに基づいてコードをチェックできます。"
   },
   "fields": {
-    "text": "テキスト",
+    "text": "タイトル",
+    "description": "説明",
+    "check": "チェック内容",
     "status": "ステータス",
     "priority": "優先度",
     "category": "カテゴリ",
@@ -25,7 +27,8 @@
     "appliesTo": "適用対象（カンマ区切り）",
     "exceptions": "例外（カンマ区切り）",
     "lastSeen": "最終確認",
-    "occurrences": "発生回数"
+    "occurrences": "発生回数",
+    "source": "出典"
   },
   "status": {
     "active": "有効",

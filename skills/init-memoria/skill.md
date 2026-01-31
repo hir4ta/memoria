@@ -1,5 +1,5 @@
 ---
-name: init
+name: init-memoria
 description: |
   Initialize memoria in the current project by creating .memoria directory structure.
   Use when: (1) setting up memoria in a new project, (2) the project doesn't have .memoria yet.

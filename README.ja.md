@@ -78,7 +78,7 @@ Claude Code内で以下を実行
 
 ```bash
 # Claude Code内で
-/memoria:init
+/init-memoria
 
 # またはターミナルから
 npx @hir4ta/memoria --init
@@ -139,7 +139,7 @@ Continue from a previous session? Use `/memoria:resume <id>`
 
 | コマンド | 説明 |
 | --------- | ------ |
-| `/memoria:init` | プロジェクトでmemoriaを初期化 |
+| `/init-memoria` | プロジェクトでmemoriaを初期化 |
 | `/memoria:save` | 全データ抽出: 要約・判断・パターン・ルール |
 | `/memoria:plan [トピック]` | 記憶参照 + ソクラティック質問 + タスク分割 |
 | `/memoria:resume [id]` | セッションを再開（ID省略で一覧表示） |
