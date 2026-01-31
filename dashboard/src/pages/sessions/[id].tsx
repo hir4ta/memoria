@@ -15,6 +15,7 @@ import {
   getTags,
   type InteractionFromSQLite,
 } from "@/lib/api";
+import { useInvalidateSessions } from "@/hooks/use-sessions";
 import type { Session, Tag } from "@/lib/types";
 
 // Format date as YYYY/M/D HH:MM:SS with leading zeros for time
@@ -376,6 +377,7 @@ export function SessionDetailPage() {
   const { t: tc } = useTranslation("common");
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const invalidateSessions = useInvalidateSessions();
   const [session, setSession] = useState<Session | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
   const [interactions, setInteractions] = useState<InteractionFromSQLite[]>([]);
@@ -434,6 +436,7 @@ export function SessionDetailPage() {
     setDeleting(true);
     try {
       await deleteSession(id);
+      invalidateSessions();
       navigate("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete session");
@@ -496,12 +499,6 @@ export function SessionDetailPage() {
                   <span className="text-muted-foreground">{tc("branch")}</span>
                   <span className="font-mono text-xs">
                     {session.context.branch || tc("na")}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{tc("project")}</span>
-                  <span className="font-mono text-xs">
-                    {session.context.projectName || tc("na")}
                   </span>
                 </div>
                 {session.context.repository && (
