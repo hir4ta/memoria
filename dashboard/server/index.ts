@@ -601,8 +601,21 @@ app.get("/api/sessions/:id/interactions", async (c) => {
   const sessionsDir = path.join(memoriaDir, "sessions");
 
   try {
-    // Open local SQLite database
-    const db = openLocalDatabase(getProjectRoot());
+    // Find session file and get projectDir
+    const sessionFilePath = findJsonFileById(sessionsDir, id);
+    let projectDir = getProjectRoot();
+
+    if (sessionFilePath) {
+      const sessionData = safeParseJsonFile<{
+        context?: { projectDir?: string };
+      }>(sessionFilePath);
+      if (sessionData?.context?.projectDir) {
+        projectDir = sessionData.context.projectDir;
+      }
+    }
+
+    // Open local SQLite database for the session's project
+    const db = openLocalDatabase(projectDir);
     if (!db) {
       return c.json({ interactions: [], count: 0 });
     }

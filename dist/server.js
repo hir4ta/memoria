@@ -3743,7 +3743,15 @@ app.get("/api/sessions/:id/interactions", async (c) => {
   const sessionLinksDir = path3.join(memoriaDir2, "session-links");
   const sessionsDir = path3.join(memoriaDir2, "sessions");
   try {
-    const db = openLocalDatabase(getProjectRoot());
+    const sessionFilePath = findJsonFileById(sessionsDir, id);
+    let projectDir = getProjectRoot();
+    if (sessionFilePath) {
+      const sessionData = safeParseJsonFile(sessionFilePath);
+      if (sessionData?.context?.projectDir) {
+        projectDir = sessionData.context.projectDir;
+      }
+    }
+    const db = openLocalDatabase(projectDir);
     if (!db) {
       return c.json({ interactions: [], count: 0 });
     }
